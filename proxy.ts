@@ -12,8 +12,29 @@ function isStaticAsset(pathname: string) {
   return finalSegment.includes(".")
 }
 
+function isAdminHost(hostname: string) {
+  return (
+    hostname === "admin.localhost" ||
+    (hostname.startsWith("admin.") && hostname.length > "admin.".length)
+  )
+}
+
+function getRequestHostname(request: NextRequest) {
+  const hostHeader = request.headers.get("host")?.split(",")[0].trim()
+
+  if (hostHeader) {
+    try {
+      return new URL(`http://${hostHeader}`).hostname.toLowerCase()
+    } catch {
+      // Fall back to NextURL if an intermediary supplied a malformed Host.
+    }
+  }
+
+  return request.nextUrl.hostname.toLowerCase()
+}
+
 function getSurface(hostname: string, pathname: string): AuthSurface | null {
-  if (hostname === "admin.localhost") {
+  if (isAdminHost(hostname)) {
     return "admin"
   }
 
@@ -34,16 +55,21 @@ function getSurface(hostname: string, pathname: string): AuthSurface | null {
   return null
 }
 
-function getLocalRewrite(request: NextRequest): URL | null {
-  const hostname = request.nextUrl.hostname.toLowerCase()
-  const pathname = request.nextUrl.pathname
-  let prefix: string | null = null
-
-  if (hostname === "admin.localhost") {
-    prefix = "/admin"
-  } else if (hostname === "painel.localhost") {
-    prefix = "/painel"
+function getHostRewritePrefix(hostname: string) {
+  if (isAdminHost(hostname)) {
+    return "/admin"
   }
+
+  if (hostname === "painel.localhost") {
+    return "/painel"
+  }
+
+  return null
+}
+
+function getHostRewrite(request: NextRequest, hostname: string): URL | null {
+  const pathname = request.nextUrl.pathname
+  const prefix = getHostRewritePrefix(hostname)
 
   if (!prefix || pathname === prefix || pathname.startsWith(prefix + "/")) {
     return null
@@ -61,9 +87,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const scope = getSurface(request.nextUrl.hostname.toLowerCase(), pathname)
-  const refresh = scope ? await refreshSupabaseSession(request, scope) : { cookies: [], headers: {} }
-  const rewrittenUrl = getLocalRewrite(request)
+  const hostname = getRequestHostname(request)
+  const scope = getSurface(hostname, pathname)
+  const refresh = scope
+    ? await refreshSupabaseSession(request, scope)
+    : { cookies: [], headers: {} }
+  const rewrittenUrl = getHostRewrite(request, hostname)
   const hasRequestUpdates = refresh.cookies.length > 0
   const requestInit = hasRequestUpdates
     ? { request: { headers: request.headers } }

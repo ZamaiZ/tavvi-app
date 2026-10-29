@@ -1,7 +1,7 @@
 # Tavvi v2 — base de transposição
 
 **Data do levantamento:** 2026-10-28  
-**Estado:** descoberta e desenho inicial; nenhuma funcionalidade foi implementada nesta etapa.  
+**Estado:** descoberta e desenho inicial; infraestrutura e páginas de autenticação inicial do Admin implementadas; migration aplicada no Supabase local, com validação end-to-end de autenticação ainda pendente.
 **Destino da nova aplicação:** `C:\Users\Eduardo Zamai\Documents\tavvi-app`  
 **Arquivo de base:** movido para a raiz do projeto de destino `C:\Users\Eduardo Zamai\Documents\tavvi-app` para registrar a transposição.
 
@@ -87,12 +87,12 @@ O legado já separa rotas, componentes de domínio, Server Actions, DAL, schemas
 ## 4. Estado do boilerplate em `tavvi-app`
 
 - Projeto standalone, um único pacote pnpm, Next 16.4.2 e React 19.
-- O preset escolhido gerou `components/ui`, Tailwind 4, `components.json` com `style: base-mira`, `rsc: true` e ícones Lucide. A página atual ainda é apenas o placeholder “Project ready!”.
-- Ainda não há dependências `@supabase/ssr` ou `@supabase/supabase-js`, cliente Supabase, autenticação, DAL ou configuração de ambiente para Supabase.
+- O preset escolhido gerou os componentes shadcn, Tailwind 4 e configuração do boilerplate. A raiz da aplicação ainda mantém o placeholder “Project ready!”; o fluxo Admin inicial já tem rotas próprias e destino protegido em app/admin.
+- package.json inclui @supabase/ssr, @supabase/supabase-js, Zod e Motion. lib/supabase mantém cookies e clientes SSR separados; features/admin/auth implementa login, cadastro inicial, recuperação de claim e navegação segura.
 - O boilerplate está usando `app/` na raiz, o alias `@/*` aponta para a raiz e `components.json` aponta o CSS para `app/globals.css`; essa configuração corresponde ao arquivo existente. Não criar uma segunda árvore `src/app`.
 - O `globals.css` existente é a base do preset. Não adicionar CSS de identidade ou estilos por tela.
-- O layout ainda está marcado como `lang="en"` e importa Geist/Outfit. Adequar idioma e tipografia à identidade Tavvi é decisão visual posterior; não importar as fontes/CSS do legado por padrão.
-- O levantamento e as decisões de transposição estão sendo mantidos neste `__BASE.MD`. Nenhum arquivo do boilerplate `tavvi-app` foi alterado.
+- app/layout.tsx define lang="pt-BR", mantém as fontes/tokens atuais e monta o Toaster existente. Não importar fontes ou CSS do legado.
+- A migration versionada supabase/migrations/20261029000000_platform_admin_identity.sql fornece a base de perfil e Admin único. As páginas de login/cadastro foram implementadas e a migration foi confirmada como aplicada no Supabase local. A primeira conta ainda deve ser criada pelo responsável antes de expor o cadastro em Preview; o fluxo de autenticação não foi submetido durante a implementação.
 
 ## 5. Arquitetura recomendada para Admin e Painel novos
 
@@ -107,6 +107,18 @@ Começar como **monólito modular Next.js + Supabase**, sem Express para Admin, 
 - **Listas:** paginação e busca/filtros no servidor, retornando somente campos usados pela interface. Isso evita carregar todo o histórico de convites/restaurantes para filtrar no cliente.
 - **Banco por ambiente:** manter uma única sequência de migrações do app novo e aplicá-la em Supabase local, no projeto remoto de demo/staging em São Paulo e em um projeto Supabase de produção separado. O projeto novo de São Paulo está vazio e será usado para demo/staging; produção não compartilhará esse banco. A baseline `supabase/migrations/0001_web_baseline.sql` pertence ao legado, não é a baseline do app novo e nunca deve ser aplicada sobre projetos com dados.
 - **Região:** o Supabase local não tem região remota. Para o projeto novo em São Paulo, configurar as funções Vercel em `gru1`. O Supabase legado em Oregon continua separado e suas funções antigas devem ficar próximas do banco (`pdx1`). Não espalhar funções do app novo por regiões distantes da base primária sem réplica/estratégia de leitura.
+
+### Login e cadastro inicial do Admin
+
+- Spec e plan das páginas: docs/superpowers/specs/2026-10-29-platform-admin-auth-pages-design.md e docs/superpowers/plans/2026-10-29-platform-admin-auth-pages.md.
+- Admin terá rotas separadas de entrar e criar-conta. Local usa admin.localhost:3000/entrar e /criar-conta; Preview Vercel usa /admin/entrar e /admin/criar-conta; produção futura usa admin.<domínio>/entrar e /criar-conta com rewrite host-aware.
+- Criar conta mostra formulário somente enquanto admin_registration_open() indicar vaga. O formulário cria nome/email/senha sem confirmação de email e chama claim_platform_admin(); o banco é a autoridade para desempate de concorrência. Após ocupar a vaga, cadastro mostra estado fechado sem identidade do Admin.
+- Se signup Auth concluir mas o claim falhar transitoriamente, manter sessão Admin e permitir repetir apenas o claim idempotente; não recriar a identidade. Se outro usuário vencer, encerrar a sessão perdedora e mostrar cadastro fechado.
+- Login verifica signInWithPassword e is_platform_admin(); uma conta Auth sem papel Admin recebe mensagem genérica e sessão Admin encerrada. next aceita apenas destino local do território Admin. Fallback: raiz Admin em subdomínio e /admin em Preview.
+- Usar createSupabaseServerClient("admin") e tavvi-admin-auth-token. Não misturar cookie do Painel, não guardar tokens/papéis em localStorage e não tratar Proxy ou UI como autorização.
+- Compor os componentes de components/ui sem editar seus arquivos; usar InputGroup, ícones/reveal de senha, FieldError, Toast, validação com Zod e mensagens pt-BR. Sem CSS personalizado e sem alterar globals.css/preset.
+- Motion deve ser discreto e respeitar movimento reduzido. Reutilizar apenas lockups de marca do legado, sem importar seu CSS.
+- O responsável cria a primeira conta em cada ambiente antes de divulgar o endereço; proteção de Preview é operacional e não usa segredo de bootstrap no app.
 
 ### Direção de rotas e contexto do Painel
 
