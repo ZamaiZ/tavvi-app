@@ -10,7 +10,7 @@
 Construir uma nova aplicação para as superfícies Admin da plataforma e Painel de gestão do restaurante, iniciando pelo Admin, pelo fluxo mínimo de entrada/setup do Painel e pelo domínio do cardápio:
 
 - Login de administradores da plataforma.
-- Sem cadastro público de administradores; a primeira conta privilegiada é habilitada manualmente no banco.
+- O cadastro inicial do Admin da plataforma acontece pela aplicação enquanto não existir uma associação de Admin no projeto Supabase; após o primeiro cadastro, a página informa que ele já foi criado e não permite outro. Se a conta Auth associada for removida, o cadastro reabre.
 - Criar, consultar, editar/renovar e revogar convites de entrada.
 - Consultar restaurantes e administrar seus estados.
 - Login e acesso à conta de gestão do restaurante.
@@ -99,7 +99,7 @@ O legado já separa rotas, componentes de domínio, Server Actions, DAL, schemas
 Começar como **monólito modular Next.js + Supabase**, sem Express para Admin, Painel, onboarding e CRUD síncrono:
 
 - **Next App Router:** layouts, páginas e Server Components para carregar listas/detalhes; Server Actions para login/mutações que pertencem ao Admin.
-- **Supabase Auth:** login por senha e sessão server-side com `@supabase/ssr`; sem cadastro público de administrador.
+- **Supabase Auth:** login por senha e sessão server-side; cadastro inicial do Admin da plataforma pela aplicação, uma única associação por projeto Supabase e reabertura do cadastro se a conta Auth for removida.
 - **Postgres/Supabase:** criar o schema do app novo do zero no projeto novo e vazio. Usar o banco legado como referência de regras/semântica, não aplicar sua baseline nem copiar dados automaticamente. O projeto novo passa a ser a fonte de verdade do produto novo após o corte.
 - **Segurança:** verificar usuário e papel de plataforma em cada página e ação; validar entradas no servidor com Zod; manter RLS, funções de banco e restrições; não colocar `service_role`, `APP_SERVER_KEY` ou segredos no bundle do navegador.
 - **Organização:** manter a árvore de rotas em `app/` como o boilerplate está hoje; agrupar domínio em módulos separados, por exemplo `features/admin/auth`, `features/admin/invites`, `features/admin/restaurants`, e concentrar autenticação/DAL em módulos server-only. Server Actions finas delegam à DAL.
@@ -582,6 +582,8 @@ Nada abaixo foi feito nesta fase; são itens para um plano posterior:
 44. **[Resolvida] Como funciona a avaliação no Google?** O Contato mantém link direto de solicitação de avaliação do Google separado do Maps. O botão público abre esse destino externo; não basta levar à localização nem depender de derivar o link do Maps.
 45. **[Resolvida] Qual som usar para novos chamados?** Som opt-in, salvo localmente por navegador: “ding duplo ascendente”, duas notas médias e claras em cerca de 300 ms, perceptíveis sem caráter de alarme. O toque atual do legado é um seno descendente curto (740→520 Hz, cerca de 230 ms) e foi considerado baixo demais.
 
+46. **[Resolvida] Como é criado o primeiro Admin da plataforma?** Pela aplicação, enquanto a vaga única estiver livre; depois, a página informa que já foi criado e bloqueia outro cadastro. O banco impõe a unicidade e o cadastro reabre quando o usuário Auth associado é removido. A primeira conta é criada pelo responsável antes de divulgar o endereço do ambiente; a confirmação de e-mail continua desligada. Cada projeto Supabase de Local, Preview/Staging e Produção terá sua própria conta Admin.
+
 ## 17. Referências internas consultadas
 
 - Admin legado: `apps/web/src/app/admin/(platform)`
@@ -604,4 +606,6 @@ Nada abaixo foi feito nesta fase; são itens para um plano posterior:
 - Vercel/Supabase: [regiões de Functions](https://vercel.com/docs/functions/configuring-functions/region), [regiões Supabase](https://supabase.com/docs/guides/platform/regions).
 - NFC: [Web NFC, Chrome for Developers](https://developer.chrome.com/docs/capabilities/nfc).
 - Google Business Profile: [criar link ou QR code para solicitar avaliações](https://support.google.com/business/answer/16816815?hl=en-11).
+
+
 
