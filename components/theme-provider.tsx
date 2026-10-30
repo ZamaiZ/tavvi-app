@@ -16,6 +16,7 @@ function ThemeProvider({
       {...props}
     >
       <ThemeHotkey />
+      <ThemeColorSync />
       {children}
     </NextThemesProvider>
   )
@@ -65,6 +66,25 @@ function ThemeHotkey() {
       window.removeEventListener("keydown", onKeyDown)
     }
   }, [resolvedTheme, setTheme])
+
+  return null
+}
+
+function ThemeColorSync() {
+  const { resolvedTheme } = useTheme()
+
+  React.useEffect(() => {
+    if (resolvedTheme !== "light" && resolvedTheme !== "dark") {
+      return
+    }
+
+    const color = resolvedTheme === "dark" ? "#0D0C0A" : "#FFFFFF"
+    document
+      .querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')
+      .forEach((meta) => {
+        meta.content = color
+      })
+  }, [resolvedTheme])
 
   return null
 }
