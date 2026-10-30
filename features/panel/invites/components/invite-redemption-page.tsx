@@ -131,6 +131,7 @@ function availabilityMessage(state: NameAvailabilityState) {
   if (state.status === "error") {
     return "Não foi possível verificar agora. O aceite fará a conferência final."
   }
+  if (state.status !== "unavailable") return ""
   if (!state.nameAvailable && !state.slugAvailable) {
     return `Esse nome e a slug “${state.slug}” já estão em uso.`
   }
