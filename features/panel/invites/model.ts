@@ -11,6 +11,16 @@ export type AcceptedRestaurant = {
   alreadyAccepted: boolean
 }
 
+export type RestaurantNameAvailability =
+  | { status: "available"; slug: string }
+  | {
+      status: "unavailable"
+      slug: string
+      nameAvailable: boolean
+      slugAvailable: boolean
+    }
+  | { status: "error" }
+
 export type AcceptPanelInviteResult =
   | { ok: true; restaurant: AcceptedRestaurant }
   | {
@@ -18,7 +28,6 @@ export type AcceptPanelInviteResult =
       code:
         | "invalid_input"
         | "email_mismatch"
-        | "invalid_credentials"
         | "account_exists"
         | "confirmation_required"
         | "rate_limited"

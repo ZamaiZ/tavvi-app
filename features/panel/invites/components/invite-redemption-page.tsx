@@ -2,16 +2,27 @@
 
 import { useEffect, useState, useTransition } from "react"
 import Image from "next/image"
-import { motion, MotionConfig, useReducedMotion, type Variants } from "motion/react"
+import {
+  AnimatePresence,
+  motion,
+  MotionConfig,
+  useReducedMotion,
+  type Variants,
+} from "motion/react"
 import {
   LuArrowRight,
+  LuAtSign,
   LuCheck,
   LuCircleAlert,
   LuClock3,
+  LuEye,
+  LuEyeOff,
   LuKeyRound,
   LuMail,
+  LuLockKeyhole,
   LuShieldCheck,
   LuStore,
+  LuUserRound,
 } from "react-icons/lu"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -19,11 +30,21 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { acceptPanelInviteAction } from "@/features/panel/invites/actions"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group"
+import {
+  acceptPanelInviteAction,
+  checkPanelInviteRestaurantNameAction,
+} from "@/features/panel/invites/actions"
 import type {
   AcceptPanelInviteResult,
   PanelInvitePreview,
+  RestaurantNameAvailability,
 } from "@/features/panel/invites/model"
 
 const sequence: Variants = {
@@ -43,7 +64,25 @@ const item: Variants = {
   },
 }
 
-type AuthMode = "signup" | "login" | "current"
+const formSequence: Variants = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: { delayChildren: 0.08, staggerChildren: 0.055 },
+  },
+}
+
+const formItem: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] },
+  },
+}
+
+type NameAvailabilityState = RestaurantNameAvailability & { name: string }
+  | { status: "idle" | "debouncing" | "checking"; name: string }
 
 type InviteRedemptionPageProps = {
   token: string | null
@@ -72,17 +111,33 @@ function errorMessage(code: Extract<AcceptPanelInviteResult, { ok: false }>['cod
   const messages: Record<typeof code, string> = {
     invalid_input: "Confira os dados e aceite os termos para continuar.",
     email_mismatch: "Este convite não pode ser usado com este e-mail. Confira se ele ainda está válido e se você informou o endereço correto.",
-    invalid_credentials: "E-mail ou senha não conferem.",
-    account_exists: "Esta conta já existe. Entre com ela para aceitar o convite.",
+    account_exists: "Esta conta já existe. Acesse o Painel com ela e abra novamente o link original do convite.",
     confirmation_required:
       "A conta foi criada e precisa de confirmação por e-mail. Mantenha esta aba aberta, confirme o endereço e volte aqui para entrar. Se fechar ou recarregar, reabra o link original do convite.",
     rate_limited: "Muitas tentativas em sequência. Aguarde um pouco e tente novamente.",
     unavailable: "Este convite não está mais disponível para aceite.",
     slug_unavailable:
-      "Não foi possível reservar um endereço para este restaurante. Tente novamente com outro nome.",
+      "Este nome ou endereço já está em uso. Escolha outro nome para o restaurante.",
     service_unavailable: "O serviço está indisponível no momento. Tente novamente em instantes.",
   }
   return messages[code]
+}
+
+function availabilityMessage(state: NameAvailabilityState) {
+  if (state.status === "idle") return ""
+  if (state.status === "debouncing") return "Aguardando para conferir disponibilidade…"
+  if (state.status === "checking") return "Verificando nome e slug…"
+  if (state.status === "available") return `Slug “${state.slug}” disponível.`
+  if (state.status === "error") {
+    return "Não foi possível verificar agora. O aceite fará a conferência final."
+  }
+  if (!state.nameAvailable && !state.slugAvailable) {
+    return `Esse nome e a slug “${state.slug}” já estão em uso.`
+  }
+  if (!state.nameAvailable) {
+    return `Já existe um restaurante com esse nome; a slug “${state.slug}” está disponível.`
+  }
+  return `O nome está disponível, mas a slug “${state.slug}” já está em uso.`
 }
 
 export function InviteRedemptionPage({
@@ -94,11 +149,16 @@ export function InviteRedemptionPage({
   const [isPending, startTransition] = useTransition()
   const [token] = useState(initialToken)
   const [preview] = useState(initialPreview)
-  const [mode, setMode] = useState<AuthMode>(isAuthenticated ? "current" : "signup")
+  const mode = isAuthenticated ? "current" : "signup"
   const [displayName, setDisplayName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [passwordVisible, setPasswordVisible] = useState(false)
   const [restaurantName, setRestaurantName] = useState("")
+  const [nameAvailability, setNameAvailability] = useState<NameAvailabilityState>({
+    status: "idle",
+    name: "",
+  })
   const [accepted, setAccepted] = useState(false)
   const [actionError, setActionError] = useState("")
   const [acceptedRestaurant, setAcceptedRestaurant] = useState<
@@ -113,10 +173,66 @@ export function InviteRedemptionPage({
     window.history.replaceState(null, "", `${address.pathname}${address.search}${address.hash}`)
   }, [preview.status, token])
 
+  useEffect(() => {
+    const normalizedName = restaurantName.trim()
+    if (preview.status !== "available" || !token || normalizedName.length < 2) {
+      setNameAvailability({ status: "idle", name: normalizedName })
+      return
+    }
+
+    let isCurrent = true
+    const timeout = window.setTimeout(() => {
+      setNameAvailability({ status: "checking", name: normalizedName })
+      void checkPanelInviteRestaurantNameAction({
+        token,
+        restaurantName: normalizedName,
+      }).then((result) => {
+        if (!isCurrent) return
+        if (result.status === "error") {
+          setNameAvailability({ status: "error", name: normalizedName })
+          return
+        }
+        if (result.status === "available") {
+          setNameAvailability({ status: "available", slug: result.slug, name: normalizedName })
+          return
+        }
+        setNameAvailability({
+          status: "unavailable",
+          slug: result.slug,
+          nameAvailable: result.nameAvailable,
+          slugAvailable: result.slugAvailable,
+          name: normalizedName,
+        })
+      }).catch(() => {
+        if (!isCurrent) return
+        setNameAvailability({ status: "error", name: normalizedName })
+      })
+    }, 550)
+
+    return () => {
+      isCurrent = false
+      window.clearTimeout(timeout)
+    }
+  }, [preview.status, restaurantName, token])
+
+  const currentNameAvailability =
+    nameAvailability.name === restaurantName.trim() ? nameAvailability : null
+  const isCheckingName =
+    currentNameAvailability?.status === "debouncing" ||
+    currentNameAvailability?.status === "checking"
+
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!token || !accepted || restaurantName.trim().length < 2) {
       setActionError("Informe o nome do restaurante e confirme o aceite.")
+      return
+    }
+    if (currentNameAvailability?.status === "unavailable") {
+      setActionError("Este nome ou endereço já está em uso. Escolha outro nome.")
+      return
+    }
+    if (isCheckingName) {
+      setActionError("Aguarde a conferência do nome do restaurante.")
       return
     }
 
@@ -126,9 +242,7 @@ export function InviteRedemptionPage({
       restaurantName: restaurantName.trim(),
       accepted: true as const,
       ...(mode === "signup" ? { displayName: displayName.trim() } : {}),
-      ...(mode !== "current"
-        ? { email: email.trim(), password }
-        : {}),
+      ...(mode === "signup" ? { email: email.trim(), password } : {}),
     }
 
     setActionError("")
@@ -276,160 +390,279 @@ export function InviteRedemptionPage({
                   Comece seu restaurante
                 </h1>
                 <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  Crie ou acesse sua conta, informe o nome do restaurante e confirme o aceite.
+                  {isAuthenticated
+                    ? "Confirme o nome do restaurante e aceite este convite para criar seu acesso."
+                    : "Crie sua conta, informe o nome do restaurante e confirme o aceite."}
                 </p>
               </div>
 
-              <div className={`grid ${isAuthenticated ? "grid-cols-3" : "grid-cols-2"} gap-1 border-b border-border/60 bg-muted/30 p-1.5`}>
-                  {(isAuthenticated
-                    ? (["current", "signup", "login"] as const)
-                    : (["signup", "login"] as const)
-                  ).map((authMode) => (
-                    <motion.button
-                      key={authMode}
-                      type="button"
-                      whileTap={{ scale: 0.985 }}
-                      onClick={() => {
-                        setMode(authMode)
-                        setActionError("")
-                      }}
-                      aria-pressed={mode === authMode}
-                      className={`h-9 rounded-xl px-3 text-sm font-medium transition-colors ${
-                        mode === authMode
-                          ? "bg-background text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {authMode === "current"
-                        ? "Conta atual"
-                        : authMode === "signup"
-                          ? "Criar conta"
-                          : "Já tenho conta"}
-                    </motion.button>
-                  ))}
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-5 px-6 py-6 sm:px-9 sm:py-7">
+              <motion.form
+                onSubmit={handleSubmit}
+                initial={shouldReduceMotion ? false : "hidden"}
+                animate="visible"
+                variants={formSequence}
+                className="space-y-4 px-6 py-6 sm:px-9 sm:py-7"
+              >
                 {mode === "current" ? (
-                  <Alert className="rounded-xl">
-                    <LuShieldCheck aria-hidden="true" />
-                    <AlertTitle>Conta conectada</AlertTitle>
-                    <AlertDescription>
-                      O convite será resgatado pela sessão do Painel já autenticada neste navegador.
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <motion.div
-                    key={mode}
-                    initial={shouldReduceMotion ? false : { opacity: 0, y: 7 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="space-y-4"
-                  >
-                    {mode === "signup" && (
-                      <Field>
-                        <FieldLabel htmlFor="invite-display-name">Seu nome</FieldLabel>
-                        <Input
-                          id="invite-display-name"
-                          autoComplete="name"
-                          value={displayName}
-                          onChange={(event) => setDisplayName(event.currentTarget.value)}
-                          required
-                          minLength={2}
-                          maxLength={100}
-                          placeholder="Como podemos chamar você?"
-                          className="h-11 rounded-xl"
-                        />
-                      </Field>
-                    )}
-                    <Field>
-                      <FieldLabel htmlFor="invite-account-email">E-mail</FieldLabel>
-                      <Input
-                        id="invite-account-email"
-                        type="email"
-                        autoComplete="email"
-                        autoCapitalize="none"
-                        autoCorrect="off"
-                        value={email}
-                        onChange={(event) => setEmail(event.currentTarget.value)}
-                        required
-                        maxLength={254}
-                        placeholder="voce@exemplo.com"
-                        className="h-11 rounded-xl"
-                      />
-                      {preview.emailRequired && (
-                        <FieldDescription>
-                          Use o e-mail associado a este convite.
-                        </FieldDescription>
-                      )}
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="invite-account-password">Senha</FieldLabel>
-                      <Input
-                        id="invite-account-password"
-                        type="password"
-                        autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                        value={password}
-                        onChange={(event) => setPassword(event.currentTarget.value)}
-                        required
-                        minLength={mode === "signup" ? 8 : 1}
-                        maxLength={128}
-                        className="h-11 rounded-xl"
-                      />
-                      {mode === "signup" && (
-                        <FieldDescription>
-                          Use pelo menos 8 caracteres.
-                        </FieldDescription>
-                      )}
-                    </Field>
-                  </motion.div>
-                )}
-
-                <Field>
-                  <FieldLabel htmlFor="invite-restaurant-name">Nome do restaurante</FieldLabel>
-                  <Input
-                    id="invite-restaurant-name"
-                    autoComplete="organization"
-                    value={restaurantName}
-                    onChange={(event) => setRestaurantName(event.currentTarget.value)}
-                    required
-                    minLength={2}
-                    maxLength={120}
-                    placeholder="Nome usado para identificar o restaurante"
-                    className="h-11 rounded-xl"
-                  />
-                  <FieldDescription>
-                    O cadastro inicial será criado como rascunho.
-                  </FieldDescription>
-                </Field>
-
-                <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-muted/15 p-3.5 text-sm leading-5 transition-colors hover:bg-muted/30">
-                  <Checkbox
-                    id="invite-acceptance-checkbox"
-                    checked={accepted}
-                    onCheckedChange={(checked) => setAccepted(checked === true)}
-                    aria-labelledby="invite-acceptance-label"
-                    className="mt-0.5"
-                  />
-                  <span id="invite-acceptance-label">
-                    Confirmo que quero aceitar este convite e criar o acesso inicial do restaurante.
-                  </span>
-                </div>
-
-                {actionError && (
-                  <motion.div
-                    initial={shouldReduceMotion ? false : { opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <Alert className="rounded-xl border-destructive/25 bg-destructive/5 text-destructive">
-                      <LuCircleAlert aria-hidden="true" />
-                      <AlertTitle>Não foi possível concluir</AlertTitle>
-                      <AlertDescription>{actionError}</AlertDescription>
+                  <motion.div variants={formItem}>
+                    <Alert className="rounded-xl">
+                      <LuShieldCheck aria-hidden="true" />
+                      <AlertTitle>Conta conectada</AlertTitle>
+                      <AlertDescription>
+                        O convite será resgatado pela sessão do Painel já autenticada neste navegador.
+                      </AlertDescription>
                     </Alert>
                   </motion.div>
+                ) : (
+                  <>
+                    <motion.div variants={formItem}>
+                      <Field>
+                        <FieldLabel htmlFor="invite-display-name">Seu nome</FieldLabel>
+                        <InputGroup className="h-11 rounded-xl bg-background/70">
+                          <InputGroupAddon align="inline-start">
+                            <InputGroupText>
+                              <LuUserRound aria-hidden="true" />
+                            </InputGroupText>
+                          </InputGroupAddon>
+                          <InputGroupInput
+                            id="invite-display-name"
+                            autoComplete="name"
+                            value={displayName}
+                            onChange={(event) => setDisplayName(event.currentTarget.value)}
+                            required
+                            minLength={2}
+                            maxLength={100}
+                            placeholder="Como podemos chamar você?"
+                            className="h-11"
+                          />
+                        </InputGroup>
+                      </Field>
+                    </motion.div>
+
+                    <motion.div variants={formItem}>
+                      <Field>
+                        <FieldLabel htmlFor="invite-account-email">E-mail</FieldLabel>
+                        <InputGroup className="h-11 rounded-xl bg-background/70">
+                          <InputGroupAddon align="inline-start">
+                            <InputGroupText>
+                              <LuAtSign aria-hidden="true" />
+                            </InputGroupText>
+                          </InputGroupAddon>
+                          <InputGroupInput
+                            id="invite-account-email"
+                            type="email"
+                            autoComplete="email"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            value={email}
+                            onChange={(event) => setEmail(event.currentTarget.value)}
+                            required
+                            maxLength={254}
+                            placeholder="voce@exemplo.com"
+                            className="h-11"
+                          />
+                        </InputGroup>
+                        {preview.emailRequired && (
+                          <FieldDescription>
+                            Use o e-mail associado a este convite.
+                          </FieldDescription>
+                        )}
+                      </Field>
+                    </motion.div>
+
+                    <motion.div variants={formItem}>
+                      <Field>
+                        <FieldLabel htmlFor="invite-account-password">Senha</FieldLabel>
+                        <InputGroup className="h-11 rounded-xl bg-background/70">
+                          <InputGroupAddon align="inline-start">
+                            <InputGroupText>
+                              <LuLockKeyhole aria-hidden="true" />
+                            </InputGroupText>
+                          </InputGroupAddon>
+                          <InputGroupInput
+                            id="invite-account-password"
+                            type={passwordVisible ? "text" : "password"}
+                            autoComplete="new-password"
+                            value={password}
+                            onChange={(event) => setPassword(event.currentTarget.value)}
+                            required
+                            minLength={8}
+                            maxLength={128}
+                            className="h-11"
+                          />
+                          <InputGroupAddon align="inline-end">
+                            <motion.div
+                              whileHover={{ scale: 1.06 }}
+                              whileTap={{ scale: 0.92 }}
+                              transition={{ duration: 0.16, ease: "easeOut" }}
+                            >
+                              <InputGroupButton
+                                aria-label={passwordVisible ? "Ocultar senha" : "Mostrar senha"}
+                                aria-pressed={passwordVisible}
+                                className="mr-1 text-muted-foreground"
+                                onClick={() => setPasswordVisible((current) => !current)}
+                                size="icon-sm"
+                              >
+                                <AnimatePresence mode="wait" initial={false}>
+                                  <motion.span
+                                    key={passwordVisible ? "visible" : "hidden"}
+                                    initial={
+                                      shouldReduceMotion
+                                        ? false
+                                        : { opacity: 0, scale: 0.72, rotate: -24 }
+                                    }
+                                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                    exit={
+                                      shouldReduceMotion
+                                        ? { opacity: 1 }
+                                        : { opacity: 0, scale: 0.72, rotate: 24 }
+                                    }
+                                    transition={{
+                                      duration: shouldReduceMotion ? 0 : 0.16,
+                                      ease: "easeOut",
+                                    }}
+                                    className="flex"
+                                  >
+                                    {passwordVisible ? (
+                                      <LuEyeOff aria-hidden="true" />
+                                    ) : (
+                                      <LuEye aria-hidden="true" />
+                                    )}
+                                  </motion.span>
+                                </AnimatePresence>
+                              </InputGroupButton>
+                            </motion.div>
+                          </InputGroupAddon>
+                        </InputGroup>
+                        <FieldDescription>Use pelo menos 8 caracteres.</FieldDescription>
+                      </Field>
+                    </motion.div>
+                  </>
                 )}
 
+                <motion.div variants={formItem}>
+                  <Field>
+                    <FieldLabel htmlFor="invite-restaurant-name">Nome do restaurante</FieldLabel>
+                    <InputGroup
+                      className="h-11 rounded-xl bg-background/70"
+                      aria-invalid={currentNameAvailability?.status === "unavailable" || undefined}
+                    >
+                      <InputGroupAddon align="inline-start">
+                        <InputGroupText>
+                          <LuStore aria-hidden="true" />
+                        </InputGroupText>
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        id="invite-restaurant-name"
+                        autoComplete="organization"
+                        value={restaurantName}
+                        onChange={(event) => {
+                          const value = event.currentTarget.value
+                          const normalizedName = value.trim()
+                          setRestaurantName(value)
+                          setActionError("")
+                          setNameAvailability(
+                            normalizedName.length < 2
+                              ? { status: "idle", name: normalizedName }
+                              : { status: "debouncing", name: normalizedName }
+                          )
+                        }}
+                        required
+                        minLength={2}
+                        maxLength={120}
+                        placeholder="Nome usado para identificar o restaurante"
+                        aria-invalid={currentNameAvailability?.status === "unavailable" || undefined}
+                        aria-describedby="invite-restaurant-name-description invite-restaurant-name-availability"
+                        className="h-11"
+                      />
+                    </InputGroup>
+                    <FieldDescription id="invite-restaurant-name-description">
+                      O cadastro inicial será criado como rascunho.
+                    </FieldDescription>
+                    <div
+                      id="invite-restaurant-name-availability"
+                      className="min-h-5"
+                      aria-live="polite"
+                      aria-atomic="true"
+                    >
+                      <AnimatePresence mode="wait" initial={false}>
+                        {currentNameAvailability && currentNameAvailability.status !== "idle" && (
+                          <motion.p
+                            key={`${currentNameAvailability.status}-${"slug" in currentNameAvailability ? currentNameAvailability.slug : ""}`}
+                            initial={shouldReduceMotion ? false : { opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -3 }}
+                            transition={{ duration: shouldReduceMotion ? 0 : 0.16, ease: "easeOut" }}
+                            className={`flex items-center gap-1.5 pt-1 text-xs ${
+                              currentNameAvailability.status === "available"
+                                ? "text-primary"
+                                : currentNameAvailability.status === "unavailable"
+                                  ? "text-destructive"
+                                  : "text-muted-foreground"
+                            }`}
+                          >
+                            {currentNameAvailability.status === "available" ? (
+                              <LuCheck aria-hidden="true" className="size-3.5 shrink-0" />
+                            ) : currentNameAvailability.status === "unavailable" || currentNameAvailability.status === "error" ? (
+                              <LuCircleAlert aria-hidden="true" className="size-3.5 shrink-0" />
+                            ) : (
+                              <span className="size-3.5 shrink-0 animate-spin rounded-full border border-current/30 border-t-current motion-reduce:animate-none" />
+                            )}
+                            <span>
+                              {availabilityMessage(currentNameAvailability)}
+                            </span>
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </Field>
+                </motion.div>
+
+                <motion.div variants={formItem}>
+                  <div
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest('[data-slot="checkbox"]')) return
+                      setAccepted((current) => !current)
+                    }}
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 text-sm leading-5 transition-colors ${
+                      accepted
+                        ? "border-primary/35 bg-primary/[0.045]"
+                        : "border-border/70 bg-muted/15 hover:bg-muted/30"
+                    }`}
+                  >
+                    <Checkbox
+                      id="invite-acceptance-checkbox"
+                      checked={accepted}
+                      onCheckedChange={(checked) => setAccepted(checked === true)}
+                      aria-labelledby="invite-acceptance-label"
+                      className="mt-0.5"
+                    />
+                    <span id="invite-acceptance-label" className="select-none">
+                      Confirmo que quero aceitar este convite e criar o acesso inicial do restaurante.
+                    </span>
+                  </div>
+                </motion.div>
+
+                <AnimatePresence initial={false}>
+                  {actionError && (
+                    <motion.div
+                      key="action-error"
+                      variants={formItem}
+                      initial={shouldReduceMotion ? false : "hidden"}
+                      animate="visible"
+                      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+                    >
+                      <Alert className="rounded-xl border-destructive/25 bg-destructive/5 text-destructive">
+                        <LuCircleAlert aria-hidden="true" />
+                        <AlertTitle>Não foi possível concluir</AlertTitle>
+                        <AlertDescription>{actionError}</AlertDescription>
+                      </Alert>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 <motion.div
+                  variants={formItem}
                   whileHover={{ y: -1 }}
                   whileTap={{ scale: 0.99 }}
                   transition={{ duration: 0.17, ease: "easeOut" }}
@@ -437,7 +670,12 @@ export function InviteRedemptionPage({
                 >
                   <Button
                     type="submit"
-                    disabled={isPending || !accepted}
+                    disabled={
+                      isPending ||
+                      !accepted ||
+                      isCheckingName ||
+                      currentNameAvailability?.status === "unavailable"
+                    }
                     className="h-11 w-full rounded-xl shadow-sm shadow-primary/10"
                   >
                     {isPending ? (
@@ -451,12 +689,10 @@ export function InviteRedemptionPage({
                       ? "Confirmando acesso…"
                       : mode === "signup"
                         ? "Criar conta e aceitar convite"
-                        : mode === "login"
-                          ? "Entrar e aceitar convite"
-                          : "Aceitar convite"}
+                        : "Aceitar convite"}
                   </Button>
                 </motion.div>
-              </form>
+              </motion.form>
             </motion.section>
           )}
 

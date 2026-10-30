@@ -15,7 +15,7 @@ Substituir os dados de demonstração da página Admin Convites por convites rea
 - Mostrar contagens reais para todos, pendentes, resgatados, vencidos e revogados; nunca calcular contagem a partir da página atual.
 - Exibir detalhes de um convite real, revogar convites pendentes, rotacionar um link e substituir e-mail/validade invalidando o link anterior.
 - Gerar uma URL do território Painel configurada para o ambiente atual e mostrar o token em claro uma única vez para copiar/compartilhar. Não enviar e-mail.
-- Resgatar o convite no Painel: visualizar sem consumir, autenticar/criar conta usando o e-mail vinculado quando definido, informar o nome do restaurante e aceitar explicitamente.
+- Resgatar o convite no Painel: visualizar sem consumir, criar conta (ou aproveitar uma sessão Painel já autenticada) usando o e-mail vinculado quando definido, informar o nome do restaurante e aceitar explicitamente.
 - No aceite, criar o restaurante nomeado em `draft`, gerar seu slug no servidor, criar a primeira membership como administrador do restaurante, consumir o convite e gravar auditoria em uma transação.
 - Após o commit, encerrar o fluxo em uma confirmação factual do acesso e do restaurante `draft` criado. Não redirecionar para `/identidade` nem implementar o onboarding de identidade nesta entrega.
 - Manter somente dados do banco. Sem fixtures, links aleatórios de demonstração, contagens fixas ou registros de exemplo. Quando não houver registros reais, exibir estado vazio com ação de criar convite.
@@ -39,6 +39,7 @@ Substituir os dados de demonstração da página Admin Convites por convites rea
 - Convite de plataforma convida clientes a iniciar um restaurante; não cria um `platform_admin`.
 - E-mail vazio permite qualquer e-mail no aceite. E-mail preenchido deve coincidir com o e-mail da conta após normalização por trim e caixa baixa. Isso não comprova posse da caixa postal porque a confirmação de e-mail do Supabase permanece desligada; o link de alta entropia é a credencial de resgate.
 - Token válido não é consumido ao abrir/visualizar a página. O aceite explícito verifica usuário, validade, revogação, uso anterior, e-mail e estado do restaurante, e só então consome o convite.
+- Na página deslogada do convite, o fluxo visível é apenas criação de conta; se já houver sessão Painel, ela é usada automaticamente. Não há escolha entre login e cadastro nesse formulário.
 - Criar/rotacionar link não envia mensagem. O resultado contém a URL uma única vez e a interface mantém a confirmação/cópia em memória. Reabrir detalhes nunca revela o token anterior.
 - Alterar e-mail ou validade cria uma substituição: revoga o convite antigo e cria outro token em uma transação, preservando histórico.
 - Situação é derivada: revogado, resgatado, vencido ou pendente a partir dos timestamps. Não criar coluna/status que dependa de job para expirar.
@@ -92,6 +93,8 @@ Substituir os dados de demonstração da página Admin Convites por convites rea
 - **Revogação:** confirmar a ação e refletir o status/contagem após sucesso.
 - **Erro de leitura:** estado recuperável com tentar novamente; não converter erro em lista vazia.
 - **Resgate:** preview não consome; mismatch de e-mail bloqueia sem consumir; antes do aceite, exigir apenas o nome do restaurante; sucesso aparece somente após transação concluída e confirma apenas os dados persistidos. A tela não sugere que identidade, contato ou cardápio foram configurados.
+- **Disponibilidade do restaurante:** depois de 550 ms sem digitação, consultar o mesmo nome normalizado e slug-base que o aceite usará. Mostrar a slug proposta e se está disponível; tratar erro de prévia como inconclusivo e deixar a transação retornar o resultado definitivo. Nome ou slug já usados bloqueiam o aceite com orientação para escolher outro nome; não adicionar sufixo randômico.
+- **Formulário de aceite:** ícones decorativos associados aos campos, controle acessível para revelar senha, card de aceite clicável por inteiro sem remover a operação por teclado do checkbox e entrada sequencial com `motion/react` respeitando movimento reduzido.
 
 ## Critérios de aceite
 
@@ -99,7 +102,7 @@ Substituir os dados de demonstração da página Admin Convites por convites rea
 2. Link contém token criptográfico, usa a origem/rota real do Painel, só o hash persiste, e a tela nunca reconstrói um token anterior.
 3. Busca, Tabs, contagens e paginação usam dados reais e funcionam sem carregar todo o histórico no browser.
 4. Revogação, rotação/alteração e auditoria são atômicas e têm atualizações pontuais de UI.
-5. Preview não consome; conta com e-mail divergente não consegue aceitar convite restrito; aceite exige nome do restaurante e só consome o convite junto da criação do restaurante draft, slug e membership; o sucesso termina em confirmação factual, sem navegar para rota inexistente.
+5. Preview não consome; conta com e-mail divergente não consegue aceitar convite restrito; aceite exige nome disponível e confirmação explícita, e só consome o convite junto da criação do restaurante draft, slug e membership; o sucesso termina em confirmação factual, sem navegar para rota inexistente.
 6. Repetições e falhas de rede não produzem múltiplos convites ativos nem feedback enganoso.
 7. Estados loading/empty/error/success são animados com movimento reduzido respeitado; nenhuma fixture, link fictício ou métrica fixa permanece no fluxo.
 8. Admin e Painel mantêm sessões separadas, e cada Server Action/RPC protege a operação sem confiar na interface.
@@ -107,4 +110,8 @@ Substituir os dados de demonstração da página Admin Convites por convites rea
 ## Decisão final de fluxo
 
 Após aceitar o convite, o Painel mostra uma confirmação factual do convite resgatado e do restaurante criado em `draft`. A configuração de Identidade, Contato e Cardápio pertence à próxima fase; não há redirecionamento para uma rota que ainda não existe.
+
+## Ajuste aprovado em 30/10/2026
+
+A interface deslogada de `/painel/convite` permite criar conta, sem alternância para login; uma sessão Painel autenticada continua podendo resgatar automaticamente. O campo de restaurante apresenta disponibilidade após debounce de 550 ms e exibe a slug derivada pelo servidor. A normalização é compartilhada entre verificação e aceite; nome normalizado ou slug existente fazem a transação rejeitar a criação. O banco continua sendo a autoridade final para concorrência e o feedback do browser não reserva o nome.
 

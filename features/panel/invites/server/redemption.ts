@@ -5,6 +5,7 @@ import { z } from "zod"
 import type {
   AcceptedRestaurant,
   PanelInvitePreview,
+  RestaurantNameAvailability,
 } from "@/features/panel/invites/model"
 import { hashPlatformInviteToken } from "@/features/admin/invites/server/token"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
@@ -28,6 +29,20 @@ const acceptedRestaurantSchema = z.object({
   restaurantStatus: z.enum(["draft", "active", "suspended"]),
   alreadyAccepted: z.boolean(),
 }) satisfies z.ZodType<AcceptedRestaurant>
+
+const restaurantAvailabilityResponseSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    available: z.boolean(),
+    slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(80),
+    nameAvailable: z.boolean(),
+    slugAvailable: z.boolean(),
+  }),
+  z.object({
+    ok: z.literal(false),
+    code: z.enum(["invalid_input", "unavailable", "rate_limited"]),
+  }),
+])
 
 const acceptResponseSchema = z.discriminatedUnion("ok", [
   z.object({
@@ -95,6 +110,40 @@ export async function checkPlatformInviteEmail(
   }
 
   return data
+}
+
+export async function checkPlatformInviteRestaurantName(
+  token: string,
+  restaurantName: string
+): Promise<RestaurantNameAvailability> {
+  const parsedToken = inviteTokenSchema.safeParse(token)
+  const parsedName = z.string().trim().min(2).max(120).safeParse(restaurantName)
+  if (!parsedToken.success || !parsedName.success) return { status: "error" }
+
+  try {
+    const supabase = await createSupabaseServerClient("panel")
+    const { data, error } = await supabase.rpc("check_platform_invite_restaurant_name", {
+      p_token_hash_hex: hashPlatformInviteToken(parsedToken.data),
+      p_restaurant_name: parsedName.data,
+    })
+    if (error) return { status: "error" }
+
+    const parsedResponse = restaurantAvailabilityResponseSchema.safeParse(data)
+    if (!parsedResponse.success || !parsedResponse.data.ok) return { status: "error" }
+
+    if (parsedResponse.data.available) {
+      return { status: "available", slug: parsedResponse.data.slug }
+    }
+
+    return {
+      status: "unavailable",
+      slug: parsedResponse.data.slug,
+      nameAvailable: parsedResponse.data.nameAvailable,
+      slugAvailable: parsedResponse.data.slugAvailable,
+    }
+  } catch {
+    return { status: "error" }
+  }
 }
 
 export async function acceptPlatformInvite(

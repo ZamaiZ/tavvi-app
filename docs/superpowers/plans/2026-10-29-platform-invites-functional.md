@@ -55,7 +55,7 @@
 - [x] Habilitar RLS e remover grants de escrita direta; membros consultam apenas associações próprias, Admins só acessam os dados de plataforma por RPCs autorizadas.
 - [x] Definir funções privilegiadas como `SECURITY DEFINER`, `search_path = ''`, objetos qualificados, validação estrita e autorização baseada somente em `auth.uid()`/`is_platform_admin()`.
 - [x] Fazer create/replace/revoke e aceite gravarem suas auditorias dentro da própria função/transação.
-- [x] No aceite, bloquear a linha do convite, conferir validade/revogação/uso/e-mail, criar slug do nome sem consulta de pré-checagem, inserir restaurante `draft` e primeira membership com `position = 'Administrador'`, marcar resgate e auditar; qualquer falha reverte tudo.
+- [x] No aceite, bloquear a linha do convite, conferir validade/revogação/uso/e-mail, validar disponibilidade de nome/slug, inserir restaurante `draft` e primeira membership com `position = 'Administrador'`, marcar resgate e auditar; qualquer falha reverte tudo.
 - [x] No preview público, retornar estado genérico e prazo; não consumir, não retornar token, hash ou e-mail completo.
 - [x] Aplicar os limites fixos documentados na spec no banco; o cadastro/login usa adicionalmente os limites configurados pelo Supabase Auth.
 - [x] Conceder `EXECUTE` só a `anon`/`authenticated` nas funções públicas estritamente necessárias e só a `authenticated` nas operações Admin.
@@ -149,16 +149,25 @@ revokePlatformInvite(inviteId: string): Promise<InviteMutationResult>
 - Criar `features/panel/invites/model.ts`, `features/panel/invites/server/redemption.ts`, `features/panel/invites/actions.ts` e `features/panel/invites/components/invite-redemption-page.tsx`.
 - Modificar `proxy.ts` somente se a revisão provar que o matcher/superfície atual não reconhece `/painel/convite` em Preview ou `painel.localhost`.
 
-**Interfaces que entrega:** preview genérico do convite, formulários de login/cadastro no território `panel`, aceite explícito com nome do restaurante e resultado factual.
+**Interfaces que entrega:** preview genérico do convite, criação de conta no território `panel` ou uso automático da sessão existente, aceite explícito com nome do restaurante e resultado factual.
 
 - [x] Ler `token` da URL no servidor, calcular digest e consultar preview; não passar hash para o browser, não carregar terceiros e definir política `no-referrer` na tela.
 - [x] Após preview, remover `token` da barra sem perder o token em memória necessário ao aceite; nunca persistir em `localStorage`, cookie duradouro, log ou analytics.
-- [x] Apresentar nome/e-mail/senha para criar conta ou login para conta existente; usar exclusivamente `createSupabaseServerClient("panel")`, respeitar cookie isolado, perfil Auth existente e limites embutidos do Supabase Auth.
+- [x] Apresentar nome/e-mail/senha somente para criação de conta; quando já houver sessão, aproveitá-la automaticamente sem oferecer alternância para login. Usar exclusivamente `createSupabaseServerClient("panel")` e respeitar o cookie isolado e os limites embutidos do Supabase Auth.
 - [x] Para convite restrito, validar e-mail normalizado antes de signup quando possível e revalidar contra `auth.users` dentro do aceite; divergência bloqueia sem consumir. A RPC, não o estado do browser, é a autoridade.
-- [x] Exigir nome do restaurante e aceite explícito; validar novamente no servidor; gerar slug no servidor sem consulta de pré-checagem; chamar uma RPC que cria restaurant `draft`, membership inicial, consumo e auditoria em uma transação.
+- [x] Exigir nome do restaurante e aceite explícito; conferir nome/slug após debounce e validar novamente na transação; chamar uma RPC que cria restaurant `draft`, membership inicial, consumo e auditoria atomicamente.
 - [x] Definir resultado final apenas após commit: nome e estado reais do restaurante e confirmação de acesso criado; não afirmar que identidade/contato/cardápio estão prontos e não redirecionar para `/identidade`.
 - [x] Tratar token ausente/inválido/expirado/revogado/resgatado com uma mensagem pública genérica; preview não consome, falha/rede não consome e repetição do aceite não duplica restaurante.
 - [x] Aplicar Motion sequencial, estados loading/erro/sucesso e reduced motion sem sidebar.
+
+#### Ajuste de escopo aprovado em 30/10/2026
+
+- No link do convite, a interface deslogada oferece somente criação de conta; sessão Painel já autenticada é aproveitada automaticamente. Não criar uma tela de login nesta etapa.
+- Adicionar ícones aos campos, revelar/ocultar senha com Motion, permitir alternar o aceite clicando em qualquer parte do card e animar os campos em sequência com movimento reduzido respeitado.
+- Debounce de 550 ms no nome do restaurante. A Action valida token/nome e consulta uma RPC protegida; a resposta expõe apenas o slug calculado e estados separados de disponibilidade do nome e da slug.
+- Compartilhar a função de normalização do slug entre prévia e aceite. A transação recusa nome/slug ocupado, não cria sufixo randômico e mantém o índice único como proteção para concorrência.
+- Arquivos: `features/panel/invites/components/invite-redemption-page.tsx`, `features/panel/invites/actions.ts`, `features/panel/invites/model.ts`, `features/panel/invites/server/redemption.ts` e migrations `supabase/migrations/20261030010000_check_panel_invite_restaurant_name.sql` e `supabase/migrations/20261030020000_panel_invite_availability_detail.sql`.
+- Verificação: revisão estática dos contratos/SQL e inspeção manual da tela e estados. Não executar testes, build, lint, typecheck nem `git`, conforme `AGENTS.md`.
 
 ### Tarefa 6: Revisão estática final
 
