@@ -1,7 +1,7 @@
 # Tavvi v2 — base de transposição
 
 **Data do levantamento:** 2026-10-28  
-**Estado:** descoberta e desenho inicial; nenhuma funcionalidade foi implementada nesta etapa.  
+**Estado:** descoberta e desenho inicial; infraestrutura e páginas de autenticação inicial do Admin implementadas; migration aplicada no Supabase local, com validação end-to-end de autenticação ainda pendente.
 **Destino da nova aplicação:** `C:\Users\Eduardo Zamai\Documents\tavvi-app`  
 **Arquivo de base:** movido para a raiz do projeto de destino `C:\Users\Eduardo Zamai\Documents\tavvi-app` para registrar a transposição.
 
@@ -10,7 +10,7 @@
 Construir uma nova aplicação para as superfícies Admin da plataforma e Painel de gestão do restaurante, iniciando pelo Admin, pelo fluxo mínimo de entrada/setup do Painel e pelo domínio do cardápio:
 
 - Login de administradores da plataforma.
-- Sem cadastro público de administradores; a primeira conta privilegiada é habilitada manualmente no banco.
+- O cadastro inicial do Admin da plataforma acontece pela aplicação enquanto não existir uma associação de Admin no projeto Supabase; após o primeiro cadastro, a página informa que ele já foi criado e não permite outro. Se a conta Auth associada for removida, o cadastro reabre.
 - Criar, consultar, editar/renovar e revogar convites de entrada.
 - Consultar restaurantes e administrar seus estados.
 - Login e acesso à conta de gestão do restaurante.
@@ -31,7 +31,7 @@ A nova aplicação deve preservar as regras de negócio e segurança do produto,
 - Web Push está fora do escopo inicial. Para a nova versão, não manter Express apenas para Push.
 - Supabase atual, em Oregon, é de desenvolvimento e não é produção.
 - Para o app novo, usar Supabase local no desenvolvimento e o projeto remoto novo/vazio em São Paulo para demo/staging; produção terá um projeto Supabase separado. O schema novo será criado do zero. O Oregon permanece como ambiente de desenvolvimento do legado, não como base a migrar.
-- Vercel é a plataforma pretendida. O repositório privado GitHub ZamaiZ/tavvi-app já existe e o checkout atual usa a branch preview, que recebe o ambiente Preview/demo. A branch master não será criada agora; será criada somente quando Production for provisionada. O projeto Supabase de produção, variáveis Production e domínios de produção ficam fora desta etapa. Quando houver domínio próprio, Admin/Painel podem voltar a subdomínios separados no mesmo projeto Vercel. O plano adequado para operação comercial será considerado antes do lançamento.
+- Vercel é a plataforma pretendida. O repositório privado GitHub ZamaiZ/tavvi-app já existe e o checkout atual usa a branch preview, que recebe o ambiente Preview/demo. O alias estável observado para essa branch é `tavvi-app-git-preview-zamai-ez.vercel.app`; URLs que identificam deploys individuais são snapshots e não devem ser reutilizadas como link estável do Preview. A branch master não será criada agora; será criada somente quando Production for provisionada. O projeto Supabase de produção, variáveis Production e domínios de produção ficam fora desta etapa. Quando houver domínio próprio, Admin/Painel podem voltar a subdomínios separados no mesmo projeto Vercel. O plano adequado para operação comercial será considerado antes do lançamento.
 - A confirmação de e-mail do Supabase permanece desligada neste fluxo.
 - Uma conta pode participar de mais de um restaurante; a gestão de pessoas por restaurante entra no Painel.
 - Até a implementação futura de IAM por função, todos os membros autenticados do restaurante têm as mesmas ações; a autorização continua exigindo associação ao restaurante e respeitando o estado/invariantes dos registros.
@@ -87,19 +87,19 @@ O legado já separa rotas, componentes de domínio, Server Actions, DAL, schemas
 ## 4. Estado do boilerplate em `tavvi-app`
 
 - Projeto standalone, um único pacote pnpm, Next 16.4.2 e React 19.
-- O preset escolhido gerou `components/ui`, Tailwind 4, `components.json` com `style: base-mira`, `rsc: true` e ícones Lucide. A página atual ainda é apenas o placeholder “Project ready!”.
-- Ainda não há dependências `@supabase/ssr` ou `@supabase/supabase-js`, cliente Supabase, autenticação, DAL ou configuração de ambiente para Supabase.
+- O preset escolhido gerou os componentes shadcn, Tailwind 4 e configuração do boilerplate. A raiz da aplicação ainda mantém o placeholder “Project ready!”; o fluxo Admin inicial já tem rotas próprias e destino protegido em app/admin.
+- package.json inclui @supabase/ssr, @supabase/supabase-js, Zod e Motion. lib/supabase mantém cookies e clientes SSR separados; features/admin/auth implementa login, cadastro inicial, recuperação de claim e navegação segura.
 - O boilerplate está usando `app/` na raiz, o alias `@/*` aponta para a raiz e `components.json` aponta o CSS para `app/globals.css`; essa configuração corresponde ao arquivo existente. Não criar uma segunda árvore `src/app`.
 - O `globals.css` existente é a base do preset. Não adicionar CSS de identidade ou estilos por tela.
-- O layout ainda está marcado como `lang="en"` e importa Geist/Outfit. Adequar idioma e tipografia à identidade Tavvi é decisão visual posterior; não importar as fontes/CSS do legado por padrão.
-- O levantamento e as decisões de transposição estão sendo mantidos neste `__BASE.MD`. Nenhum arquivo do boilerplate `tavvi-app` foi alterado.
+- app/layout.tsx define lang="pt-BR", mantém as fontes/tokens atuais e monta o Toaster existente. Não importar fontes ou CSS do legado.
+- A migration versionada supabase/migrations/20261029000000_platform_admin_identity.sql fornece a base de perfil e Admin único. As páginas de login/cadastro foram implementadas e a migration foi confirmada como aplicada no Supabase local. A primeira conta ainda deve ser criada pelo responsável antes de expor o cadastro em Preview; o fluxo de autenticação não foi submetido durante a implementação.
 
 ## 5. Arquitetura recomendada para Admin e Painel novos
 
 Começar como **monólito modular Next.js + Supabase**, sem Express para Admin, Painel, onboarding e CRUD síncrono:
 
 - **Next App Router:** layouts, páginas e Server Components para carregar listas/detalhes; Server Actions para login/mutações que pertencem ao Admin.
-- **Supabase Auth:** login por senha e sessão server-side com `@supabase/ssr`; sem cadastro público de administrador.
+- **Supabase Auth:** login por senha e sessão server-side; cadastro inicial do Admin da plataforma pela aplicação, uma única associação por projeto Supabase e reabertura do cadastro se a conta Auth for removida.
 - **Postgres/Supabase:** criar o schema do app novo do zero no projeto novo e vazio. Usar o banco legado como referência de regras/semântica, não aplicar sua baseline nem copiar dados automaticamente. O projeto novo passa a ser a fonte de verdade do produto novo após o corte.
 - **Segurança:** verificar usuário e papel de plataforma em cada página e ação; validar entradas no servidor com Zod; manter RLS, funções de banco e restrições; não colocar `service_role`, `APP_SERVER_KEY` ou segredos no bundle do navegador.
 - **Organização:** manter a árvore de rotas em `app/` como o boilerplate está hoje; agrupar domínio em módulos separados, por exemplo `features/admin/auth`, `features/admin/invites`, `features/admin/restaurants`, e concentrar autenticação/DAL em módulos server-only. Server Actions finas delegam à DAL.
@@ -107,6 +107,18 @@ Começar como **monólito modular Next.js + Supabase**, sem Express para Admin, 
 - **Listas:** paginação e busca/filtros no servidor, retornando somente campos usados pela interface. Isso evita carregar todo o histórico de convites/restaurantes para filtrar no cliente.
 - **Banco por ambiente:** manter uma única sequência de migrações do app novo e aplicá-la em Supabase local, no projeto remoto de demo/staging em São Paulo e em um projeto Supabase de produção separado. O projeto novo de São Paulo está vazio e será usado para demo/staging; produção não compartilhará esse banco. A baseline `supabase/migrations/0001_web_baseline.sql` pertence ao legado, não é a baseline do app novo e nunca deve ser aplicada sobre projetos com dados.
 - **Região:** o Supabase local não tem região remota. Para o projeto novo em São Paulo, configurar as funções Vercel em `gru1`. O Supabase legado em Oregon continua separado e suas funções antigas devem ficar próximas do banco (`pdx1`). Não espalhar funções do app novo por regiões distantes da base primária sem réplica/estratégia de leitura.
+
+### Login e cadastro inicial do Admin
+
+- Spec e plan das páginas: docs/superpowers/specs/2026-10-29-platform-admin-auth-pages-design.md e docs/superpowers/plans/2026-10-29-platform-admin-auth-pages.md.
+- Admin terá rotas separadas de entrar e criar-conta. Local usa admin.localhost:3000/entrar e /criar-conta; a raiz do host Admin abre a área Admin e caminhos /admin explícitos são redirecionados às rotas curtas. Preview Vercel usa /admin/entrar e /admin/criar-conta, e a raiz do alias estável da branch redireciona temporariamente a /admin. Produção futura usa admin.<domínio>/entrar e /criar-conta com rewrite host-aware; a raiz de produção fica reservada para sua experiência própria.
+- Criar conta mostra formulário somente enquanto admin_registration_open() indicar vaga. O formulário cria nome/email/senha sem confirmação de email e chama claim_platform_admin(); o banco é a autoridade para desempate de concorrência. Após ocupar a vaga, cadastro mostra estado fechado sem identidade do Admin.
+- Se signup Auth concluir mas o claim falhar transitoriamente, manter sessão Admin e permitir repetir apenas o claim idempotente; não recriar a identidade. Se outro usuário vencer, encerrar a sessão perdedora e mostrar cadastro fechado.
+- Login verifica signInWithPassword e is_platform_admin(); uma conta Auth sem papel Admin recebe mensagem genérica e sessão Admin encerrada. next aceita apenas destino local do território Admin. Fallback: raiz Admin em subdomínio e /admin em Preview.
+- Usar createSupabaseServerClient("admin") e tavvi-admin-auth-token. Não misturar cookie do Painel, não guardar tokens/papéis em localStorage e não tratar Proxy ou UI como autorização.
+- Compor os componentes de components/ui sem editar seus arquivos; usar InputGroup, ícones/reveal de senha, FieldError, Toast, validação com Zod e mensagens pt-BR. Sem CSS personalizado e sem alterar globals.css/preset.
+- Motion deve ser discreto e respeitar movimento reduzido. Reutilizar apenas lockups de marca do legado, sem importar seu CSS.
+- O responsável cria a primeira conta em cada ambiente antes de divulgar o endereço; proteção de Preview é operacional e não usa segredo de bootstrap no app.
 
 ### Direção de rotas e contexto do Painel
 
@@ -582,6 +594,8 @@ Nada abaixo foi feito nesta fase; são itens para um plano posterior:
 44. **[Resolvida] Como funciona a avaliação no Google?** O Contato mantém link direto de solicitação de avaliação do Google separado do Maps. O botão público abre esse destino externo; não basta levar à localização nem depender de derivar o link do Maps.
 45. **[Resolvida] Qual som usar para novos chamados?** Som opt-in, salvo localmente por navegador: “ding duplo ascendente”, duas notas médias e claras em cerca de 300 ms, perceptíveis sem caráter de alarme. O toque atual do legado é um seno descendente curto (740→520 Hz, cerca de 230 ms) e foi considerado baixo demais.
 
+46. **[Resolvida] Como é criado o primeiro Admin da plataforma?** Pela aplicação, enquanto a vaga única estiver livre; depois, a página informa que já foi criado e bloqueia outro cadastro. O banco impõe a unicidade e o cadastro reabre quando o usuário Auth associado é removido. A primeira conta é criada pelo responsável antes de divulgar o endereço do ambiente; a confirmação de e-mail continua desligada. Cada projeto Supabase de Local, Preview/Staging e Produção terá sua própria conta Admin.
+
 ## 17. Referências internas consultadas
 
 - Admin legado: `apps/web/src/app/admin/(platform)`
@@ -604,4 +618,6 @@ Nada abaixo foi feito nesta fase; são itens para um plano posterior:
 - Vercel/Supabase: [regiões de Functions](https://vercel.com/docs/functions/configuring-functions/region), [regiões Supabase](https://supabase.com/docs/guides/platform/regions).
 - NFC: [Web NFC, Chrome for Developers](https://developer.chrome.com/docs/capabilities/nfc).
 - Google Business Profile: [criar link ou QR code para solicitar avaliações](https://support.google.com/business/answer/16816815?hl=en-11).
+
+
 

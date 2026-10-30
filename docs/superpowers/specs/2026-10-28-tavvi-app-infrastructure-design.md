@@ -69,7 +69,7 @@ O runtime Next usa os clientes Supabase SSR/Data API com a sessão do usuário. 
 - Migrações de banco não executam no build nem no boot do Next.
 - A confirmação de e-mail fica desligada conforme a decisão existente. `site_url` e redirects permitidos são definidos por ambiente e limitados aos hosts válidos daquele ambiente.
 - Usar chave pública/publishable do Supabase com RLS. Não adicionar chave privilegiada, `APP_SERVER_KEY`, `VAPID_PRIVATE_KEY` ou chave similar sem um caso necessário explicitamente avaliado; qualquer segredo fica somente server-side.
-- Um bootstrap manual do primeiro Admin só poderá ser preparado quando existir a tabela/política correspondente; nunca deve ser aplicado automaticamente por seed ou reset.
+- O primeiro Admin será cadastrado pela aplicação enquanto a vaga única estiver livre. Não criar usuário nem associação de Admin por seed, reset ou bootstrap SQL; detalhes de schema ficam na spec de identidade Admin.
 
 ### Ambientes e publicação
 
@@ -179,3 +179,5 @@ O repositório GitHub privado e o nome ZamaiZ/tavvi-app já foram confirmados. A
 - Vercel Functions e regiões: https://vercel.com/docs/functions/configuring-functions/region
 - Vercel Deployment Protection e exceções de acesso: https://vercel.com/docs/deployment-protection
 - Proteção de todos os deployments no plano Hobby: https://vercel.com/changelog/protect-production-deployments-for-free-on-every-plan
+
+
