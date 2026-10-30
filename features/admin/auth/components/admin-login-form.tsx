@@ -3,8 +3,8 @@
 import { useActionState, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { motion } from "motion/react"
 import { LuArrowRight, LuMail, LuTriangleAlert } from "react-icons/lu"
+import { motion } from "motion/react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -31,6 +31,10 @@ import {
   type AdminAuthField,
   type AdminAuthFormState,
 } from "@/features/admin/auth/state"
+import {
+  authFormVariants,
+  authItemVariants,
+} from "@/features/admin/auth/components/auth-motion"
 
 type AdminLoginFormProps = {
   nextPath: string
@@ -84,7 +88,7 @@ export function AdminLoginForm({
       handledState.current = state
       toast.add({
         title: "Acesso autorizado",
-        description: "Abrindo a área administrativa.",
+        description: "Abrindo sua área de gestão.",
         type: "success",
       })
       router.replace(state.destination)
@@ -129,7 +133,7 @@ export function AdminLoginForm({
       return client
     }
 
-    return state.status === "invalid" ? state.fieldErrors[field] ?? [] : []
+    return state.status === "invalid" ? (state.fieldErrors[field] ?? []) : []
   }
 
   const emailErrors = fieldErrors("email")
@@ -138,20 +142,16 @@ export function AdminLoginForm({
     state.status === "feedback" ? getAdminAuthFeedback(state.code) : null
 
   return (
-    <form
+    <motion.form
       action={formAction}
       onSubmit={handleSubmit}
       noValidate
       aria-busy={pending}
+      variants={authFormVariants}
       className="space-y-5"
     >
       {(feedback || statusMessage) && (
-        <motion.div
-          key={feedback?.title ?? statusMessage}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.18, ease: "easeOut" }}
-        >
+        <motion.div variants={authItemVariants}>
           <Alert variant="destructive">
             <LuTriangleAlert aria-hidden="true" />
             <AlertTitle>
@@ -165,78 +165,94 @@ export function AdminLoginForm({
         </motion.div>
       )}
 
-      <Field data-invalid={emailErrors.length > 0 || undefined}>
-        <FieldLabel htmlFor="admin-email">Email</FieldLabel>
-        <InputGroup
-          className="h-11 rounded-lg bg-background/70"
-          aria-invalid={emailErrors.length > 0 || undefined}
-        >
-          <InputGroupAddon align="inline-start">
-            <InputGroupText>
-              <LuMail aria-hidden="true" />
-            </InputGroupText>
-          </InputGroupAddon>
-          <InputGroupInput
-            id="admin-email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            required
+      <motion.div variants={authItemVariants}>
+        <Field data-invalid={emailErrors.length > 0 || undefined}>
+          <FieldLabel htmlFor="admin-email">Email</FieldLabel>
+          <InputGroup
+            className="h-11 rounded-lg bg-background/70"
             aria-invalid={emailErrors.length > 0 || undefined}
-            aria-describedby={emailErrors.length ? "admin-email-error" : undefined}
-            className="h-11"
+          >
+            <InputGroupAddon align="inline-start">
+              <InputGroupText>
+                <LuMail aria-hidden="true" />
+              </InputGroupText>
+            </InputGroupAddon>
+            <InputGroupInput
+              id="admin-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              required
+              aria-invalid={emailErrors.length > 0 || undefined}
+              aria-describedby={
+                emailErrors.length ? "admin-email-error" : undefined
+              }
+              className="h-11"
+            />
+          </InputGroup>
+          <FieldDescription>Use o e-mail da sua conta.</FieldDescription>
+          <FieldError
+            id="admin-email-error"
+            errors={emailErrors.map((message) => ({ message }))}
           />
-        </InputGroup>
-        <FieldDescription>
-          Use o email associado à conta administrativa.
-        </FieldDescription>
-        <FieldError
-          id="admin-email-error"
-          errors={emailErrors.map((message) => ({ message }))}
-        />
-      </Field>
+        </Field>
+      </motion.div>
 
-      <PasswordInput
-        id="admin-password"
-        name="password"
-        label="Senha"
-        autoComplete="current-password"
-        errors={passwordErrors}
-      />
+      <motion.div variants={authItemVariants}>
+        <PasswordInput
+          id="admin-password"
+          name="password"
+          label="Senha"
+          autoComplete="current-password"
+          errors={passwordErrors}
+        />
+      </motion.div>
 
       <input type="hidden" name="next" value={nextPath} />
 
-      <Button
-        type="submit"
-        size="lg"
-        disabled={pending}
-        className="h-11 w-full rounded-lg"
+      <motion.div
+        variants={authItemVariants}
+        whileHover={{ y: -1 }}
+        whileTap={{ scale: 0.985 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
       >
-        {pending ? (
-          <>
-            <Spinner aria-label="Verificando acesso" />
-            Verificando acesso...
-          </>
-        ) : (
-          <>
-            Entrar
-            <LuArrowRight data-icon="inline-end" aria-hidden="true" />
-          </>
-        )}
-      </Button>
+        <Button
+          type="submit"
+          size="lg"
+          disabled={pending}
+          className="h-11 w-full rounded-lg"
+        >
+          {pending ? (
+            <>
+              <Spinner aria-label="Verificando acesso" />
+              Verificando acesso...
+            </>
+          ) : (
+            <>
+              Entrar
+              <LuArrowRight data-icon="inline-end" aria-hidden="true" />
+            </>
+          )}
+        </Button>
+      </motion.div>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <motion.p
+        variants={authItemVariants}
+        className="text-center text-sm text-muted-foreground"
+      >
         Primeiro acesso?{" "}
         <Link
           href={publicBasePath + "/criar-conta"}
           className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-primary"
         >
-          Criar conta Admin
+          <motion.span whileHover={{ x: 2 }} transition={{ duration: 0.18 }}>
+            Criar conta
+          </motion.span>
         </Link>
-      </p>
-    </form>
+      </motion.p>
+    </motion.form>
   )
 }

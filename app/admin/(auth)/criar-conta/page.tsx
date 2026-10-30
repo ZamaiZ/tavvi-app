@@ -1,4 +1,5 @@
 import Link from "next/link"
+import type { Metadata } from "next"
 import { headers } from "next/headers"
 import {
   LuArrowRight,
@@ -17,28 +18,26 @@ import {
   getAdminPublicBasePath,
 } from "@/features/admin/auth/navigation"
 import { getAdminRegistrationViewState } from "@/features/admin/auth/server"
+import { getRequestHostname } from "@/lib/routing/host"
 
 export const dynamic = "force-dynamic"
+export const metadata: Metadata = {
+  title: "Criar conta",
+}
 
 export default async function AdminRegistrationPage() {
   const requestHeaders = await headers()
-  const hostname =
-    requestHeaders.get("x-forwarded-host") ??
-    requestHeaders.get("host") ??
-    ""
+  const hostname = getRequestHostname(requestHeaders)
   const publicBasePath = getAdminPublicBasePath(hostname)
   const registrationState = await getAdminRegistrationViewState()
 
   if (registrationState === "open") {
     return (
       <AdminAuthShell
-        title="Criar conta Admin"
+        title="Criar conta"
         description="Configure o acesso inicial responsável pela administração da plataforma."
       >
-        <AdminRegistrationForm
-          mode="create"
-          publicBasePath={publicBasePath}
-        />
+        <AdminRegistrationForm mode="create" publicBasePath={publicBasePath} />
       </AdminAuthShell>
     )
   }
@@ -74,6 +73,7 @@ export default async function AdminRegistrationPage() {
           </Alert>
 
           <Button
+            nativeButton={false}
             render={
               <Link href={getAdminHomePath(publicBasePath)}>
                 Acessar área Admin
@@ -118,6 +118,7 @@ export default async function AdminRegistrationPage() {
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button
+            nativeButton={false}
             render={
               <Link href={publicBasePath + "/entrar"}>
                 {closed ? (
@@ -133,6 +134,7 @@ export default async function AdminRegistrationPage() {
           />
           {!closed && (
             <Button
+              nativeButton={false}
               render={
                 <a href={publicBasePath + "/criar-conta"}>
                   <LuLoaderCircle aria-hidden="true" />

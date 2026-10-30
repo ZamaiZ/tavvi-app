@@ -37,10 +37,12 @@ As páginas são entrar e criar-conta. Os caminhos externos variam conforme o am
 | Ambiente | Login | Cadastro |
 |---|---|---|
 | Local | admin.localhost:3000/entrar | admin.localhost:3000/criar-conta |
-| Preview Vercel | <deployment>/admin/entrar | <deployment>/admin/criar-conta |
+| Preview Vercel | <alias estável da branch preview>/admin/entrar | <alias estável da branch preview>/admin/criar-conta |
 | Produção futura | admin.<domínio>/entrar | admin.<domínio>/criar-conta |
 
 Local usa o rewrite de host já existente para acrescentar /admin; Preview usa o prefixo /admin. A entrada em produção pelo subdomínio Admin requer uma regra host-aware no Proxy antes de ligar o domínio. Essa regra não pode misturar Admin e Painel nem suas sessões.
+
+No host Admin local, a raiz abre a área Admin e qualquer caminho digitado com o prefixo interno /admin é canonicalizado para o caminho curto equivalente. No Preview compartilhado, a raiz do alias estável redireciona temporariamente para /admin; a raiz de produção permanece livre para sua experiência própria. Proxy e páginas/ações usam a mesma normalização do host externo.
 
 Links entre login e cadastro devem preservar o formato externo corrente: caminhos curtos em subdomínio Admin e prefixo /admin em Preview. O parâmetro next, se fornecido, aceita somente caminho local permitido no território Admin; URLs absolutas, protocol-relative e destinos do Painel são recusados.
 

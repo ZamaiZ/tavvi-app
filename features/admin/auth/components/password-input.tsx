@@ -1,13 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { LuEye, LuEyeOff, LuLockKeyhole } from "react-icons/lu"
 
-import {
-  Field,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field"
+import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import {
   InputGroup,
   InputGroupAddon,
@@ -36,6 +33,7 @@ export function PasswordInput({
   required = true,
 }: PasswordInputProps) {
   const [visible, setVisible] = useState(false)
+  const shouldReduceMotion = useReducedMotion()
   const errorId = id + "-error"
   const hasError = errors.length > 0
 
@@ -63,19 +61,47 @@ export function PasswordInput({
           className="h-11"
         />
         <InputGroupAddon align="inline-end">
-          <InputGroupButton
-            aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
-            aria-pressed={visible}
-            className="mr-1 text-muted-foreground"
-            onClick={() => setVisible((current) => !current)}
-            size="icon-sm"
+          <motion.div
+            whileHover={{ scale: 1.06 }}
+            whileTap={{ scale: 0.92 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
           >
-            {visible ? (
-              <LuEyeOff aria-hidden="true" />
-            ) : (
-              <LuEye aria-hidden="true" />
-            )}
-          </InputGroupButton>
+            <InputGroupButton
+              aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+              aria-pressed={visible}
+              className="mr-1 text-muted-foreground"
+              onClick={() => setVisible((current) => !current)}
+              size="icon-sm"
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={visible ? "visible" : "hidden"}
+                  initial={
+                    shouldReduceMotion
+                      ? false
+                      : { opacity: 0, scale: 0.72, rotate: -24 }
+                  }
+                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                  exit={
+                    shouldReduceMotion
+                      ? { opacity: 1 }
+                      : { opacity: 0, scale: 0.72, rotate: 24 }
+                  }
+                  transition={{
+                    duration: shouldReduceMotion ? 0 : 0.16,
+                    ease: "easeOut",
+                  }}
+                  className="flex"
+                >
+                  {visible ? (
+                    <LuEyeOff aria-hidden="true" />
+                  ) : (
+                    <LuEye aria-hidden="true" />
+                  )}
+                </motion.span>
+              </AnimatePresence>
+            </InputGroupButton>
+          </motion.div>
         </InputGroupAddon>
       </InputGroup>
       <FieldError

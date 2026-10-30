@@ -1,5 +1,6 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import type { Metadata } from "next"
 
 import { AdminAuthShell } from "@/features/admin/auth/components/admin-auth-shell"
 import { AdminLoginForm } from "@/features/admin/auth/components/admin-login-form"
@@ -9,6 +10,11 @@ import {
   normalizeAdminNextPath,
 } from "@/features/admin/auth/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { getRequestHostname } from "@/lib/routing/host"
+
+export const metadata: Metadata = {
+  title: "Entrar",
+}
 
 type AdminLoginPageProps = {
   searchParams: Promise<{
@@ -25,10 +31,7 @@ export default async function AdminLoginPage({
   searchParams,
 }: AdminLoginPageProps) {
   const [requestHeaders, query] = await Promise.all([headers(), searchParams])
-  const hostname =
-    requestHeaders.get("x-forwarded-host") ??
-    requestHeaders.get("host") ??
-    ""
+  const hostname = getRequestHostname(requestHeaders)
   const publicBasePath = getAdminPublicBasePath(hostname)
   const nextPath =
     normalizeAdminNextPath(firstQueryValue(query.next), publicBasePath) ??
@@ -45,7 +48,8 @@ export default async function AdminLoginPage({
 
   try {
     const supabase = await createSupabaseServerClient("admin")
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims()
+    const { data: claimsData, error: claimsError } =
+      await supabase.auth.getClaims()
     const claims = claimsData?.claims
 
     if (!claimsError && claims?.sub) {
@@ -64,8 +68,8 @@ export default async function AdminLoginPage({
 
   return (
     <AdminAuthShell
-      title="Entrar no Admin"
-      description="Acesse a área de gestão da plataforma Tavvi."
+      title="Entrar"
+      description="Acesse sua conta para continuar."
     >
       <AdminLoginForm
         nextPath={nextPath}

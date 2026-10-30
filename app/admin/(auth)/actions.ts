@@ -22,6 +22,7 @@ import {
   signInPlatformAdmin,
   signOutPlatformAdmin,
 } from "@/features/admin/auth/server"
+import { getRequestHostname } from "@/lib/routing/host"
 
 function getString(formData: FormData, key: string) {
   const value = formData.get(key)
@@ -56,11 +57,7 @@ function toFieldErrors(
 
 async function getRequestAdminBasePath(): Promise<"" | "/admin"> {
   const requestHeaders = await headers()
-  const hostHeader =
-    requestHeaders.get("x-forwarded-host") ??
-    requestHeaders.get("host") ??
-    ""
-  const hostname = hostHeader.split(",")[0].trim().split(":")[0]
+  const hostname = getRequestHostname(requestHeaders)
 
   return getAdminPublicBasePath(hostname)
 }

@@ -1,0 +1,38 @@
+.rootAmbient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.rootAmbient::before {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  width: min(92vw, 68rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in oklab, var(--primary) 14%, transparent) 0%,
+    transparent 68%
+  );
+  content: "";
+  transform: translate3d(-50%, -50%, 0);
+  animation: rootAmbientDrift 36s ease-in-out infinite alternate;
+}
+
+@keyframes rootAmbientDrift {
+  from {
+    transform: translate3d(-52%, -51%, 0);
+  }
+  to {
+    transform: translate3d(-48%, -49%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rootAmbient::before {
+    animation: none;
+  }
+}

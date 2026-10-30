@@ -1,8 +1,8 @@
 "use client"
 
 import Image from "next/image"
-import { motion } from "motion/react"
-import { LuArrowUpRight, LuShieldCheck } from "react-icons/lu"
+import type { ReactNode } from "react"
+import { MotionConfig, motion, useReducedMotion } from "motion/react"
 
 import {
   Card,
@@ -10,9 +10,13 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card"
+import {
+  authItemVariants,
+  authStaggerVariants,
+} from "@/features/admin/auth/components/auth-motion"
 
 type AdminAuthShellProps = {
-  children: React.ReactNode
+  children: ReactNode
   title: string
   description: string
 }
@@ -22,124 +26,125 @@ export function AdminAuthShell({
   title,
   description,
 }: AdminAuthShellProps) {
+  const shouldReduceMotion = useReducedMotion()
+
   return (
-    <main className="min-h-svh bg-muted/30 p-3 sm:p-6 lg:p-8">
-      <div className="mx-auto grid min-h-[calc(100svh-1.5rem)] max-w-6xl overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm sm:min-h-[calc(100svh-3rem)] lg:min-h-[calc(100svh-4rem)] md:grid-cols-[minmax(0,1fr)_minmax(390px,0.9fr)]">
-        <aside className="relative hidden overflow-hidden bg-foreground p-8 text-background md:flex md:flex-col md:justify-between lg:p-12">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/25 via-transparent to-background/10"
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-20 top-1/4 size-72 rounded-full border border-background/10"
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-8 top-[31%] size-48 rounded-full border border-background/10"
-          />
-
-          <div className="relative">
-            <Image
-              src="/brand/tavvi-lockup-horizontal-gold-on-dark.png"
-              alt="Tavvi"
-              width={240}
-              height={94}
-              priority
-              className="h-auto w-40 object-contain lg:w-48"
-            />
-          </div>
-
-          <div className="relative max-w-lg space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-background/15 bg-background/5 px-3 py-1.5 text-[0.6875rem] font-medium tracking-[0.16em] text-background/75">
-              <span className="size-1.5 rounded-full bg-primary" />
-              GESTÃO DA PLATAFORMA
-            </div>
-            <div className="space-y-4">
-              <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight text-background lg:text-4xl">
-                Uma operação mais clara começa por aqui.
-              </h2>
-              <p className="max-w-md text-sm leading-6 text-background/65 lg:text-base">
-                Acesse as ferramentas administrativas da Tavvi com um único
-                ponto de entrada, protegido e preparado para crescer.
-              </p>
-            </div>
-          </div>
-
-          <div className="relative flex items-center gap-3 rounded-xl border border-background/15 bg-background/5 p-4">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-background/10 text-background">
-              <LuShieldCheck aria-hidden="true" className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-background">
-                Acesso administrativo
-              </p>
-              <p className="mt-1 text-xs leading-5 text-background/60">
-                Sessão independente do painel dos restaurantes.
-              </p>
-            </div>
-            <LuArrowUpRight
-              aria-hidden="true"
-              className="ml-auto size-4 shrink-0 text-background/50"
-            />
-          </div>
-        </aside>
-
-        <section className="flex items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.32, ease: "easeOut" }}
-            className="w-full max-w-md"
+    <MotionConfig reducedMotion="user">
+      <motion.main
+        initial={shouldReduceMotion ? false : "hidden"}
+        animate="visible"
+        variants={authStaggerVariants}
+        className="min-h-svh bg-muted/30 p-3 sm:p-6 lg:p-8"
+      >
+        <motion.div
+          variants={authStaggerVariants}
+          className="mx-auto grid min-h-[calc(100svh-1.5rem)] max-w-6xl overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm sm:min-h-[calc(100svh-3rem)] md:grid-cols-[minmax(0,1fr)_minmax(390px,0.9fr)] lg:min-h-[calc(100svh-4rem)]"
+        >
+          <motion.aside
+            variants={authItemVariants}
+            className="relative z-10 hidden overflow-hidden bg-secondary/20 p-8 text-white md:flex md:flex-col md:justify-between lg:p-12 dark:bg-card/20"
           >
-            <div className="mb-8 flex items-center justify-between gap-4 md:hidden">
-              <Image
-                src="/brand/tavvi-lockup-horizontal-gold-on-light.png"
-                alt="Tavvi"
-                width={240}
-                height={94}
-                priority
-                className="h-auto w-32 object-contain dark:hidden"
-              />
-              <Image
-                src="/brand/tavvi-lockup-horizontal-gold-on-dark.png"
-                alt="Tavvi"
-                width={240}
-                height={94}
-                priority
-                className="hidden h-auto w-32 object-contain dark:block"
-              />
-              <span className="rounded-full border border-border bg-muted/40 px-3 py-1 text-[0.625rem] font-medium tracking-[0.14em] text-muted-foreground">
-                ADMIN
-              </span>
-            </div>
+            <Image
+              src="/images/auth/login-hero.png"
+              alt=""
+              aria-hidden="true"
+              fill
+              sizes="(min-width: 1152px) 600px, (min-width: 768px) 50vw, 1px"
+              className="pointer-events-none z-0 scale-[1.02] object-cover object-center blur-[1px]"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-[1] opacity-40 backdrop-blur-[10px]"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-[2] bg-black/20 dark:bg-black/30"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-[3] bg-gradient-to-t from-black/60 via-black/10 to-transparent"
+            />
 
-            <div className="mb-6 hidden items-center justify-between md:flex">
-              <div className="flex items-center gap-2 text-xs font-medium tracking-[0.14em] text-muted-foreground">
-                <LuShieldCheck aria-hidden="true" className="size-4" />
-                ÁREA ADMINISTRATIVA
-              </div>
-              <span className="text-xs text-muted-foreground">Tavvi</span>
-            </div>
+            <motion.div
+              variants={authStaggerVariants}
+              className="relative z-10 flex h-full flex-col justify-between"
+            >
+              <motion.div variants={authItemVariants}>
+                <Image
+                  src="/brand/tavvi-lockup-horizontal-dark.png"
+                  alt="Tavvi"
+                  width={240}
+                  height={94}
+                  priority
+                  className="h-auto w-36 object-contain"
+                />
+              </motion.div>
+              <motion.h2
+                variants={authItemVariants}
+                className="max-w-sm text-2xl leading-tight font-medium tracking-tight lg:text-3xl"
+              >
+                Seu restaurante, em ordem.
+              </motion.h2>
+            </motion.div>
+          </motion.aside>
 
-            <Card className="gap-0 border-0 bg-transparent py-0 ring-0 shadow-none">
-              <CardHeader className="gap-2 px-0 pb-6">
-                <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                  {title}
-                </h1>
-                <CardDescription className="max-w-sm text-sm leading-6">
-                  {description}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="px-0">{children}</CardContent>
-            </Card>
+          <motion.section
+            variants={authItemVariants}
+            className="relative z-10 flex items-center justify-center px-4 py-8 sm:px-8 lg:px-12"
+          >
+            <motion.div
+              variants={authStaggerVariants}
+              className="w-full max-w-md"
+            >
+              <motion.div
+                variants={authItemVariants}
+                className="mb-8 flex items-center justify-between gap-4 md:hidden"
+              >
+                <Image
+                  src="/brand/tavvi-lockup-horizontal-gold-on-light.png"
+                  alt="Tavvi"
+                  width={240}
+                  height={94}
+                  priority
+                  className="h-auto w-32 object-contain dark:hidden"
+                />
+                <Image
+                  src="/brand/tavvi-lockup-horizontal-light.png"
+                  alt="Tavvi"
+                  width={240}
+                  height={94}
+                  priority
+                  className="hidden h-auto w-32 object-contain dark:block"
+                />
+                <span className="rounded-full border border-border bg-muted/40 px-3 py-1 text-[0.625rem] font-medium tracking-[0.14em] text-muted-foreground">
+                  GESTÃO
+                </span>
+              </motion.div>
 
-            <p className="mt-8 text-center text-xs text-muted-foreground">
-              Tavvi · Acesso restrito à administração da plataforma
-            </p>
-          </motion.div>
-        </section>
-      </div>
-    </main>
+              <Card className="gap-0 border-0 bg-transparent py-0 shadow-none ring-0">
+                <CardHeader className="gap-2 px-0 pb-6">
+                  <motion.h1
+                    variants={authItemVariants}
+                    className="text-2xl font-semibold tracking-tight sm:text-3xl"
+                  >
+                    {title}
+                  </motion.h1>
+                  <motion.div variants={authItemVariants}>
+                    <CardDescription className="max-w-sm text-sm leading-6">
+                      {description}
+                    </CardDescription>
+                  </motion.div>
+                </CardHeader>
+                <CardContent className="px-0">
+                  <motion.div variants={authItemVariants}>
+                    {children}
+                  </motion.div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.section>
+        </motion.div>
+      </motion.main>
+    </MotionConfig>
   )
 }

@@ -1,3 +1,5 @@
+import { isAdminHostname } from "@/lib/routing/host"
+
 const ADMIN_PREFIX = "/admin"
 const PANEL_PREFIX = "/painel"
 const SAFE_NEXT_ORIGIN = "https://admin.tavvi.invalid"
@@ -86,16 +88,7 @@ export function normalizeAdminNextPath(
 }
 
 export function getAdminPublicBasePath(hostname: string): "" | "/admin" {
-  const normalizedHostname = hostname
-    .split(",")[0]
-    .trim()
-    .toLowerCase()
-    .replace(/:\d+$/, "")
-
-  if (
-    normalizedHostname === "admin.localhost" ||
-    normalizedHostname.startsWith("admin.")
-  ) {
+  if (isAdminHostname(hostname)) {
     return ""
   }
 

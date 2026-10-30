@@ -61,8 +61,8 @@
 ### Task 2: Build the shared auth shell and mount existing feedback UI
 
 **Files:**
-- Copy from ../tavvi/apps/web/public/brand/tavvi-lockup-horizontal-gold-on-dark.png to public/brand/
-- Copy from ../tavvi/apps/web/public/brand/tavvi-lockup-horizontal-gold-on-light.png to public/brand/
+- Copy from ../tavvi/apps/web/public/brand/tavvi-lockup-horizontal-dark.png to public/brand/
+- Copy from ../tavvi/apps/web/public/brand/tavvi-lockup-horizontal-light.png to public/brand/
 - Modify: app/layout.tsx
 - Create: app/admin/(auth)/layout.tsx
 - Create: features/admin/auth/components/admin-auth-shell.tsx

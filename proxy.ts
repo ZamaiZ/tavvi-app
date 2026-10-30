@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { refreshSupabaseSession } from "@/lib/supabase/proxy"
 import type { AuthSurface } from "@/lib/supabase/config"
+import { getRequestHostname, isAdminHostname } from "@/lib/routing/host"
 
 function isStaticAsset(pathname: string) {
   if (pathname.startsWith("/_next/") || pathname === "/_next") {
@@ -12,29 +13,8 @@ function isStaticAsset(pathname: string) {
   return finalSegment.includes(".")
 }
 
-function isAdminHost(hostname: string) {
-  return (
-    hostname === "admin.localhost" ||
-    (hostname.startsWith("admin.") && hostname.length > "admin.".length)
-  )
-}
-
-function getRequestHostname(request: NextRequest) {
-  const hostHeader = request.headers.get("host")?.split(",")[0].trim()
-
-  if (hostHeader) {
-    try {
-      return new URL(`http://${hostHeader}`).hostname.toLowerCase()
-    } catch {
-      // Fall back to NextURL if an intermediary supplied a malformed Host.
-    }
-  }
-
-  return request.nextUrl.hostname.toLowerCase()
-}
-
 function getSurface(hostname: string, pathname: string): AuthSurface | null {
-  if (isAdminHost(hostname)) {
+  if (isAdminHostname(hostname)) {
     return "admin"
   }
 
@@ -56,7 +36,7 @@ function getSurface(hostname: string, pathname: string): AuthSurface | null {
 }
 
 function getHostRewritePrefix(hostname: string) {
-  if (isAdminHost(hostname)) {
+  if (isAdminHostname(hostname)) {
     return "/admin"
   }
 
@@ -80,6 +60,25 @@ function getHostRewrite(request: NextRequest, hostname: string): URL | null {
   return rewrittenUrl
 }
 
+function getAdminCanonicalRedirect(
+  request: NextRequest,
+  hostname: string
+): URL | null {
+  if (!isAdminHostname(hostname)) {
+    return null
+  }
+
+  const pathname = request.nextUrl.pathname
+
+  if (pathname !== "/admin" && !pathname.startsWith("/admin/")) {
+    return null
+  }
+
+  const canonicalUrl = request.nextUrl.clone()
+  canonicalUrl.pathname = pathname.slice("/admin".length) || "/"
+  return canonicalUrl
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
@@ -87,7 +86,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const hostname = getRequestHostname(request)
+  const hostname = getRequestHostname(request.headers, request.nextUrl.hostname)
+  const canonicalUrl = getAdminCanonicalRedirect(request, hostname)
+
+  if (canonicalUrl) {
+    return NextResponse.redirect(canonicalUrl, 308)
+  }
+
   const scope = getSurface(hostname, pathname)
   const refresh = scope
     ? await refreshSupabaseSession(request, scope)
