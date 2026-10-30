@@ -1,86 +1,74 @@
-# Admin — página visual de Convites
+# Admin — Convites e shell autenticado
 
-## Objetivo
+## Intenção
 
-Substituir o placeholder protegido da área Admin por uma página de Convites com hierarquia visual clara, pronta para receber a lógica de negócio numa etapa posterior. Alinhar o movimento das páginas de entrar, criar conta e Convites, com animação de entrada sequencial e transições consistentes. Depois de entrar ou concluir o cadastro do Admin, o destino atual deve exibir essa página.
+Entregar uma área visual de administração centrada em Convites, coerente com a qualidade das páginas de entrar e criar conta. A tela autenticada deve ter hierarquia enxuta, interações visíveis e movimento consistente, sem ligar nesta etapa o gerenciamento de convites ao backend.
 
-## Contexto existente
+## Objetivos
 
-- app/admin/page.tsx já valida a sessão e o papel de Admin no servidor, mas hoje mostra apenas um estado de preparação. Essa verificação e os cookies da superfície Admin permanecem intactos.
-- getAdminHomePath já resolve a raiz no host Admin e /admin no ambiente com prefixo. A página de Convites ocupará esse destino padrão sem introduzir outra rota.
-- A raiz pública define o título Tavvi — Cardápio digital. A área /admin precisa de seu próprio template de metadados.
-- O preset local fornece Table, Tabs, ContextMenu, Sheet, Card, InputGroup, Badge, Empty e outros componentes shadcn. @tanstack/react-table está na versão 9.3.1 e usa useTable.
-- A spec e o plano anteriores da autenticação já definem Motion 14 para a superfície Admin. O pacote 14.7.1 está no ambiente local, mas precisa estar declarado diretamente no package.json para uso sustentável.
-- O legado define os estados de convite como pendente, resgatado, vencido e revogado; permite e-mail opcional, prazo de 1 a 30 dias e prazo inicial de 7 dias. O CSS tv-* do legado não deve ser transplantado.
+- Preservar os títulos `Entrar · Tavvi — Gestão`, `Criar conta · Tavvi — Gestão` e `Convites · Tavvi — Gestão`, mantendo os metadados públicos da raiz.
+- Depois da autorização de Admin no servidor, mostrar Convites dentro do shell de administração com o Sidebar do shadcn já disponível.
+- Manter login e cadastro fora desse shell: sem sidebar, navegação ou controles de administração nessas telas.
+- Exibir navegação para Convites e Restaurantes; Convites é o destino ativo, e Restaurantes aparece desabilitado até existir uma tela própria.
+- Usar o brandmark quando o sidebar estiver recolhido e o lockup horizontal quando estiver expandido, com os assets corretos para os temas claro e escuro.
+- No drawer mobile aberto, usar o lockup horizontal independentemente do estado de recolhimento salvo para desktop.
+- Permitir abrir/recolher o sidebar pelo controle visível e pelo atalho `Ctrl+B` (também aceitar `Cmd+B`, como o componente já oferece).
+- Colocar no menu do perfil as escolhas Claro, Escuro e Sistema e a ação de sair já existente.
+- Corrigir o estado persistente do card Pendentes: apenas o card correspondente ao filtro atual recebe destaque; o estado inicial `Todos` não seleciona um card.
+- Abrir o Sheet de detalhes ao clicar em qualquer área da linha da tabela, preservando menu de contexto e menu de ações; oferecer ativação por teclado.
+- Reduzir a densidade vertical e as escalas do título, eyebrow, cards e números para deixar a tabela visível mais cedo no viewport, considerando o espaço ocupado pelo sidebar.
+- Usar como escala base do polimento: título `text-2xl sm:text-3xl`, números `text-2xl`, eyebrow próximo de 9px, cards com `p-3 sm:p-4` e distância vertical entre blocos de 24–28px.
+- Remover do produto os textos e badges sobre prévia, demonstração, próxima etapa e dados ilustrativos.
+- Preservar as entradas sequenciais e transições do Motion em entrar, criar conta, Convites e nos painéis de convite, respeitando movimento reduzido.
 
-## Escopo visual
+## Escopo visual de Convites
 
-### Título e destino
+- Cabeçalho com controle do sidebar, ícone, eyebrow curto, título Convites, descrição e botão Novo convite.
+- Quatro cartões de resumo: Pendentes, Resgatados, Vencidos e Revogados. A seleção é exclusiva e compartilhada com as Tabs. As contagens derivam dos registros apresentados nesta interface.
+- Bloco da lista com título e descrição curta, busca por e-mail, Tabs Todos/Pendentes/Resgatados/Vencidos/Revogados e tabela de destinatário, situação, criado em, válido até e ações.
+- Tabela com overflow horizontal contido em seu próprio painel, estados vazios úteis e uma linha inteira acionável para abrir detalhes.
+- Sheet de detalhes e Sheet existente para criar convite, com campos rotulados, validação local, confirmação/link local e feedback de cópia. Remover qualquer texto que descreva a interface como demonstração.
+- Usar toda a largura disponível em viewports estreitos e limitar os Sheets a 32rem em telas maiores.
+- Restaurantes no sidebar não navega para uma rota inexistente.
 
-- Usar o template %s · Tavvi — Gestão dentro do segmento Admin.
-- Definir os títulos de página Entrar, Criar conta e Convites, resultando em Entrar · Tavvi — Gestão, Criar conta · Tavvi — Gestão e Convites · Tavvi — Gestão.
-- Preservar o título e a página públicos da raiz.
-- Manter a navegação do Admin no destino atual. Esta entrega não cria sidebar.
+## Shell autenticado
 
-### Página de Convites
+- Montar `SidebarProvider`, `Sidebar` e `SidebarInset` somente depois que `app/admin/page.tsx` confirmar a autorização. O layout do segmento Admin continua compartilhado com autenticação e, por isso, não deve montar o sidebar.
+- `SidebarInset` é o único elemento semântico `<main>` da área autenticada. A página de Convites usa contêineres de seção/div com Motion, sem criar um `<main>` aninhado.
+- O topo do sidebar contém os assets existentes em `public/brand`: `tavvi-brandmark-light.png`, `tavvi-brandmark-dark.png`, `tavvi-lockup-horizontal-light.png` e `tavvi-lockup-horizontal-dark.png`.
+- O rodapé do sidebar contém um gatilho de perfil com menu de tema e formulário de logout que aponta para `logoutAdminAction`.
+- A ação de sair e toda a validação de autorização no servidor permanecem intactas.
 
-- Manter o cabeçalho superior e a ação de sair já existentes; atualizar a identificação do território para Tavvi — Gestão.
-- Exibir um cabeçalho de conteúdo com ícone decorativo, título Convites, descrição curta e uma única ação primária Novo convite.
-- Abaixo do cabeçalho, apresentar quatro cartões de resumo: Pendentes, Resgatados, Vencidos e Revogados. Pendentes recebem ênfase visual moderada; os demais usam superfícies neutras. Os cartões filtram a listagem pela situação correspondente.
-- Usar os tokens e a fonte Outfit existentes, espaçamento responsivo, texto legível e componentes do preset. Não adicionar CSS global nem CSS próprio para a página.
-- Manter uma hierarquia espaçosa: cabeçalho, resumo e lista ficam em blocos distintos, sem empilhar labels e controles de forma densa.
+## Conteúdo e dados
 
-### Toolbar, tabs e tabela
-
-- Criar um DataTableToolbar dentro da feature de Convites; o app novo ainda não tem esse componente pronto.
-- A toolbar contém busca por e-mail e o componente shadcn Tabs, com Todos, Pendentes, Resgatados, Vencidos e Revogados. Todos é a seleção inicial. Cada tab apresenta sua contagem.
-- Usar a tabela semântica shadcn e TanStack Table v9 para cabeçalhos, linhas e células. Colunas: destinatário, situação, criado em e válido até; a última coluna contém ações de linha.
-- Permitir quebra/empilhamento da toolbar em telas estreitas e manter o eventual overflow da tabela dentro de seu contêiner, sem overflow horizontal da página.
-- Usar estados explícitos para lista vazia e busca/filtro sem resultados.
-- Em clique com o botão direito numa linha, abrir ContextMenu com Abrir e Gerar novo convite/link; Abrir mostra o detalhe em um Sheet. O contexto não depende de hover.
-
-### Criação de convite
-
-- O botão Novo convite abre o Sheet lateral já disponível no preset.
-- O formulário mostra e-mail opcional e validade entre 1 e 30 dias, começando em 7. Inclui labels, texto auxiliar, erros próximos ao campo e CTAs claros.
-- A interface inclui um estado de sucesso para visualizar o link e a ação de copiar, conforme o fluxo legado. O link produzido nesta etapa é demonstrativo e local; nenhum convite real é criado nem persistido.
-- A opção de gerar um novo convite a partir de uma linha abre o mesmo formulário, preenchendo o e-mail quando disponível.
-
-## Movimento nas telas de autenticação
-
-- Aplicar Motion ao shell compartilhado, ao título e descrição, aos campos e às ações da página Entrar e da página Criar conta.
-- Fazer a marca/área visual entrar primeiro; em seguida o título e a descrição; depois os campos e a ação principal. Usar intervalos curtos para a pessoa já poder interagir durante a sequência.
-- Manter a validação, as Server Actions, os estados de sucesso/erro e os redirecionamentos sem alteração funcional.
-- Adicionar transições leves de interação aos botões, links e estados de feedback, sem movimentar o layout durante digitação.
-
-## Dados e interações desta etapa
-
-- Usar registros e contagens demonstrativos, com endereços @exemplo.com e sem dados pessoais reais.
-- Busca, tabs, cartões de resumo, menu contextual, abertura/fechamento do Sheet e estados do formulário funcionam apenas em memória para demonstrar a UI.
-- Não implementar leitura/gravação no Supabase, Server Actions de convite, rotação real de token, auditoria, paginação remota, RLS ou mudanças de schema.
-- Não mudar o fluxo de autenticação nem enfraquecer a verificação de Admin existente.
+- Os convites continuam em dados locais e a criação continua sem Supabase, persistência, envio de e-mail ou rotação de token. O fluxo local existente só sustenta a apresentação do formulário, do estado de link e do feedback de cópia.
+- Não exibir aviso de demonstração ou texto de implementação futura. Os registros e a criação permanecem locais nesta etapa.
+- Derivar os indicadores e as contagens das Tabs dos registros exibidos para manter os números consistentes com a tabela.
+- Não alterar o schema, RLS, Server Actions de convite ou fluxos de autenticação.
 
 ## Movimento e acessibilidade
 
-- Usar Motion 14 via motion/react na autenticação e em Convites. Configurar reduced motion do usuário e variantes de movimento reduzido.
-- Fazer a entrada do conteúdo em sequência curta: nas telas de autenticação, marca, título/descrição, campos e ações; em Convites, cabeçalho, resumo, toolbar e tabela. Usar deslocamento e opacity discretos com intervalos pequenos.
-- Dar feedback leve a hover, foco, clique/press, abertura de tabs, menu, detalhe e Sheet, sem deslocar o layout nem bloquear a ação.
-- Respeitar prefers-reduced-motion; com movimento reduzido, mostrar o estado final sem animação de entrada.
-- Usar ícones da família Lucide já instalada; ícones decorativos têm aria-hidden, botões somente com ícone têm nome acessível e Tabs permanecem operáveis por teclado.
-- Preservar foco visível, labels associados aos campos, estados de status com texto além da cor e contraste dos tokens existentes.
+- Manter Motion via `motion/react` nos fluxos de autenticação e na interface de Convites, com entrada sequencial breve, feedback leve de interação e respeito a `prefers-reduced-motion`.
+- Não remover nem simplificar a animação existente em login, cadastro, cabeçalho, cards, tabela, Sheets ou feedbacks.
+- O botão de card expõe `aria-pressed`; Tabs mantêm a navegação acessível por teclado.
+- A linha acionável responde a clique, Enter e Espaço, sem que os controles de ação abram o detalhe acidentalmente.
+- Manter foco visível, labels associados, status acompanhados de texto e ícones decorativos com `aria-hidden`.
+- Evitar animação de layout ou escala excessiva; preferir transições curtas de opacity/transform.
 
 ## Fora de escopo
 
-- Sidebar, tela de Restaurantes, detalhe roteável, lógica de convites no servidor, integração Supabase, migrations, e-mail, produção do link, envio, rotação persistida e revogação real.
-- Alterações em app/globals.css, componentes gerados de components/ui ou identidade visual global. A única dependência acrescentada é Motion, previamente definida na spec de autenticação.
-- Testes automatizados e os comandos git, build, lint e typecheck.
+- Listagem real do servidor, paginação remota, criação/revogação persistidas, auditoria, integração Supabase, envio de e-mail, mudança de schema/RLS e tela de Restaurantes.
+- Sidebar nas telas Entrar/Criar conta.
+- Alterações em `app/globals.css` ou nos componentes gerados de `components/ui`.
+- Testes automatizados e execução de `git`, `build`, `lint` ou `typecheck`, conforme instruções do projeto.
 
-## Critérios de aceite visual
+## Critérios de aceite
 
-1. Os títulos das páginas Admin usam o nome da página, separador · e a marca Tavvi — Gestão; a raiz pública continua com seu metadado atual.
-2. A entrada padrão de Admin mostra Convites e preserva a validação protegida existente.
-3. A tela apresenta ícone e descrição no cabeçalho, ação de novo convite, quatro resumos, busca, tabs e tabela em ordem visual clara.
-4. Busca, tabs e cartões filtram o conjunto demonstrativo; o menu contextual abre detalhes ou prepara um novo formulário.
-5. O Sheet permite visualizar o formulário e o estado demonstrativo de link criado, sem executar operação real.
-6. O layout permanece compreensível em desktop e mobile; foco, labels e movimento reduzido são tratados.
-7. Entrar, criar conta e Convites apresentam entrada sequencial e transições de interação usando Motion; com movimento reduzido, o conteúdo aparece imediatamente.
+1. Entrar, criar conta e Convites mantêm os títulos de metadados com `· Tavvi — Gestão`; a raiz pública não muda.
+2. Só a página autenticada usa o sidebar e ela preserva o gate de autorização no servidor.
+3. O sidebar expande/recolhe, responde a Ctrl+B/Cmd+B, usa brandmark recolhido, lockup expandido, tema correto e inclui Convites, Restaurantes desabilitado, tema e sair.
+4. No estado inicial `Todos`, nenhum card de situação aparece selecionado; selecionar outro card desloca o destaque para o novo filtro.
+5. Clicar ou ativar com Enter/Espaço uma linha abre o Sheet de detalhes; menu contextual e menu de ações continuam operáveis.
+6. O conteúdo ocupa menos altura antes da tabela e continua responsivo sem overflow horizontal na página.
+7. Não há textos visíveis de prévia, demonstração, etapa futura ou registros ilustrativos.
+8. A experiência de Motion existente continua presente e respeita movimento reduzido.

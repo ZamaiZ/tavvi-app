@@ -1,16 +1,23 @@
 "use client"
 
-import { useCallback, useMemo, useState, type ReactNode } from "react"
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react"
+import { usePathname, useRouter } from "next/navigation"
 import type { IconType } from "react-icons"
 import {
   LuArrowUpRight,
   LuBan,
   LuCalendarClock,
   LuCircleCheck,
+  LuCircleX,
   LuClock3,
   LuMailPlus,
   LuSend,
-  LuSparkles,
 } from "react-icons/lu"
 import {
   MotionConfig,
@@ -19,7 +26,6 @@ import {
   type Variants,
 } from "motion/react"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -27,16 +33,17 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import { InviteCreateSheet } from "@/features/admin/invites/components/invite-create-sheet"
 import { InviteDetailsSheet } from "@/features/admin/invites/components/invite-details-sheet"
 import { InvitesDataTable } from "@/features/admin/invites/components/invites-data-table"
 import { InvitesTableToolbar } from "@/features/admin/invites/components/invites-table-toolbar"
-import {
-  demoInvites,
-  inviteSummaryCounts,
-  type InviteFilter,
-  type PlatformInvite,
-} from "@/features/admin/invites/data"
+import type {
+  InviteFilter,
+  InviteListQuery,
+  InviteListResult,
+  PlatformInvite,
+} from "@/features/admin/invites/model"
 
 const dashboardSequence: Variants = {
   hidden: { opacity: 1 },
@@ -117,35 +124,112 @@ const summaryCards: SummaryCard[] = [
 ]
 
 type AdminInvitesPageProps = {
-  header: ReactNode
-  footer: string
+  initialQuery: InviteListQuery
+  initialData: InviteListResult | null
+  initialError: boolean
 }
 
-export function AdminInvitesPage({ header, footer }: AdminInvitesPageProps) {
+export function AdminInvitesPage({
+  initialQuery,
+  initialData,
+  initialError,
+}: AdminInvitesPageProps) {
   const shouldReduceMotion = useReducedMotion()
-  const [query, setQuery] = useState("")
-  const [selectedFilter, setSelectedFilter] = useState<InviteFilter>("all")
+  const router = useRouter()
+  const pathname = usePathname()
+  const [isPending, startTransition] = useTransition()
+  const [query, setQuery] = useState(initialQuery.search)
+  const [selectedFilter, setSelectedFilter] = useState<InviteFilter>(
+    initialQuery.status
+  )
   const [selectedInvite, setSelectedInvite] = useState<PlatformInvite | null>(
     null
   )
   const [createOpen, setCreateOpen] = useState(false)
   const [initialEmail, setInitialEmail] = useState<string | undefined>()
+  const queryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const filteredInvites = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase("pt-BR")
+  useEffect(() => {
+    if (queryTimer.current) {
+      clearTimeout(queryTimer.current)
+      queryTimer.current = null
+    }
+    setQuery(initialQuery.search)
+    setSelectedFilter(initialQuery.status)
+  }, [initialQuery.search, initialQuery.status])
 
-    return demoInvites.filter((invite) => {
-      const matchesStatus =
-        selectedFilter === "all" || invite.status === selectedFilter
-      const matchesQuery =
-        !normalizedQuery ||
-        (invite.email ?? "qualquer e-mail")
-          .toLocaleLowerCase("pt-BR")
-          .includes(normalizedQuery)
+  useEffect(() => {
+    if (!initialData || initialData.page === initialQuery.page) return
 
-      return matchesStatus && matchesQuery
-    })
-  }, [query, selectedFilter])
+    const params = new URLSearchParams(window.location.search)
+    if (initialData.page > 1) {
+      params.set("page", String(initialData.page))
+    } else {
+      params.delete("page")
+    }
+    const suffix = params.toString()
+    const href = suffix ? `${pathname}?${suffix}` : pathname
+    startTransition(() => router.replace(href, { scroll: false }))
+  }, [initialData, initialQuery.page, pathname, router])
+
+  useEffect(
+    () => () => {
+      if (queryTimer.current) {
+        clearTimeout(queryTimer.current)
+      }
+    },
+    []
+  )
+
+  const navigateToQuery = useCallback(
+    (next: Partial<InviteListQuery>) => {
+      const nextQuery: InviteListQuery = {
+        search: query,
+        status: selectedFilter,
+        page: 1,
+        pageSize: initialQuery.pageSize,
+        ...next,
+      }
+      const params = new URLSearchParams()
+
+      if (nextQuery.search) params.set("search", nextQuery.search)
+      if (nextQuery.status !== "all") params.set("status", nextQuery.status)
+      if (nextQuery.page > 1) params.set("page", String(nextQuery.page))
+      if (nextQuery.pageSize !== 25) {
+        params.set("pageSize", String(nextQuery.pageSize))
+      }
+
+      const suffix = params.toString()
+      const href = suffix ? `${pathname}?${suffix}` : pathname
+      startTransition(() => router.replace(href, { scroll: false }))
+    },
+    [initialQuery.pageSize, pathname, query, router, selectedFilter]
+  )
+
+  const handleQueryChange = useCallback(
+    (nextQuery: string) => {
+      setQuery(nextQuery)
+      if (queryTimer.current) {
+        clearTimeout(queryTimer.current)
+      }
+      queryTimer.current = setTimeout(() => {
+        queryTimer.current = null
+        navigateToQuery({ search: nextQuery, page: 1 })
+      }, 280)
+    },
+    [navigateToQuery]
+  )
+
+  const handleFilterChange = useCallback(
+    (nextFilter: InviteFilter) => {
+      if (queryTimer.current) {
+        clearTimeout(queryTimer.current)
+      }
+      setSelectedFilter(nextFilter)
+      navigateToQuery({ search: query, status: nextFilter, page: 1 })
+    },
+    [navigateToQuery, query]
+  )
 
   const handleOpenInvite = useCallback((invite: PlatformInvite) => {
     setSelectedInvite(invite)
@@ -165,7 +249,17 @@ export function AdminInvitesPage({ header, footer }: AdminInvitesPageProps) {
   const handleClearFilters = useCallback(() => {
     setQuery("")
     setSelectedFilter("all")
-  }, [])
+    if (queryTimer.current) {
+      clearTimeout(queryTimer.current)
+    }
+    navigateToQuery({ search: "", status: "all", page: 1 })
+  }, [navigateToQuery])
+
+  const counts = initialData?.counts
+  const totalRows = initialData?.totalRows ?? 0
+  const pageCount = initialData
+    ? Math.max(1, Math.ceil(initialData.totalRows / initialData.pageSize))
+    : 1
 
   return (
     <MotionConfig reducedMotion="user">
@@ -173,47 +267,55 @@ export function AdminInvitesPage({ header, footer }: AdminInvitesPageProps) {
         initial={shouldReduceMotion ? false : "hidden"}
         animate="visible"
         variants={dashboardSequence}
-        className="mx-auto flex min-h-[calc(100svh-2rem)] max-w-[1440px] flex-col"
+        className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col px-4 py-3 sm:px-6 sm:py-4 lg:px-8"
       >
-        <motion.div variants={dashboardItem}>{header}</motion.div>
-
-        <motion.main
+        <motion.div
           variants={dashboardItem}
-          className="min-w-0 flex-1 py-8 sm:py-10 lg:py-12"
+          className="flex min-w-0 flex-1 flex-col py-1 sm:py-2"
         >
           <motion.div
             variants={dashboardSequence}
-            className="mx-auto flex w-full max-w-[1240px] flex-col gap-8 sm:gap-10"
+            className="mx-auto flex w-full max-w-[1240px] flex-col gap-5 sm:gap-6"
           >
             <motion.section
               variants={dashboardSequence}
-              className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"
+              className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"
             >
-              <motion.div variants={dashboardSequence} className="max-w-2xl">
-                <motion.div
-                  variants={dashboardItem}
-                  className="mb-4 flex items-center gap-2"
-                >
-                  <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <LuSend aria-hidden="true" className="size-4" />
-                  </span>
-                  <p className="text-[0.625rem] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-                    Administração · Acessos
-                  </p>
-                </motion.div>
-                <motion.h1
-                  variants={dashboardItem}
-                  className="text-3xl font-semibold tracking-tight sm:text-4xl"
-                >
-                  Convites
-                </motion.h1>
-                <motion.p
-                  variants={dashboardItem}
-                  className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base"
-                >
-                  Acompanhe os acessos à plataforma e mantenha os convites
-                  organizados em um só lugar.
-                </motion.p>
+              <motion.div
+                variants={dashboardSequence}
+                className="flex min-w-0 items-start gap-3"
+              >
+                <SidebarTrigger
+                  aria-label="Alternar navegação lateral"
+                  title="Alternar navegação lateral"
+                  className="mt-0.5 shrink-0 rounded-lg border border-border/70 bg-background shadow-sm transition-colors duration-150"
+                />
+                <div className="min-w-0 max-w-2xl">
+                  <motion.div
+                    variants={dashboardItem}
+                    className="mb-2 flex items-center gap-2"
+                  >
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <LuSend aria-hidden="true" className="size-3.5" />
+                    </span>
+                    <p className="text-[0.5625rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                      Administração
+                    </p>
+                  </motion.div>
+                  <motion.h1
+                    variants={dashboardItem}
+                    className="text-2xl font-semibold tracking-tight sm:text-3xl"
+                  >
+                    Convites
+                  </motion.h1>
+                  <motion.p
+                    variants={dashboardItem}
+                    className="mt-1.5 max-w-xl text-xs leading-5 text-muted-foreground sm:text-sm sm:leading-6"
+                  >
+                    Acompanhe os acessos à plataforma e mantenha os convites
+                    organizados em um só lugar.
+                  </motion.p>
+                </div>
               </motion.div>
 
               <motion.div
@@ -226,7 +328,7 @@ export function AdminInvitesPage({ header, footer }: AdminInvitesPageProps) {
                 <Button
                   size="lg"
                   onClick={handleCreateNewInvite}
-                  className="h-11 w-full rounded-xl px-4 shadow-sm shadow-primary/10 sm:w-auto"
+                  className="h-10 w-full rounded-xl px-4 shadow-sm shadow-primary/10 sm:w-auto"
                 >
                   <LuMailPlus aria-hidden="true" />
                   Novo convite
@@ -257,37 +359,39 @@ export function AdminInvitesPage({ header, footer }: AdminInvitesPageProps) {
                     variants={dashboardItem}
                     type="button"
                     aria-pressed={isSelected}
-                    onClick={() => setSelectedFilter(card.status)}
-                    whileHover={{ y: -3, scale: 1.008 }}
+                    onClick={() => handleFilterChange(card.status)}
+                    whileHover={{ y: -2, scale: 1.004 }}
                     whileTap={{ scale: 0.99 }}
                     transition={{ duration: 0.18, ease: "easeOut" }}
-                    className={`group rounded-2xl border p-4 text-left shadow-sm transition-colors sm:p-5 ${
-                      isSelected || card.status === "pending"
+                    className={`group rounded-2xl border p-3 text-left shadow-sm transition-colors sm:p-4 ${
+                      isSelected
                         ? "border-primary/20 bg-gradient-to-br from-primary/[0.08] via-card to-card ring-1 ring-primary/10"
                         : "border-border/70 bg-card hover:border-border hover:bg-card/90"
                     }`}
                   >
-                    <span className="flex items-start justify-between gap-4">
+                    <span className="flex items-center gap-3">
                       <span
-                        className={`flex size-10 items-center justify-center rounded-xl ${card.iconSurface} ${card.iconClassName}`}
+                        className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${card.iconSurface} ${card.iconClassName}`}
                       >
-                        <Icon aria-hidden="true" className="size-[1.125rem]" />
+                        <Icon aria-hidden="true" className="size-3.5" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline gap-1.5">
+                          <span className="text-2xl font-semibold tracking-tight tabular-nums">
+                            {counts?.[card.status] ?? "—"}
+                          </span>
+                          <span className="truncate text-xs font-medium text-muted-foreground">
+                            {card.label.toLowerCase()}
+                          </span>
+                        </span>
+                        <span className="mt-0.5 block truncate text-[0.625rem] text-muted-foreground">
+                          {card.description}
+                        </span>
                       </span>
                       <LuArrowUpRight
                         aria-hidden="true"
-                        className="size-4 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-muted-foreground"
+                        className="size-3.5 shrink-0 self-start text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-muted-foreground"
                       />
-                    </span>
-                    <span className="mt-5 flex items-baseline gap-2">
-                      <span className="text-3xl font-semibold tracking-tight tabular-nums">
-                        {inviteSummaryCounts[card.status]}
-                      </span>
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {card.label.toLowerCase()}
-                      </span>
-                    </span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      {card.description}
                     </span>
                   </motion.button>
                 )
@@ -296,65 +400,87 @@ export function AdminInvitesPage({ header, footer }: AdminInvitesPageProps) {
 
             <motion.section variants={dashboardItem}>
               <Card className="gap-0 overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm">
-                <CardHeader className="gap-4 border-b border-border/60 px-5 py-5 sm:px-6 sm:py-6">
-                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                    <div className="space-y-1.5">
+                <CardHeader className="gap-2 border-b border-border/60 px-4 py-3 sm:px-5">
+                  <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
+                    <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <h2 className="text-base font-semibold">
+                        <h2 className="text-sm font-semibold sm:text-base">
                           Convites enviados
                         </h2>
-                        <Badge
-                          variant="secondary"
-                          className="h-5 gap-1.5 rounded-full px-2 text-[0.625rem] font-medium"
-                        >
-                          <LuSparkles aria-hidden="true" />
-                          Prévia visual
-                        </Badge>
                       </div>
-                      <CardDescription className="max-w-2xl text-xs leading-5 sm:text-sm">
+                      <CardDescription className="max-w-2xl text-[0.6875rem] leading-5 sm:text-xs">
                         Pesquise por e-mail e filtre a lista pela situação do
                         convite.
                       </CardDescription>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {filteredInvites.length} de {demoInvites.length} registros
-                      de demonstração
+                    <p
+                      className="flex min-h-5 items-center gap-2 text-[0.6875rem] text-muted-foreground"
+                      aria-live="polite"
+                    >
+                      {isPending && (
+                        <span
+                          aria-hidden="true"
+                          className="size-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary"
+                        />
+                      )}
+                      {initialError
+                        ? "Não foi possível carregar os convites"
+                        : `${totalRows} ${totalRows === 1 ? "convite" : "convites"}`}
                     </p>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4 px-5 py-4 sm:px-6">
-                  <InvitesTableToolbar
-                    counts={inviteSummaryCounts}
-                    query={query}
-                    onQueryChange={setQuery}
-                    selectedFilter={selectedFilter}
-                    onFilterChange={setSelectedFilter}
-                  >
-                    <InvitesDataTable
-                      invites={filteredInvites}
-                      filter={selectedFilter}
+                <CardContent className="space-y-3 px-4 py-2.5 sm:px-5 sm:py-3">
+                  {initialError || !initialData ? (
+                    <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/15 px-6 text-center">
+                      <span className="flex size-11 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+                        <LuCircleX aria-hidden="true" className="size-5" />
+                      </span>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">
+                          Não foi possível carregar os convites
+                        </p>
+                        <p className="max-w-sm text-xs leading-5 text-muted-foreground">
+                          Não conseguimos consultar a lista agora. Tente
+                          novamente em instantes.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.refresh()}
+                      >
+                        Tentar novamente
+                      </Button>
+                    </div>
+                  ) : (
+                    <InvitesTableToolbar
+                      counts={initialData.counts}
                       query={query}
-                      onOpen={handleOpenInvite}
-                      onCreateFromInvite={handleCreateFromInvite}
-                      onClearFilters={handleClearFilters}
-                    />
-                  </InvitesTableToolbar>
-                  <p className="text-[0.625rem] leading-5 text-muted-foreground">
-                    Os registros são ilustrativos; convites reais serão
-                    conectados em uma próxima etapa.
-                  </p>
+                      onQueryChange={handleQueryChange}
+                      selectedFilter={selectedFilter}
+                      onFilterChange={handleFilterChange}
+                      isPending={isPending}
+                    >
+                      <InvitesDataTable
+                        invites={initialData.rows}
+                        filter={selectedFilter}
+                        query={query}
+                        page={initialData.page}
+                        pageCount={pageCount}
+                        pageSize={initialData.pageSize}
+                        totalRows={initialData.totalRows}
+                        onPageChange={(page) => navigateToQuery({ page })}
+                        onOpen={handleOpenInvite}
+                        onCreateFromInvite={handleCreateFromInvite}
+                        onClearFilters={handleClearFilters}
+                      />
+                    </InvitesTableToolbar>
+                  )}
                 </CardContent>
               </Card>
             </motion.section>
           </motion.div>
-        </motion.main>
-
-        <motion.footer
-          variants={dashboardItem}
-          className="border-t border-border/60 py-4 text-center text-[0.625rem] text-muted-foreground"
-        >
-          {footer}
-        </motion.footer>
+        </motion.div>
 
         <InviteDetailsSheet
           invite={selectedInvite}

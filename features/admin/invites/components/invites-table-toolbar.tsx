@@ -10,19 +10,22 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@/components/ui/input-group"
+import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   inviteStatusOptions,
   type InviteFilter,
-} from "@/features/admin/invites/data"
+  type InviteCounts,
+} from "@/features/admin/invites/model"
 
 type InvitesTableToolbarProps = {
   children: ReactNode
-  counts: Record<InviteFilter, number>
+  counts: InviteCounts
   query: string
   onQueryChange: (query: string) => void
   selectedFilter: InviteFilter
   onFilterChange: (filter: InviteFilter) => void
+  isPending: boolean
 }
 
 export function InvitesTableToolbar({
@@ -32,15 +35,16 @@ export function InvitesTableToolbar({
   onQueryChange,
   selectedFilter,
   onFilterChange,
+  isPending,
 }: InvitesTableToolbarProps) {
   return (
     <Tabs
       value={selectedFilter}
       onValueChange={(value) => onFilterChange(value as InviteFilter)}
-      className="gap-4"
+      className="gap-3"
     >
-      <div className="flex flex-col gap-4">
-        <InputGroup className="h-10 max-w-md rounded-xl bg-background">
+      <div className="flex flex-col gap-3">
+        <InputGroup className="h-9 max-w-md rounded-xl bg-background">
           <InputGroupAddon align="inline-start">
             <InputGroupText>
               <LuSearch aria-hidden="true" />
@@ -52,8 +56,16 @@ export function InvitesTableToolbar({
             onChange={(event) => onQueryChange(event.currentTarget.value)}
             placeholder="Buscar por e-mail..."
             value={query}
-            className="h-10"
+            className="h-9"
           />
+          {isPending && (
+            <InputGroupAddon align="inline-end">
+              <Spinner
+                aria-label="Atualizando convites"
+                className="motion-reduce:animate-none"
+              />
+            </InputGroupAddon>
+          )}
           {query && (
             <InputGroupAddon align="inline-end">
               <InputGroupButton
@@ -68,15 +80,15 @@ export function InvitesTableToolbar({
         </InputGroup>
 
         <div className="-mx-1 overflow-x-auto px-1 pb-1">
-          <TabsList className="h-10 w-max min-w-full justify-start gap-1 rounded-xl bg-muted/65 p-1 sm:min-w-0">
+          <TabsList className="h-9 w-max min-w-full justify-start gap-1 rounded-xl bg-muted/65 p-1 sm:min-w-0">
             {inviteStatusOptions.map((option) => (
               <TabsTrigger
                 key={option.value}
                 value={option.value}
-                className="h-8 flex-none gap-2 rounded-lg px-3 text-xs transition-all motion-reduce:transition-none data-active:shadow-sm"
+                className="group/tabs-trigger h-7 flex-none gap-2 rounded-lg px-3 text-xs transition-all motion-reduce:transition-none data-active:shadow-sm"
               >
                 {option.label}
-                <span className="rounded-full bg-foreground/5 px-1.5 py-0.5 text-[0.625rem] text-muted-foreground tabular-nums data-[active=true]:bg-primary/10 data-[active=true]:text-primary">
+                <span className="rounded-full bg-foreground/5 px-1.5 py-0.5 text-[0.625rem] text-muted-foreground tabular-nums group-data-[active=true]/tabs-trigger:bg-primary/10 group-data-[active=true]/tabs-trigger:text-primary">
                   {counts[option.value]}
                 </span>
               </TabsTrigger>

@@ -1,19 +1,27 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 import { motion, useReducedMotion } from "motion/react"
 import {
-  LuArrowLeft,
   LuCalendarClock,
   LuCheck,
   LuCopy,
   LuMail,
   LuMailPlus,
-  LuSparkles,
   LuX,
 } from "react-icons/lu"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -22,6 +30,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { createAdminInviteAction } from "@/features/admin/invites/actions"
 import {
   Sheet,
   SheetContent,
@@ -43,6 +52,8 @@ export function InviteCreateSheet({
   initialEmail,
 }: InviteCreateSheetProps) {
   const shouldReduceMotion = useReducedMotion()
+  const [isPending, startTransition] = useTransition()
+  const idempotencyKey = useRef<string | null>(null)
   const [email, setEmail] = useState(initialEmail ?? "")
   const [validDays, setValidDays] = useState("7")
   const [generatedLink, setGeneratedLink] = useState<string | null>(null)
@@ -51,6 +62,9 @@ export function InviteCreateSheet({
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">(
     "idle"
   )
+  const [actionError, setActionError] = useState("")
+  const [retryBlocked, setRetryBlocked] = useState(false)
+  const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false)
 
   useEffect(() => {
     if (!open) {
@@ -63,10 +77,29 @@ export function InviteCreateSheet({
     setEmailError("")
     setValidityError("")
     setCopyState("idle")
+    setActionError("")
+    setRetryBlocked(false)
   }, [initialEmail, open])
+
+  function requestClose(nextOpen: boolean) {
+    if (!nextOpen && isPending) return
+    if (!nextOpen && generatedLink && copyState !== "copied") {
+      setDiscardConfirmationOpen(true)
+      return
+    }
+    onOpenChange(nextOpen)
+  }
+
+  function discardLink() {
+    setGeneratedLink(null)
+    setActionError("")
+    setDiscardConfirmationOpen(false)
+    onOpenChange(false)
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (retryBlocked) return
     const normalizedEmail = email.trim()
     const emailIsValid =
       !normalizedEmail || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
@@ -84,10 +117,45 @@ export function InviteCreateSheet({
       return
     }
 
-    setGeneratedLink(
-      `https://tavvi.app/convite/demo-${Math.random().toString(36).slice(2, 10)}`
-    )
-    setCopyState("idle")
+    setActionError("")
+    startTransition(async () => {
+      try {
+        const result = await createAdminInviteAction({
+          email: normalizedEmail,
+          validDays: days,
+          idempotencyKey:
+            idempotencyKey.current ??
+            (idempotencyKey.current = globalThis.crypto.randomUUID()),
+        })
+
+        if (!result.ok) {
+          const errorMessages: Record<string, string> = {
+            invalid_input: "Revise os dados informados e tente novamente.",
+            unauthorized: "Sua sessão de gestão expirou. Entre novamente.",
+            service_unavailable:
+              "Não foi possível criar o convite agora. Tente novamente.",
+            rate_limited:
+              "Muitas operações em sequência. Aguarde um pouco e tente novamente.",
+            link_unavailable:
+              "O convite foi criado, mas o link não pode ser recuperado. Abra os detalhes e gere uma substituição.",
+            not_replaceable: "Este convite não pode ser substituído.",
+            not_revocable: "Este convite não pode ser revogado.",
+          }
+          setActionError(errorMessages[result.code] ?? "Não foi possível criar o convite.")
+          setRetryBlocked(result.code === "link_unavailable")
+          if (result.code === "link_unavailable") {
+            idempotencyKey.current = null
+          }
+          return
+        }
+
+        idempotencyKey.current = null
+        setGeneratedLink(result.link)
+        setCopyState("idle")
+      } catch {
+        setActionError("Não foi possível concluir a solicitação. Tente novamente.")
+      }
+    })
   }
 
   async function handleCopyLink() {
@@ -104,11 +172,12 @@ export function InviteCreateSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={(nextOpen) => onOpenChange(nextOpen)}>
+    <>
+    <Sheet open={open} onOpenChange={requestClose}>
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="w-full gap-0 p-0 motion-reduce:animate-none motion-reduce:transition-none motion-reduce:duration-0 sm:max-w-lg"
+        className="data-[side=right]:w-full! data-[side=right]:sm:max-w-lg! gap-0 p-0 motion-reduce:animate-none motion-reduce:transition-none motion-reduce:duration-0"
       >
         <motion.div
           initial={shouldReduceMotion ? false : { opacity: 0, x: 12 }}
@@ -121,7 +190,7 @@ export function InviteCreateSheet({
               <div className="flex items-center gap-3">
                 <span className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   {generatedLink ? (
-                    <LuSparkles aria-hidden="true" className="size-5" />
+                    <LuCheck aria-hidden="true" className="size-5" />
                   ) : (
                     <LuMailPlus aria-hidden="true" className="size-5" />
                   )}
@@ -131,7 +200,7 @@ export function InviteCreateSheet({
                     Convites da plataforma
                   </p>
                   <SheetTitle className="text-lg font-semibold tracking-tight">
-                    {generatedLink ? "Prévia do convite" : "Novo convite"}
+                    {generatedLink ? "Convite criado" : "Novo convite"}
                   </SheetTitle>
                 </div>
               </div>
@@ -139,14 +208,14 @@ export function InviteCreateSheet({
                 variant="ghost"
                 size="icon-sm"
                 aria-label="Fechar criação de convite"
-                onClick={() => onOpenChange(false)}
+                onClick={() => requestClose(false)}
               >
                 <LuX aria-hidden="true" />
               </Button>
             </div>
             <SheetDescription className="max-w-sm text-sm leading-6">
               {generatedLink
-                ? "O link abaixo é apenas demonstrativo e não ativa nenhum acesso."
+                ? "O convite está pronto para ser compartilhado."
                 : "Defina o destinatário e por quanto tempo o link deve ficar disponível."}
             </SheetDescription>
           </SheetHeader>
@@ -154,7 +223,7 @@ export function InviteCreateSheet({
           <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
             {generatedLink ? (
               <motion.div
-                key="preview"
+                key="success"
                 initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.22, ease: "easeOut" }}
@@ -162,14 +231,14 @@ export function InviteCreateSheet({
               >
                 <Alert className="rounded-2xl border-primary/20 bg-primary/5">
                   <LuCheck aria-hidden="true" />
-                  <AlertTitle>Convite demonstrativo preparado</AlertTitle>
+                  <AlertTitle>Convite criado</AlertTitle>
                   <AlertDescription>
-                    Nenhuma mensagem foi enviada e nenhum convite foi salvo.
+                    O link já pode ser compartilhado com o destinatário.
                   </AlertDescription>
                 </Alert>
 
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold">Link de demonstração</p>
+                  <p className="text-xs font-semibold">Link do convite</p>
                   <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/30 p-2">
                     <code className="min-w-0 flex-1 truncate px-2 text-xs text-muted-foreground">
                       {generatedLink}
@@ -298,38 +367,39 @@ export function InviteCreateSheet({
                   />
                 </Field>
 
-                <Alert className="rounded-xl border-dashed bg-muted/20">
-                  <LuSparkles aria-hidden="true" />
-                  <AlertTitle>Prévia visual</AlertTitle>
-                  <AlertDescription>
-                    Esta etapa não cria nem envia um convite real.
-                  </AlertDescription>
-                </Alert>
+                {actionError && (
+                  <Alert className="rounded-xl border-destructive/25 bg-destructive/5 text-destructive">
+                    <AlertTitle>
+                      {retryBlocked
+                        ? "Convite criado sem link recuperável"
+                        : "Não foi possível criar o convite"}
+                    </AlertTitle>
+                    <AlertDescription>{actionError}</AlertDescription>
+                  </Alert>
+                )}
+
               </motion.form>
             )}
           </div>
 
           <SheetFooter className="border-t border-border/70 px-6 py-5">
             {generatedLink ? (
-              <div className="flex w-full gap-2">
+              <div className="w-full">
                 <Button
-                  variant="outline"
-                  className="h-10 flex-1 rounded-xl"
-                  onClick={() => {
-                    setGeneratedLink(null)
-                    setCopyState("idle")
-                  }}
-                >
-                  <LuArrowLeft aria-hidden="true" />
-                  Editar dados
-                </Button>
-                <Button
-                  className="h-10 flex-1 rounded-xl"
-                  onClick={() => onOpenChange(false)}
+                  className="h-10 w-full rounded-xl"
+                  onClick={() => requestClose(false)}
                 >
                   Concluir
                 </Button>
               </div>
+            ) : retryBlocked ? (
+              <Button
+                variant="outline"
+                className="h-10 w-full rounded-xl"
+                onClick={() => onOpenChange(false)}
+              >
+                Voltar para convites
+              </Button>
             ) : (
               <motion.div
                 whileHover={{ y: -1 }}
@@ -340,10 +410,15 @@ export function InviteCreateSheet({
                 <Button
                   type="submit"
                   form="invite-create-form"
+                  disabled={isPending || retryBlocked}
                   className="h-10 w-full rounded-xl"
                 >
-                  <LuMailPlus aria-hidden="true" />
-                  Gerar prévia
+                  {isPending ? (
+                    <span className="size-4 animate-spin rounded-full border-2 border-current/30 border-t-current motion-reduce:animate-none" />
+                  ) : (
+                    <LuMailPlus aria-hidden="true" />
+                  )}
+                  {isPending ? "Criando convite…" : "Criar convite"}
                 </Button>
               </motion.div>
             )}
@@ -351,5 +426,26 @@ export function InviteCreateSheet({
         </motion.div>
       </SheetContent>
     </Sheet>
+    <AlertDialog
+      open={discardConfirmationOpen}
+      onOpenChange={setDiscardConfirmationOpen}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Descartar o link do convite?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Este link é exibido uma única vez. Se você fechar agora sem copiá-lo,
+            será necessário gerar uma substituição.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Continuar aqui</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={discardLink}>
+            Descartar link
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }

@@ -1,5 +1,7 @@
 # Admin Invites Visual Implementation Plan
 
+> Historical plan for the initial visual build. The current scope and follow-up tasks are recorded in `docs/superpowers/plans/2026-10-29-admin-invites-shell-polish.md` and the updated design spec.
+
 > For agentic workers: REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
 **Goal:** Build the visual-only Admin Convites landing page, align Motion across Entrar/Criar conta/Convites, and implement the table toolbar, contextual actions and invitation creation Sheet.

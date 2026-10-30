@@ -101,7 +101,7 @@ export function AdminAuthShell({
                 className="mb-8 flex items-center justify-between gap-4 md:hidden"
               >
                 <Image
-                  src="/brand/tavvi-lockup-horizontal-gold-on-light.png"
+                  src="/brand/tavvi-lockup-horizontal-light.png"
                   alt="Tavvi"
                   width={240}
                   height={94}
@@ -109,7 +109,7 @@ export function AdminAuthShell({
                   className="h-auto w-32 object-contain dark:hidden"
                 />
                 <Image
-                  src="/brand/tavvi-lockup-horizontal-light.png"
+                  src="/brand/tavvi-lockup-horizontal-dark.png"
                   alt="Tavvi"
                   width={240}
                   height={94}
