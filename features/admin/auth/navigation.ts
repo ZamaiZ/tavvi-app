@@ -100,3 +100,7 @@ export function getAdminPublicBasePath(hostname: string): "" | "/admin" {
 export function getAdminHomePath(publicBasePath: "" | "/admin") {
   return publicBasePath || "/"
 }
+
+export function getAdminRestaurantsPath(publicBasePath: "" | "/admin") {
+  return publicBasePath + "/restaurantes"
+}

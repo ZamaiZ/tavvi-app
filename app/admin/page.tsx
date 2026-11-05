@@ -87,7 +87,7 @@ export default async function AdminHomePage({
   const loginPath = publicBasePath + "/entrar"
 
   return (
-    <AdminAppShell publicBasePath={publicBasePath}>
+    <AdminAppShell publicBasePath={publicBasePath} activeItem="invites">
       <Suspense fallback={<AdminInvitesPageSkeleton />}>
         <AdminInvitesContent searchParams={searchParams} loginPath={loginPath} />
       </Suspense>

@@ -8,8 +8,6 @@ import {
 } from "@tanstack/react-table"
 import { motion, useReducedMotion } from "motion/react"
 import {
-  LuArrowLeft,
-  LuArrowRight,
   LuAtSign,
   LuBan,
   LuCalendarClock,
@@ -25,6 +23,15 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -234,6 +241,12 @@ export function InvitesDataTable({
     getRowId: (invite) => invite.id,
   })
   const rows = table.getRowModel().rows
+  const firstVisiblePage = Math.max(1, page - 3)
+  const lastVisiblePage = Math.min(pageCount, page + 4)
+  const visiblePages = Array.from(
+    { length: lastVisiblePage - firstVisiblePage + 1 },
+    (_, index) => firstVisiblePage + index
+  )
 
   if (rows.length === 0) {
     const hasFilter = Boolean(query) || filter !== "all"
@@ -364,31 +377,66 @@ export function InvitesDataTable({
           Mostrando {(page - 1) * pageSize + 1}–
           {Math.min(page * pageSize, totalRows)} de {totalRows} convites
         </p>
-        <div className="flex items-center justify-between gap-3 sm:justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-lg"
-            disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
-          >
-            <LuArrowLeft aria-hidden="true" />
-            Anterior
-          </Button>
-          <span className="min-w-20 text-center tabular-nums">
-            Página {page} de {pageCount}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-lg"
-            disabled={page >= pageCount}
-            onClick={() => onPageChange(page + 1)}
-          >
-            Próxima
-            <LuArrowRight aria-hidden="true" />
-          </Button>
-        </div>
+        <Pagination
+          aria-label="Paginação dos convites"
+          className="mx-0 w-full justify-between sm:w-auto sm:justify-end"
+        >
+          <PaginationContent className="w-full justify-between gap-1 sm:w-auto sm:justify-end">
+            <PaginationItem>
+              <PaginationPrevious
+                href="#"
+                text="Anterior"
+                aria-disabled={page <= 1}
+                tabIndex={page <= 1 ? -1 : undefined}
+                className={`h-8 rounded-lg ${page <= 1 ? "pointer-events-none opacity-50" : ""}`}
+                onClick={(event) => {
+                  event.preventDefault()
+                  if (page > 1) onPageChange(page - 1)
+                }}
+              />
+            </PaginationItem>
+            {firstVisiblePage > 1 && (
+              <PaginationItem className="hidden sm:block">
+                <PaginationEllipsis />
+              </PaginationItem>
+            )}
+            {visiblePages.map((visiblePage) => (
+              <PaginationItem key={visiblePage}>
+                <PaginationLink
+                  href="#"
+                  isActive={visiblePage === page}
+                  size="icon"
+                  aria-label={`Página ${visiblePage}`}
+                  className="size-7 rounded-lg p-0 text-xs tabular-nums"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    if (visiblePage !== page) onPageChange(visiblePage)
+                  }}
+                >
+                  {visiblePage}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+            {lastVisiblePage < pageCount && (
+              <PaginationItem className="hidden sm:block">
+                <PaginationEllipsis />
+              </PaginationItem>
+            )}
+            <PaginationItem>
+              <PaginationNext
+                href="#"
+                text="Próxima"
+                aria-disabled={page >= pageCount}
+                tabIndex={page >= pageCount ? -1 : undefined}
+                className={`h-8 rounded-lg ${page >= pageCount ? "pointer-events-none opacity-50" : ""}`}
+                onClick={(event) => {
+                  event.preventDefault()
+                  if (page < pageCount) onPageChange(page + 1)
+                }}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
       </div>
     </div>
   )

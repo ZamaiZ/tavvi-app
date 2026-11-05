@@ -83,7 +83,7 @@ export function AdminAuthShell({
                 variants={authItemVariants}
                 className="max-w-sm text-2xl leading-tight font-medium tracking-tight lg:text-3xl"
               >
-                Seu restaurante, em ordem.
+                Manage hub.
               </motion.h2>
             </motion.div>
           </motion.aside>

@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useRef,
   useState,
   useTransition,
 } from "react"
@@ -33,6 +32,12 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { InviteCreateSheet } from "@/features/admin/invites/components/invite-create-sheet"
 import { InviteDetailsSheet } from "@/features/admin/invites/components/invite-details-sheet"
@@ -147,13 +152,8 @@ export function AdminInvitesPage({
   )
   const [createOpen, setCreateOpen] = useState(false)
   const [initialEmail, setInitialEmail] = useState<string | undefined>()
-  const queryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (queryTimer.current) {
-      clearTimeout(queryTimer.current)
-      queryTimer.current = null
-    }
     setQuery(initialQuery.search)
     setSelectedFilter(initialQuery.status)
   }, [initialQuery.search, initialQuery.status])
@@ -171,15 +171,6 @@ export function AdminInvitesPage({
     const href = suffix ? `${pathname}?${suffix}` : pathname
     startTransition(() => router.replace(href, { scroll: false }))
   }, [initialData, initialQuery.page, pathname, router])
-
-  useEffect(
-    () => () => {
-      if (queryTimer.current) {
-        clearTimeout(queryTimer.current)
-      }
-    },
-    []
-  )
 
   const navigateToQuery = useCallback(
     (next: Partial<InviteListQuery>) => {
@@ -209,22 +200,19 @@ export function AdminInvitesPage({
   const handleQueryChange = useCallback(
     (nextQuery: string) => {
       setQuery(nextQuery)
-      if (queryTimer.current) {
-        clearTimeout(queryTimer.current)
-      }
-      queryTimer.current = setTimeout(() => {
-        queryTimer.current = null
-        navigateToQuery({ search: nextQuery, page: 1 })
-      }, 280)
     },
-    [navigateToQuery]
+    []
+  )
+
+  const handleQuerySubmit = useCallback(
+    (nextQuery = query) => {
+      navigateToQuery({ search: nextQuery.trim(), page: 1 })
+    },
+    [navigateToQuery, query]
   )
 
   const handleFilterChange = useCallback(
     (nextFilter: InviteFilter) => {
-      if (queryTimer.current) {
-        clearTimeout(queryTimer.current)
-      }
       setSelectedFilter(nextFilter)
       navigateToQuery({ search: query, status: nextFilter, page: 1 })
     },
@@ -249,9 +237,6 @@ export function AdminInvitesPage({
   const handleClearFilters = useCallback(() => {
     setQuery("")
     setSelectedFilter("all")
-    if (queryTimer.current) {
-      clearTimeout(queryTimer.current)
-    }
     navigateToQuery({ search: "", status: "all", page: 1 })
   }, [navigateToQuery])
 
@@ -290,32 +275,20 @@ export function AdminInvitesPage({
                   title="Alternar navegação lateral"
                   className="mt-0.5 shrink-0 rounded-lg border border-border/70 bg-background shadow-sm transition-colors duration-150"
                 />
-                <div className="min-w-0 max-w-2xl">
-                  <motion.div
-                    variants={dashboardItem}
-                    className="mb-2 flex items-center gap-2"
-                  >
-                    <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <LuSend aria-hidden="true" className="size-3.5" />
-                    </span>
-                    <p className="text-[0.5625rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                      Administração
-                    </p>
-                  </motion.div>
-                  <motion.h1
-                    variants={dashboardItem}
-                    className="text-2xl font-semibold tracking-tight sm:text-3xl"
-                  >
-                    Convites
-                  </motion.h1>
-                  <motion.p
-                    variants={dashboardItem}
-                    className="mt-1.5 max-w-xl text-xs leading-5 text-muted-foreground sm:text-sm sm:leading-6"
-                  >
-                    Acompanhe os acessos à plataforma e mantenha os convites
-                    organizados em um só lugar.
-                  </motion.p>
-                </div>
+                <motion.div variants={dashboardItem} className="min-w-0">
+                  <Breadcrumb>
+                    <BreadcrumbList className="gap-2">
+                      <BreadcrumbItem>
+                        <BreadcrumbPage className="inline-flex items-center gap-2 text-[0.5625rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                          <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <LuSend aria-hidden="true" className="size-3.5" />
+                          </span>
+                          Convites
+                        </BreadcrumbPage>
+                      </BreadcrumbItem>
+                    </BreadcrumbList>
+                  </Breadcrumb>
+                </motion.div>
               </motion.div>
 
               <motion.div
@@ -457,6 +430,7 @@ export function AdminInvitesPage({
                       counts={initialData.counts}
                       query={query}
                       onQueryChange={handleQueryChange}
+                      onQuerySubmit={handleQuerySubmit}
                       selectedFilter={selectedFilter}
                       onFilterChange={handleFilterChange}
                       isPending={isPending}

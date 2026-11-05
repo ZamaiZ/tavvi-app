@@ -28,7 +28,7 @@ export default function Page() {
             alt="Tavvi"
             width={420}
             height={152}
-            className="hidden h-5 w-auto dark:block"
+            className="hidden h-5 w-auto dark:block relative top-[-2px]"
           />
           <span
             aria-hidden="true"

@@ -47,11 +47,17 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { getAdminHomePath } from "@/features/admin/auth/navigation"
+import {
+  getAdminHomePath,
+  getAdminRestaurantsPath,
+} from "@/features/admin/auth/navigation"
+
+type AdminNavigationItem = "invites" | "restaurants"
 
 type AdminAppShellProps = {
   children: ReactNode
   publicBasePath: "" | "/admin"
+  activeItem: AdminNavigationItem
 }
 
 function AdminBrand({ href }: { href: string }) {
@@ -195,8 +201,10 @@ function AdminProfileMenu() {
 export function AdminAppShell({
   children,
   publicBasePath,
+  activeItem,
 }: AdminAppShellProps) {
   const invitesHref = getAdminHomePath(publicBasePath)
+  const restaurantsHref = getAdminRestaurantsPath(publicBasePath)
 
   return (
     <SidebarProvider defaultOpen>
@@ -212,7 +220,7 @@ export function AdminAppShell({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     render={<Link href={invitesHref} />}
-                    isActive
+                    isActive={activeItem === "invites"}
                     tooltip="Convites"
                     className="transition-colors duration-150"
                   >
@@ -222,7 +230,8 @@ export function AdminAppShell({
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    disabled
+                    render={<Link href={restaurantsHref} />}
+                    isActive={activeItem === "restaurants"}
                     tooltip="Restaurantes"
                     className="transition-colors duration-150"
                   >
