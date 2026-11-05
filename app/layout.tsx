@@ -1,12 +1,14 @@
 import type { Metadata, Viewport } from "next"
-import { Geist_Mono, Outfit } from "next/font/google"
+import { Geist_Mono, Outfit, Inter } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toast"
 import { cn } from "@/lib/utils"
 
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" })
+const outfitHeading = Outfit({subsets:['latin'],variable:'--font-heading'});
+
+const inter = Inter({subsets:['latin'],variable:'--font-sans'})
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],
@@ -44,7 +46,7 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", outfit.variable)}
+      className={cn("antialiased", fontMono.variable, "font-sans", inter.variable, outfitHeading.variable)}
     >
       <body>
         <ThemeProvider>
