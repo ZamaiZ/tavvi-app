@@ -19,7 +19,7 @@ function getSurface(hostname: string, pathname: string): AuthSurface | null {
   }
 
   if (hostname === "painel.localhost") {
-    return "panel"
+    return pathname === "/" ? null : "panel"
   }
 
   const firstSegment = pathname.split("/")[1]
@@ -49,6 +49,13 @@ function getHostRewritePrefix(hostname: string) {
 
 function getHostRewrite(request: NextRequest, hostname: string): URL | null {
   const pathname = request.nextUrl.pathname
+
+  // The Panel home route does not exist yet. Keep the app-wide PWA launch URL
+  // on the existing public home; invite routes below the root still rewrite.
+  if (hostname === "painel.localhost" && pathname === "/") {
+    return null
+  }
+
   const prefix = getHostRewritePrefix(hostname)
 
   if (!prefix || pathname === prefix || pathname.startsWith(prefix + "/")) {
