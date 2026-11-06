@@ -1,8 +1,11 @@
 import type { Metadata } from "next"
+import { headers } from "next/headers"
 
 import { InviteRedemptionPage } from "@/features/panel/invites/components/invite-redemption-page"
+import { getPanelPublicBasePath } from "@/features/panel/auth/navigation"
 import { previewPlatformInvite } from "@/features/panel/invites/server/redemption"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { getRequestHostname } from "@/lib/routing/host"
 
 export const metadata: Metadata = {
   title: "Aceitar convite",
@@ -16,6 +19,8 @@ type InvitePageProps = {
 }
 
 export default async function InvitePage({ searchParams }: InvitePageProps) {
+  const requestHeaders = await headers()
+  const publicBasePath = getPanelPublicBasePath(getRequestHostname(requestHeaders))
   const params = await searchParams
   const rawToken = params.token
   const token = Array.isArray(rawToken) ? rawToken[0] : rawToken ?? null
@@ -37,6 +42,7 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
       token={preview.status === "available" ? token : null}
       preview={preview}
       isAuthenticated={isAuthenticated}
+      publicBasePath={publicBasePath}
     />
   )
 }

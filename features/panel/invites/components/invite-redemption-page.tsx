@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   AnimatePresence,
@@ -88,6 +89,7 @@ type InviteRedemptionPageProps = {
   token: string | null
   preview: PanelInvitePreview
   isAuthenticated: boolean
+  publicBasePath: "" | "/painel"
 }
 
 function formatDate(value: string) {
@@ -145,7 +147,9 @@ export function InviteRedemptionPage({
   token: initialToken,
   preview: initialPreview,
   isAuthenticated,
+  publicBasePath,
 }: InviteRedemptionPageProps) {
+  const router = useRouter()
   const shouldReduceMotion = useReducedMotion()
   const [isPending, startTransition] = useTransition()
   const [token] = useState(initialToken)
@@ -255,6 +259,7 @@ export function InviteRedemptionPage({
           return
         }
         setAcceptedRestaurant(result.restaurant)
+        router.replace(publicBasePath + (result.restaurant.restaurantStatus === "draft" ? "/identidade" : "/cardapio"))
       } catch {
         setActionError("Não foi possível concluir o aceite. Tente novamente.")
       }

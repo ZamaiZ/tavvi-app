@@ -35,3 +35,13 @@ export function isAdminHostname(hostname: string) {
       normalizedHostname.length > "admin.".length)
   )
 }
+
+export function isPanelHostname(hostname: string) {
+  const normalizedHostname = parseHostname(hostname) ?? hostname.toLowerCase()
+
+  return (
+    normalizedHostname === "painel.localhost" ||
+    (normalizedHostname.startsWith("painel.") &&
+      normalizedHostname.length > "painel.".length)
+  )
+}

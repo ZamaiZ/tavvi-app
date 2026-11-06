@@ -10,6 +10,7 @@ import {
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
+  InputGroupText,
 } from "@/components/ui/input-group"
 import {
   LuChevronDown as ChevronDownIcon,
@@ -59,13 +60,20 @@ function ComboboxInput({
   disabled = false,
   showTrigger = true,
   showClear = false,
+  startAdornment,
   ...props
 }: ComboboxPrimitive.Input.Props & {
   showTrigger?: boolean
   showClear?: boolean
+  startAdornment?: React.ReactNode
 }) {
   return (
     <InputGroup className={cn("w-auto", className)}>
+      {startAdornment ? (
+        <InputGroupAddon align="inline-start">
+          <InputGroupText>{startAdornment}</InputGroupText>
+        </InputGroupAddon>
+      ) : null}
       <ComboboxPrimitive.Input
         render={<InputGroupInput disabled={disabled} />}
         {...props}

@@ -19,12 +19,14 @@ type AdminAuthShellProps = {
   children: ReactNode
   title: string
   description: string
+  badgeLabel?: string
 }
 
 export function AdminAuthShell({
   children,
   title,
   description,
+  badgeLabel = "GESTÃO",
 }: AdminAuthShellProps) {
   const shouldReduceMotion = useReducedMotion()
 
@@ -117,7 +119,7 @@ export function AdminAuthShell({
                   className="hidden h-auto w-32 object-contain dark:block"
                 />
                 <span className="rounded-full border border-border bg-muted/40 px-3 py-1 text-[0.625rem] font-medium tracking-[0.14em] text-muted-foreground">
-                  GESTÃO
+                  {badgeLabel}
                 </span>
               </motion.div>
 

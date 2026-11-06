@@ -12,30 +12,32 @@ O `tavvi-app` já cria contas e restaurantes a partir de convites, mas a aceita�
 
 ### Acesso
 
-- Criar `/painel/entrar` com o mesmo layout, composição, animação, marca, campos com ícones e hierarquia visual de `/admin/entrar`.
+- Criar a rota de login do host Painel `/entrar` (arquivo sob `app/painel/`) com o mesmo layout, composição, animação, marca, campos com ícones e hierarquia visual de `/admin/entrar`.
 - Reusar a estrutura visual de autenticação compartilhada, sem reutilizar a autorização de plataforma: o login do painel autentica com a superfície/cookie `panel` e valida uma membership de restaurante.
 - Após aceitar o convite e criar a conta com email e senha, aproveitar a sessão criada e navegar direto para o wizard do restaurante recém-criado. O usuário não redigita as credenciais.
-- Em sessão existente, aceitar o convite e abrir o wizard do novo restaurante `draft`.
-- `/painel/criar-conta` não registra uma conta sem convite. Mostra uma mensagem curta, premium e animada com ícone, explica que o acesso é por convite e orienta a pessoa a contatar o comercial para receber um. Não exibe número de telefone nem inventa um canal/endereço de contato.
-- Login após autenticação: restaurante `draft` segue para o wizard; `active` segue para o template vazio de Cardápio; `suspended` recebe uma mensagem de acesso indisponível.
+- Em sessão existente, aceitar o convite, selecionar o restaurante recém-criado no contexto ativo e abrir o wizard.
+- `/criar-conta` no host Painel não registra uma conta sem convite. Mostra uma mensagem curta, premium e animada com ícone, explica que o acesso é por convite e orienta a pessoa a contatar o comercial para receber um. Não exibe número de telefone nem inventa um canal/endereço de contato.
+- O Painel usa um restaurante ativo por navegador em cookie `active_restaurant_id` HttpOnly, Secure em produção, SameSite=Lax e Path=/; o cookie é só um seletor, nunca prova de autorização. O servidor valida sempre a membership e compara o contexto esperado em cada mutação para proteger abas após uma troca de restaurante.
+- Login após autenticação: um restaurante acessível seleciona o contexto e abre o destino por status; múltiplos restaurantes vão a `/restaurantes` para escolha explícita; `draft` abre o wizard, `active` abre o template vazio de Cardápio, `suspended` recebe uma mensagem de acesso indisponível.
 
 ### Wizard de restaurante em `draft`
 
-- O painel mostra somente um wizard com os steps **Identidade** e **Contato**. Não exibe a navegação das demais áreas enquanto o restaurante estiver em `draft`.
+- O painel mostra somente um wizard com os steps **Identidade** e **Contato**, nas rotas curtas `/identidade` e `/contato` usando o restaurante ativo do cookie. Não exibe a navegação das demais áreas enquanto o restaurante estiver em `draft`.
 - O stepper tem hierarquia visual clara e transição animada entre passos; respeita `prefers-reduced-motion`/a configuração de movimento reduzido já usada no app.
-- **Identidade:** nome e slug criados pelo convite (slug é só leitura), tipo/segmento do restaurante em combobox, apresentação de cardápio (`immersive`, `catalog-list`, `catalog-grid`), tema entre os oito presets de Tavvi (`brasa`, `forno`, `grao`, `sal`, `horta`, `neon`, `nori`, `confeito`), cores de fundo/destaque e densidade (`confortavel`, `compacto`). Permitir logo e capa opcionais para preparar a identidade pública.
-- **Contato:** nome público, descrição, telefone do restaurante, WhatsApp, Instagram, endereço estruturado (CEP, rua, número, complemento, bairro, cidade e UF) e link do Google Maps opcionais. Telefone comercial da Tavvi não aparece nesta tela.
+- **Identidade:** mostrar o nome criado pelo convite e o slug como resumo (sem edição duplicada do nome); tipo/segmento do restaurante em combobox, apresentação de cardápio (`immersive`, `catalog-list`, `catalog-grid`), tema entre os oito presets de Tavvi (`brasa`, `forno`, `grao`, `sal`, `horta`, `neon`, `nori`, `confeito`), cores de fundo/destaque e densidade (`confortavel`, `compacto`). Permitir logo e capa opcionais para preparar a identidade pública.
+- **Contato:** nome público, descrição, telefone do restaurante, WhatsApp, Instagram, endereço estruturado (CEP, rua, número, complemento, bairro, cidade e UF), link do Google Maps e link direto para avaliação no Google, opcionais. O link de avaliação é separado do Maps. Telefone comercial da Tavvi não aparece nesta tela.
 - Inputs usam os componentes existentes do app, ícones contextuais, rótulos e estados de erro acessíveis. Segmento e UF usam os comboboxes existentes. A identidade segue os presets, tokens e padrões visuais já presentes em `tavvi-app`.
 - Cada mudança de campo/configuração agenda salvamento automático do rascunho após 2.500 ms sem novas mudanças. Mostrar estado acessível e discreto de salvamento/salvo/erro. Navegar de passo, atualizar ou tentar finalizar não pode descartar uma gravação pendente; a conclusão sempre envia o estado mais recente.
+- O step atual também persiste no banco; ao entrar de novo, a pessoa retoma o passo que estava editando.
 - Os dados de rascunho podem estar incompletos. Só o servidor decide se o rascunho continua válido para edição.
-- **Finalizar** valida no cliente para feedback rápido e valida de novo no servidor; grava os últimos valores e muda `draft` para `active` na mesma operação atômica. Falhas não ativam o restaurante e preservam o rascunho.
+- **Finalizar** no step Contato valida no cliente para feedback rápido e valida de novo no servidor; grava os últimos valores e muda `draft` para `active` na mesma operação atômica. Falhas não ativam o restaurante e preservam o rascunho.
 - O nome/slug criados pelo convite e os valores padrão válidos de identidade bastam para ativar. Dados de contato, logo, capa e personalizações permanecem opcionais, seguindo o modelo atual de `tavvi`; campos preenchidos devem ser validados. Um restaurante recém-aceito abre direto, mesmo que a conta já tenha outras memberships.
-- Ao finalizar, abrir `/painel/restaurantes/{id}/cardapio`: uma página interna vazia, somente com o template visual e a identificação do restaurante, preparada para a próxima etapa do produto.
+- Ao finalizar, abrir `/cardapio`: uma página interna vazia, somente com o template visual e a identificação do restaurante, preparada para a próxima etapa do produto.
 - No login, uma membership leva direto ao destino daquele restaurante. Se houver mais de uma membership, mostrar uma lista simples para a pessoa escolher, sem abrir por conta própria um restaurante ativo enquanto outro `draft` aguarda configuração.
 
 ## Dados para o futuro cardápio público
 
-Persistir os campos necessários para apresentar uma página inicial pública em `/{slug}`: slug/endereço, nome, descrição, segmento, logo/capa quando enviados, preset e cores do tema, densidade e apresentação, canais de contato e endereço/Maps. A montagem da página pública e do catálogo não pertence a esta entrega. Produtos, categorias e preços podem continuar pendentes; não bloquearão a ativação.
+Persistir os campos necessários para apresentar uma página inicial pública em `/{slug}`: slug/endereço, nome, descrição, segmento, logo/capa quando enviados, preset e cores do tema, densidade e apresentação, canais de contato, endereço/Maps e link direto de avaliação do Google. A montagem da página pública e do catálogo não pertence a esta entrega. Produtos, categorias e preços podem continuar pendentes; não bloquearão a ativação.
 
 ## Persistência e autorização
 
@@ -45,6 +47,8 @@ Persistir os campos necessários para apresentar uma página inicial pública em
 - Proteger o upload de logo/capa por membership do restaurante, caminhos limitados ao ID do restaurante, validação de tipo/tamanho e URLs adequadas para futura exibição pública. Erros de upload não podem fingir que a imagem foi salva.
 - Ler o restaurante do usuário sob sessão `panel`, validar os retornos da RPC e tratar indisponibilidade sem conceder acesso.
 - As sessões `admin` e `panel` continuam separadas.
+- A seleção ativa segue a arquitetura existente em `__BASE.MD`: lista de memberships apenas na escolha inicial/seleção; leituras seguintes consultam só o ID do cookie validado e dados necessários à tela.
+- A mutation compara o ID esperado pela tela com o restaurante ativo validado no cookie; se outra aba trocou o contexto, a gravação recusa e pede atualização.
 
 ## Fora de escopo
 
@@ -63,6 +67,6 @@ Persistir os campos necessários para apresentar uma página inicial pública em
 
 ## Decisões deixadas à implementação
 
-- A organização exata de rotas do wizard e do template vazio, desde que preservem as rotas citadas no fluxo e protejam os restaurantes por ID/membership.
+- A organização exata dos arquivos de rota sob `/painel`, preservando os caminhos curtos de produto `/entrar`, `/criar-conta`, `/convite`, `/identidade`, `/contato`, `/cardapio` e `/restaurantes` e usando contexto de restaurante ativo do servidor, não IDs na URL.
 - O formato interno de armazenamento de tema, contato e referências de mídia, desde que retenha os campos e valores definidos acima e permita uma leitura futura para `/{slug}`.
 - A forma de compartilhar a casca visual de autenticação, sem compartilhar a decisão de autorização Admin/Panel.

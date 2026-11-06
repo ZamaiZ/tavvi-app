@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { refreshSupabaseSession } from "@/lib/supabase/proxy"
 import type { AuthSurface } from "@/lib/supabase/config"
-import { getRequestHostname, isAdminHostname } from "@/lib/routing/host"
+import { getRequestHostname, isAdminHostname, isPanelHostname } from "@/lib/routing/host"
 
 function isStaticAsset(pathname: string) {
   if (pathname.startsWith("/_next/") || pathname === "/_next") {
@@ -18,9 +18,7 @@ function getSurface(hostname: string, pathname: string): AuthSurface | null {
     return "admin"
   }
 
-  if (hostname === "painel.localhost") {
-    return pathname === "/" ? null : "panel"
-  }
+  if (isPanelHostname(hostname)) return "panel"
 
   const firstSegment = pathname.split("/")[1]
 
@@ -40,21 +38,13 @@ function getHostRewritePrefix(hostname: string) {
     return "/admin"
   }
 
-  if (hostname === "painel.localhost") {
-    return "/painel"
-  }
+  if (isPanelHostname(hostname)) return "/painel"
 
   return null
 }
 
 function getHostRewrite(request: NextRequest, hostname: string): URL | null {
   const pathname = request.nextUrl.pathname
-
-  // The Panel home route does not exist yet. Keep the app-wide PWA launch URL
-  // on the existing public home; invite routes below the root still rewrite.
-  if (hostname === "painel.localhost" && pathname === "/") {
-    return null
-  }
 
   const prefix = getHostRewritePrefix(hostname)
 
@@ -65,6 +55,16 @@ function getHostRewrite(request: NextRequest, hostname: string): URL | null {
   const rewrittenUrl = request.nextUrl.clone()
   rewrittenUrl.pathname = prefix + (pathname === "/" ? "" : pathname)
   return rewrittenUrl
+}
+
+function getPanelCanonicalRedirect(request: NextRequest, hostname: string): URL | null {
+  if (!isPanelHostname(hostname)) return null
+  const pathname = request.nextUrl.pathname
+  if (pathname !== "/painel" && !pathname.startsWith("/painel/")) return null
+
+  const canonicalUrl = request.nextUrl.clone()
+  canonicalUrl.pathname = pathname.slice("/painel".length) || "/"
+  return canonicalUrl
 }
 
 function getAdminCanonicalRedirect(
@@ -99,6 +99,9 @@ export async function proxy(request: NextRequest) {
   if (canonicalUrl) {
     return NextResponse.redirect(canonicalUrl, 308)
   }
+
+  const panelCanonicalUrl = getPanelCanonicalRedirect(request, hostname)
+  if (panelCanonicalUrl) return NextResponse.redirect(panelCanonicalUrl, 308)
 
   const scope = getSurface(hostname, pathname)
   const refresh = scope

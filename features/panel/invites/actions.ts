@@ -12,6 +12,7 @@ import {
   checkPlatformInviteRestaurantName,
 } from "@/features/panel/invites/server/redemption"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { setActivePanelRestaurantId } from "@/features/panel/workspace/server/active-restaurant-cookie"
 
 const commonFields = {
   token: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
@@ -99,6 +100,8 @@ export async function acceptPanelInviteAction(
       supabase
     )
     if (!result.ok) return result
+
+    await setActivePanelRestaurantId(result.restaurant.restaurantId)
 
     return { ok: true, restaurant: result.restaurant }
   } catch {
