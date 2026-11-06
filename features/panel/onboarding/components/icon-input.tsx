@@ -1,6 +1,8 @@
 "use client"
 
 import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react"
+import { useMemo } from "react"
+import { Combobox } from "@base-ui/react"
 import { Combobox as ComboboxRoot, ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList } from "@/components/ui/combobox"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText, InputGroupTextarea } from "@/components/ui/input-group"
@@ -89,15 +91,21 @@ export function IconCombobox({
   placeholder?: string
   emptyMessage?: string
 }) {
+  const items = useMemo(
+    () => Combobox.createItems(options, {
+      getValue: (option) => option.value,
+      getLabel: (option) => option.label,
+    }),
+    [options]
+  )
+
   return (
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <ComboboxRoot
-        items={options}
+        items={items}
         value={value}
         onValueChange={(next) => { onChange(typeof next === "string" ? next : "") }}
-        itemToStringValue={(item) => typeof item === "string" ? item : item.label}
-        itemToStringLabel={(item) => typeof item === "string" ? item : item.label}
       >
         <ComboboxInput id={id} placeholder={placeholder} startAdornment={icon} showClear className="h-11 w-full rounded-lg bg-background/70" autoComplete="off" />
         <ComboboxContent>

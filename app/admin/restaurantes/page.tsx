@@ -14,6 +14,7 @@ import {
 import { getAdminPublicBasePath } from "@/features/admin/auth/navigation"
 import { getRequestHostname } from "@/lib/routing/host"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { requireAuthenticatedSurface } from "@/lib/supabase/require-authenticated-surface"
 
 export const metadata: Metadata = {
   title: "Restaurantes",
@@ -78,6 +79,7 @@ export default async function AdminRestaurantsRoute({
 }: {
   searchParams: Promise<SearchParams>
 }) {
+  await requireAuthenticatedSurface("admin")
   const requestHeaders = await headers()
   const publicBasePath = getAdminPublicBasePath(
     getRequestHostname(requestHeaders)

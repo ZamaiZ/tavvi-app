@@ -14,6 +14,7 @@ import {
 } from "@/features/admin/invites/server/invites"
 import { getRequestHostname } from "@/lib/routing/host"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { requireAuthenticatedSurface } from "@/lib/supabase/require-authenticated-surface"
 
 export const metadata: Metadata = {
   title: "Convites",
@@ -81,6 +82,7 @@ async function AdminInvitesContent({
 export default async function AdminHomePage({
   searchParams,
 }: AdminHomePageProps) {
+  await requireAuthenticatedSurface("admin")
   const requestHeaders = await headers()
   const hostname = getRequestHostname(requestHeaders)
   const publicBasePath = getAdminPublicBasePath(hostname)

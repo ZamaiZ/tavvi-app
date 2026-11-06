@@ -4,15 +4,13 @@ import { redirect } from "next/navigation"
 import { getPanelPublicBasePath } from "@/features/panel/auth/navigation"
 import { PanelMenuTemplate } from "@/features/panel/workspace/components/panel-menu-template"
 import { getActivePanelRestaurant } from "@/features/panel/workspace/server/restaurants"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getRequestHostname } from "@/lib/routing/host"
+import { requireAuthenticatedSurface } from "@/lib/supabase/require-authenticated-surface"
 
 export default async function PanelMenuPage() {
+  await requireAuthenticatedSurface("panel")
   const requestHeaders = await headers()
   const base = getPanelPublicBasePath(getRequestHostname(requestHeaders))
-  const supabase = await createSupabaseServerClient("panel")
-  const { data, error } = await supabase.auth.getClaims()
-  if (error || !data?.claims?.sub) redirect(base + "/entrar")
   let restaurant: Awaited<ReturnType<typeof getActivePanelRestaurant>>
   try {
     restaurant = await getActivePanelRestaurant()

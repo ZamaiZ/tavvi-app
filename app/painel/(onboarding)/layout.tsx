@@ -8,13 +8,13 @@ import { getPanelPublicBasePath } from "@/features/panel/auth/navigation"
 import { getActivePanelRestaurant } from "@/features/panel/workspace/server/restaurants"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getRequestHostname } from "@/lib/routing/host"
+import { requireAuthenticatedSurface } from "@/lib/supabase/require-authenticated-surface"
 
 export default async function PanelOnboardingLayout({ children }: { children: ReactNode }) {
+  await requireAuthenticatedSurface("panel")
   const requestHeaders = await headers()
   const publicBasePath = getPanelPublicBasePath(getRequestHostname(requestHeaders))
   const supabase = await createSupabaseServerClient("panel")
-  const { data, error } = await supabase.auth.getClaims()
-  if (error || !data?.claims?.sub) redirect(publicBasePath + "/entrar")
 
   let restaurant: Awaited<ReturnType<typeof getActivePanelRestaurant>>
   try {
