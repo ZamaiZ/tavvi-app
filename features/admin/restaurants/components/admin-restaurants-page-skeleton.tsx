@@ -41,7 +41,10 @@ export function AdminRestaurantsPageSkeleton() {
         className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col px-4 py-3 sm:px-6 sm:py-4 lg:px-8 motion-reduce:[&_[data-slot=skeleton]]:animate-none"
       >
         <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-5 sm:gap-6">
-          <motion.div variants={item} className="flex items-center justify-between gap-4">
+          <motion.div
+            variants={item}
+            className="flex items-center justify-between gap-4"
+          >
             <div className="space-y-3">
               <Skeleton className="h-3 w-28" />
               <Skeleton className="h-8 w-48" />
@@ -49,10 +52,7 @@ export function AdminRestaurantsPageSkeleton() {
             </div>
           </motion.div>
 
-          <motion.div
-            variants={sequence}
-            className="grid gap-3 sm:grid-cols-3"
-          >
+          <motion.div variants={sequence} className="grid gap-3 sm:grid-cols-3">
             {Array.from({ length: 3 }, (_, index) => (
               <motion.div key={index} variants={item}>
                 <Card className="gap-0 rounded-2xl border-border/70 py-0 shadow-sm">
@@ -79,14 +79,41 @@ export function AdminRestaurantsPageSkeleton() {
               </CardHeader>
               <CardContent className="space-y-4 px-4 py-4 sm:px-5">
                 <Skeleton className="h-9 w-full max-w-md rounded-xl" />
-                <Skeleton className="h-8 w-72 max-w-full rounded-xl" />
-                <div className="overflow-hidden rounded-2xl border border-border/70">
+                <div className="flex gap-1 overflow-hidden">
+                  {["w-16", "w-24", "w-20", "w-24"].map((width, index) => (
+                    <Skeleton
+                      key={index}
+                      className={`h-8 shrink-0 rounded-lg ${width}`}
+                    />
+                  ))}
+                </div>
+                <div className="hidden overflow-hidden rounded-2xl border border-border/70 md:block">
                   <Skeleton className="h-11 rounded-none" />
                   {Array.from({ length: 5 }, (_, index) => (
                     <Skeleton
                       key={index}
                       className="h-[4.5rem] rounded-none border-t border-background"
                     />
+                  ))}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 md:hidden">
+                  {Array.from({ length: 4 }, (_, index) => (
+                    <motion.div key={index} variants={item}>
+                      <div className="relative flex min-h-[124px] flex-col rounded-2xl border border-border/70 bg-background p-4">
+                        <Skeleton className="absolute top-2 right-2 size-8 rounded-lg" />
+                        <div className="flex min-w-0 items-start gap-3">
+                          <Skeleton className="size-10 shrink-0 rounded-xl" />
+                          <div className="min-w-0 flex-1 space-y-2 pr-10">
+                            <Skeleton className="h-4 w-28 max-w-full" />
+                            <Skeleton className="h-3 w-24 max-w-full" />
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-3">
+                          <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                      </div>
+                    </motion.div>
                   ))}
                 </div>
               </CardContent>

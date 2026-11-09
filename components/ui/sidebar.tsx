@@ -55,6 +55,7 @@ function useSidebar() {
 
 function SidebarProvider({
   defaultOpen = true,
+  disableMobileToggle = false,
   open: openProp,
   onOpenChange: setOpenProp,
   className,
@@ -63,6 +64,7 @@ function SidebarProvider({
   ...props
 }: React.ComponentProps<"div"> & {
   defaultOpen?: boolean
+  disableMobileToggle?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
 }) {
@@ -90,15 +92,18 @@ function SidebarProvider({
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
+    if (isMobile && disableMobileToggle) return
+
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
-  }, [isMobile, setOpen, setOpenMobile])
+  }, [disableMobileToggle, isMobile, setOpen, setOpenMobile])
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
-        (event.metaKey || event.ctrlKey)
+        (event.metaKey || event.ctrlKey) &&
+        !(isMobile && disableMobileToggle)
       ) {
         event.preventDefault()
         toggleSidebar()
@@ -107,7 +112,7 @@ function SidebarProvider({
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [toggleSidebar])
+  }, [disableMobileToggle, isMobile, toggleSidebar])
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
   // This makes it easier to style the sidebar with Tailwind classes.

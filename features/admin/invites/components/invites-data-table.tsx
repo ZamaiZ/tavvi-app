@@ -7,21 +7,8 @@ import {
   useTable,
 } from "@tanstack/react-table"
 import { motion, useReducedMotion } from "motion/react"
-import {
-  LuAtSign,
-  LuBan,
-  LuCalendarClock,
-  LuCircleCheck,
-  LuClock3,
-  LuEllipsis,
-  LuExternalLink,
-  LuMailPlus,
-  LuSearchX,
-  LuUsers,
-  LuCircleX,
-} from "react-icons/lu"
+import { LuAtSign, LuCircleX, LuSearchX, LuUsers } from "react-icons/lu"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Pagination,
@@ -32,19 +19,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyContent,
@@ -68,8 +42,13 @@ import {
   inviteStatusLabels,
   type InviteFilter,
   type PlatformInvite,
-  type PlatformInviteStatus,
 } from "@/features/admin/invites/model"
+import { InviteMobileCard } from "@/features/admin/invites/components/invite-mobile-card"
+import {
+  InviteContextMenu,
+  InviteRowActions,
+} from "@/features/admin/invites/components/invite-record-menus"
+import { InviteStatusBadge } from "@/features/admin/invites/components/invite-status-badge"
 
 const features = tableFeatures({})
 const columnHelper = createColumnHelper<typeof features, PlatformInvite>()
@@ -86,71 +65,6 @@ type InvitesDataTableProps = {
   onOpen: (invite: PlatformInvite) => void
   onCreateFromInvite: (invite: PlatformInvite) => void
   onClearFilters: () => void
-}
-
-const statusStyles: Record<PlatformInviteStatus, string> = {
-  pending:
-    "border-primary/20 bg-primary/10 text-primary dark:border-primary/25 dark:bg-primary/15",
-  redeemed:
-    "border-emerald-600/15 bg-emerald-600/10 text-emerald-700 dark:text-emerald-300",
-  expired:
-    "border-amber-600/20 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  revoked: "border-muted-foreground/15 bg-muted text-muted-foreground",
-}
-
-function InviteStatusBadge({ status }: { status: PlatformInviteStatus }) {
-  const Icon = {
-    pending: LuClock3,
-    redeemed: LuCircleCheck,
-    expired: LuCalendarClock,
-    revoked: LuBan,
-  }[status]
-
-  return (
-    <Badge variant="outline" className={statusStyles[status]}>
-      <Icon aria-hidden="true" data-icon="inline-start" />
-      {inviteStatusLabels[status]}
-    </Badge>
-  )
-}
-
-function InviteRowActions({
-  invite,
-  onOpen,
-  onCreateFromInvite,
-}: {
-  invite: PlatformInvite
-  onOpen: (invite: PlatformInvite) => void
-  onCreateFromInvite: (invite: PlatformInvite) => void
-}) {
-  return (
-    <div onClick={(event) => event.stopPropagation()}>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Ações para ${getInviteRecipient(invite)}`}
-              className="text-muted-foreground hover:text-foreground"
-            />
-          }
-        >
-          <LuEllipsis aria-hidden="true" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-48">
-          <DropdownMenuItem onClick={() => onOpen(invite)}>
-            <LuExternalLink aria-hidden="true" />
-            Abrir detalhes
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onCreateFromInvite(invite)}>
-            <LuMailPlus aria-hidden="true" />
-            Gerar novo convite
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  )
 }
 
 export function InvitesDataTable({
@@ -263,7 +177,9 @@ export function InvitesDataTable({
               <LuSearchX aria-hidden="true" className="size-5" />
             </EmptyMedia>
             <EmptyTitle>
-              {hasFilter ? "Nenhum convite encontrado" : "Ainda não há convites"}
+              {hasFilter
+                ? "Nenhum convite encontrado"
+                : "Ainda não há convites"}
             </EmptyTitle>
             <EmptyDescription>
               {hasFilter
@@ -286,7 +202,7 @@ export function InvitesDataTable({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-2xl border border-border/70 bg-background">
+      <div className="hidden overflow-x-auto rounded-2xl border border-border/70 bg-background md:block">
         <Table className="min-w-[720px]">
           <TableCaption className="sr-only">
             Lista de convites com destinatário, situação, criação, validade e
@@ -314,62 +230,65 @@ export function InvitesDataTable({
               const recipient = getInviteRecipient(invite)
 
               return (
-                <ContextMenu key={row.id}>
-                  <ContextMenuTrigger
-                    render={
-                      <motion.tr
-                        initial={
-                          shouldReduceMotion ? false : { opacity: 0, y: 7 }
+                <InviteContextMenu
+                  key={row.id}
+                  invite={invite}
+                  onOpen={onOpen}
+                  onCreateFromInvite={onCreateFromInvite}
+                  trigger={
+                    <motion.tr
+                      initial={
+                        shouldReduceMotion ? false : { opacity: 0, y: 7 }
+                      }
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.25,
+                        delay: Math.min(index * 0.025, 0.16),
+                        ease: "easeOut",
+                      }}
+                      tabIndex={0}
+                      aria-label={`Abrir detalhes de ${recipient}, convite ${inviteStatusLabels[invite.status].toLowerCase()}`}
+                      aria-haspopup="dialog"
+                      onClick={() => onOpen(invite)}
+                      onKeyDown={(event) => {
+                        if (event.target !== event.currentTarget) {
+                          return
                         }
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{
-                          duration: 0.25,
-                          delay: Math.min(index * 0.025, 0.16),
-                          ease: "easeOut",
-                        }}
-                        tabIndex={0}
-                        aria-label={`Abrir detalhes de ${recipient}, convite ${inviteStatusLabels[invite.status].toLowerCase()}`}
-                        aria-haspopup="dialog"
-                        onClick={() => onOpen(invite)}
-                        onKeyDown={(event) => {
-                          if (event.target !== event.currentTarget) {
-                            return
-                          }
 
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault()
-                            onOpen(invite)
-                          }
-                        }}
-                        className="cursor-pointer border-b border-border/60 transition-colors hover:bg-muted last:border-0 focus-visible:bg-muted/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50 focus-visible:outline-none motion-reduce:transition-none"
-                      />
-                    }
-                  >
-                    {row.getAllCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        className="px-4 py-3.5 align-middle first:min-w-[17rem]"
-                      >
-                        <table.FlexRender cell={cell} />
-                      </TableCell>
-                    ))}
-                  </ContextMenuTrigger>
-                  <ContextMenuContent className="min-w-52">
-                    <ContextMenuItem onClick={() => onOpen(invite)}>
-                      <LuExternalLink aria-hidden="true" />
-                      Abrir detalhes
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem onClick={() => onCreateFromInvite(invite)}>
-                      <LuMailPlus aria-hidden="true" />
-                      Gerar novo convite
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault()
+                          onOpen(invite)
+                        }
+                      }}
+                      className="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted focus-visible:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset motion-reduce:transition-none"
+                    />
+                  }
+                >
+                  {row.getAllCells().map((cell) => (
+                    <TableCell
+                      key={cell.id}
+                      className="px-4 py-3.5 align-middle first:min-w-[17rem]"
+                    >
+                      <table.FlexRender cell={cell} />
+                    </TableCell>
+                  ))}
+                </InviteContextMenu>
               )
             })}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 md:hidden">
+        {rows.map((row, index) => (
+          <InviteMobileCard
+            key={row.id}
+            invite={row.original}
+            index={index}
+            onOpen={onOpen}
+            onCreateFromInvite={onCreateFromInvite}
+          />
+        ))}
       </div>
 
       <div className="flex flex-col gap-2 px-1 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">

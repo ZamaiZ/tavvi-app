@@ -3,35 +3,8 @@
 import Image from "next/image"
 import Link from "next/link"
 import type { ReactNode } from "react"
-import { useTheme } from "next-themes"
-import {
-  LuEllipsis,
-  LuLogOut,
-  LuMailPlus,
-  LuMonitor,
-  LuMoon,
-  LuPalette,
-  LuSun,
-  LuUtensils,
-  LuUserRound,
-} from "react-icons/lu"
+import { LuMailPlus, LuUtensils } from "react-icons/lu"
 
-import { logoutAdminAction } from "@/app/admin/(auth)/actions"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Sidebar,
   SidebarContent,
@@ -47,6 +20,8 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { AdminAccountMenu } from "@/features/admin/shell/components/admin-account-menu"
+import { AdminMobileDock } from "@/features/admin/shell/components/admin-mobile-dock"
 import {
   getAdminHomePath,
   getAdminRestaurantsPath,
@@ -117,87 +92,6 @@ function AdminBrand({ href }: { href: string }) {
   )
 }
 
-function AdminProfileMenu() {
-  const { isMobile } = useSidebar()
-  const { theme, setTheme } = useTheme()
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            title="Perfil"
-            className="h-12 w-full justify-start gap-2 rounded-lg px-2 text-sidebar-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center! group-data-[collapsible=icon]:p-0!"
-          />
-        }
-        aria-label="Abrir menu do perfil"
-      >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground">
-          <LuUserRound aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1 text-left group-data-[collapsible=icon]:hidden">
-          <span className="block truncate font-medium">Administrador</span>
-          <span className="block truncate text-[0.625rem] text-sidebar-foreground/65">
-            Conta de gestão
-          </span>
-        </span>
-        <LuEllipsis
-          aria-hidden="true"
-          className="ml-auto text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden"
-        />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        side={isMobile ? "bottom" : "right"}
-        align="end"
-        sideOffset={8}
-        className="w-52"
-      >
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Preferências</DropdownMenuLabel>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <LuPalette aria-hidden="true" />
-              Aparência
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent side={isMobile ? "bottom" : "right"}>
-              <DropdownMenuRadioGroup
-                value={theme ?? "system"}
-                onValueChange={(value) => setTheme(value)}
-              >
-                <DropdownMenuRadioItem value="light">
-                  <LuSun aria-hidden="true" />
-                  Claro
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="dark">
-                  <LuMoon aria-hidden="true" />
-                  Escuro
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="system">
-                  <LuMonitor aria-hidden="true" />
-                  Sistema
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <form action={logoutAdminAction}>
-          <DropdownMenuItem
-            nativeButton
-            variant="destructive"
-            render={<button type="submit" className="w-full" />}
-          >
-            <LuLogOut aria-hidden="true" />
-            Sair
-          </DropdownMenuItem>
-        </form>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 export function AdminAppShell({
   children,
   publicBasePath,
@@ -207,7 +101,7 @@ export function AdminAppShell({
   const restaurantsHref = getAdminRestaurantsPath(publicBasePath)
 
   return (
-    <SidebarProvider defaultOpen>
+    <SidebarProvider defaultOpen disableMobileToggle>
       <Sidebar collapsible="icon" variant="inset">
         <SidebarHeader>
           <AdminBrand href={invitesHref} />
@@ -246,14 +140,19 @@ export function AdminAppShell({
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-              <AdminProfileMenu />
+              <AdminAccountMenu variant="sidebar" />
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="min-w-0 bg-muted/30">
+      <SidebarInset className="min-w-0 bg-muted/30 pb-[calc(7rem_+_env(safe-area-inset-bottom))] md:pb-0">
         {children}
       </SidebarInset>
+      <AdminMobileDock
+        invitesHref={invitesHref}
+        restaurantsHref={restaurantsHref}
+        activeItem={activeItem}
+      />
     </SidebarProvider>
   )
 }

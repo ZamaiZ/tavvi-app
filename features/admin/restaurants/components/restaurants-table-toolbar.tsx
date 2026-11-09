@@ -115,7 +115,7 @@ export function RestaurantsTableToolbar({
           </InputGroupAddon>
         </InputGroup>
 
-        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <div className="-mx-1 [scrollbar-width:none] overflow-x-auto overscroll-x-contain px-1 pb-1 [&::-webkit-scrollbar]:hidden">
           <TabsList className="h-9 w-max min-w-full justify-start gap-1 rounded-xl bg-muted/65 p-1 sm:min-w-0">
             {restaurantStatusOptions.map((option) => (
               <TabsTrigger
@@ -133,7 +133,11 @@ export function RestaurantsTableToolbar({
         </div>
       </div>
 
-      <TabsContent value={selectedFilter} className="mt-0">
+      <TabsContent
+        value={selectedFilter}
+        className="mt-0"
+        aria-busy={isPending}
+      >
         {children}
       </TabsContent>
     </Tabs>

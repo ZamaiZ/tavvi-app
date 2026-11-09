@@ -378,7 +378,7 @@ export function AdminRestaurantsPage({
                 <SidebarTrigger
                   aria-label="Alternar navegação lateral"
                   title="Alternar navegação lateral"
-                  className="mt-0.5 shrink-0 rounded-lg border border-border/70 bg-background shadow-sm transition-colors duration-150"
+                  className="mt-0.5 hidden shrink-0 rounded-lg border border-border/70 bg-background shadow-sm transition-colors duration-150 md:inline-flex"
                 />
                 <motion.div variants={pageItem} className="min-w-0">
                   <Breadcrumb>

@@ -1,11 +1,7 @@
 "use client"
 
 import { motion, useReducedMotion } from "motion/react"
-import {
-  LuChevronLeft,
-  LuChevronRight,
-  LuStore,
-} from "react-icons/lu"
+import { LuChevronLeft, LuChevronRight, LuStore } from "react-icons/lu"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -22,6 +18,7 @@ import {
   type RestaurantAdmin,
 } from "@/features/admin/restaurants/model"
 import { RestaurantStatusBadge } from "@/features/admin/restaurants/components/restaurant-status-badge"
+import { RestaurantMobileCard } from "@/features/admin/restaurants/components/restaurant-mobile-card"
 
 type RestaurantsDataTableProps = {
   rows: RestaurantAdmin[]
@@ -75,7 +72,9 @@ export function RestaurantsDataTable({
                 <TableHead className="h-10 pl-4">Restaurante</TableHead>
                 <TableHead className="h-10">Endereço</TableHead>
                 <TableHead className="h-10">Situação</TableHead>
-                <TableHead className="h-10 pr-4 text-right">Criado em</TableHead>
+                <TableHead className="h-10 pr-4 text-right">
+                  Criado em
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -86,7 +85,7 @@ export function RestaurantsDataTable({
                   whileHover={shouldReduceMotion ? undefined : { y: -1 }}
                   whileTap={shouldReduceMotion ? undefined : { scale: 0.998 }}
                   transition={{ duration: shouldReduceMotion ? 0 : 0.16 }}
-                  className="cursor-pointer border-b border-border/60 transition-colors hover:bg-muted/45 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50 focus-visible:outline-none motion-reduce:transition-none last:border-0"
+                  className="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted/45 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset motion-reduce:transition-none"
                 >
                   <TableCell className="pl-4">
                     <button
@@ -96,7 +95,7 @@ export function RestaurantsDataTable({
                         event.stopPropagation()
                         onOpenRestaurant(restaurant.id)
                       }}
-                      className="flex min-h-11 min-w-0 w-full items-center gap-3 rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                      className="flex min-h-11 w-full min-w-0 items-center gap-3 rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                     >
                       <span
                         aria-hidden="true"
@@ -125,35 +124,14 @@ export function RestaurantsDataTable({
         </div>
       </div>
 
-      <div className="grid gap-2 md:hidden">
-        {rows.map((restaurant) => (
-          <motion.button
+      <div className="grid gap-3 sm:grid-cols-2 md:hidden">
+        {rows.map((restaurant, index) => (
+          <RestaurantMobileCard
             key={restaurant.id}
-            type="button"
-            aria-label={`Abrir ${restaurant.name}`}
-            onClick={() => onOpenRestaurant(restaurant.id)}
-            whileHover={shouldReduceMotion ? undefined : { y: -1 }}
-            whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
-            transition={{ duration: shouldReduceMotion ? 0 : 0.16 }}
-            className="flex min-h-[76px] w-full items-center gap-3 rounded-2xl border border-border/70 bg-card px-3 py-3 text-left shadow-sm transition-colors hover:border-border hover:bg-card/90 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none motion-reduce:transition-none"
-          >
-            <span
-              aria-hidden="true"
-              className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-semibold text-primary"
-            >
-              {restaurantInitials(restaurant.name)}
-            </span>
-            <span className="min-w-0 flex-1 space-y-1">
-              <span className="block truncate text-sm font-medium">
-                {restaurant.name}
-              </span>
-              <span className="block truncate font-mono text-[0.6875rem] text-muted-foreground">
-                /{restaurant.slug}
-              </span>
-            </span>
-            <RestaurantStatusBadge status={restaurant.status} />
-            <LuChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-          </motion.button>
+            restaurant={restaurant}
+            index={index}
+            onOpenRestaurant={onOpenRestaurant}
+          />
         ))}
       </div>
 
@@ -176,7 +154,7 @@ export function RestaurantsDataTable({
             >
               <LuChevronLeft aria-hidden="true" />
             </Button>
-            <span className="min-w-16 text-center text-xs tabular-nums text-muted-foreground">
+            <span className="min-w-16 text-center text-xs text-muted-foreground tabular-nums">
               Página {page} de {pageCount}
             </span>
             <Button
