@@ -181,16 +181,6 @@ export function AdminMobileDock({
                   <LuHouse aria-hidden="true" className="size-[1.35rem]" />
                 </motion.span>
               </span>
-              <span
-                aria-hidden="true"
-                className={`absolute bottom-1 text-[0.5625rem] font-semibold leading-none transition-colors duration-150 ${
-                  activeItem === "invites"
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                }`}
-              >
-                Convites
-              </span>
             </Link>
 
             <div className="flex h-full items-center justify-center">

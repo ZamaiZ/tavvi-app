@@ -156,9 +156,6 @@ export function PanelMobileDock({
                   <HomeLinkFeedback reducedMotion={reducedMotion} />
                 </motion.span>
               </span>
-              <span className="absolute bottom-1 text-[0.5625rem] font-semibold leading-none text-primary transition-colors duration-150">
-                Cardápio
-              </span>
             </Link>
 
             <div className="flex h-full items-center justify-center">
