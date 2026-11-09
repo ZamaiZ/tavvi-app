@@ -18,7 +18,7 @@
 - Keep login routing, the initial restaurant picker, onboarding, suspended state, and all Cardápio content/logic unchanged.
 - Use `getPanelPublicBasePath`, `selectPanelRestaurantAction`, and `signOutPanelAction` for the existing host, selection, and logout behavior.
 - Use the public `/{slug}/media/logo` route for the active restaurant logo; never expose `logoPath` as if it were an image URL. Keep the public media route out of host rewriting on the dedicated Panel host.
-- Add no dependencies. Respect the 768 px breakpoint, 44 × 44 px interactive targets in both expanded and collapsed sidebar states, safe areas, focus behavior, and reduced motion, including sidebar CSS transitions.
+- Add no dependencies. At desktop widths, share the Admin sidebar width, navigation row, toggle, account trigger, dropdown dimensions, spacing, and content frame. Keep 44 × 44 px targets in the mobile dock; preserve mobile page spacing and reduced-motion behavior.
 
 ## Review Focus
 
@@ -26,7 +26,7 @@
 - **Restaurant selection:** Verify a multi-restaurant selector uses `selectPanelRestaurantAction`, active membership validation, current-row feedback, and the server-returned destination for active/draft/suspended restaurants.
 - **Hostname routing:** Verify dock Cardápio and mobile Trocar restaurante hrefs preserve the dedicated Panel host and `/painel` prefix behavior.
 - **Logo delivery:** Verify only the active restaurant's slug-based public route is used, the dedicated Panel host does not rewrite public media, missing/unavailable media falls back to initials, and other restaurants do not receive private media paths.
-- **Responsive and overlay behavior:** Verify mobile cannot open the Sidebar through controls or Ctrl/Cmd+B; dock account and navigation overlays close on desktop breakpoint changes, and the desktop restaurant selector closes predictably.
+- **Responsive and overlay behavior:** Verify mobile cannot open the Sidebar through controls or Ctrl/Cmd+B; dock account and navigation overlays close on desktop breakpoint changes, and desktop sidebar geometry matches Admin in expanded/collapsed states.
 
 ## Files and Responsibilities
 
@@ -109,3 +109,11 @@
 - [x] Review the spec acceptance criteria against the implementation; do not run tests, build, lint, typecheck, or Git commands.
 
 **Deliverable:** Source-level review complete under the repository's no-test/no-build constraints.
+
+## Approved visual parity follow-up
+
+- [x] Restore the default Admin collapsed-sidebar width and navigation row dimensions in the Panel; keep larger touch targets in the mobile dock.
+- [x] Keep only the restaurant logo and name in the Panel brand row; remove its subtitle.
+- [x] Use the Admin breadcrumb and compact SidebarTrigger pattern for the Cardápio page header.
+- [x] Use the Admin desktop content widths/gutters while preserving the existing Cardápio card and mobile spacing.
+- [x] Keep Panel-specific restaurant switching, theme options, logout, and the approved mobile dock behavior.

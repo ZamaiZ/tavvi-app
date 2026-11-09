@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import type { CSSProperties, ReactNode } from "react"
+import type { ReactNode } from "react"
 import { useState } from "react"
 import { MotionConfig, motion, useReducedMotion } from "motion/react"
 import {
@@ -63,13 +63,13 @@ function RestaurantMark({ restaurant }: { restaurant: PanelRestaurantIdentity })
   )
 
   return (
-    <span className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl border border-border/70 bg-primary/[0.08]">
+    <span className="relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-border/70 bg-primary/[0.08]">
       {restaurant.hasLogo ? (
         <BrandImage
           slug={restaurant.slug}
           slot="logo"
           alt=""
-          sizes="40px"
+          sizes="32px"
           className="object-contain p-1"
           fallback={fallback}
         />
@@ -99,14 +99,11 @@ function PanelBrand({
         <span className="block truncate text-sm font-semibold tracking-tight text-sidebar-foreground">
           {restaurant.name}
         </span>
-        <span className="block truncate text-[0.625rem] text-sidebar-foreground/65">
-          Painel do restaurante
-        </span>
       </span>
     </>
   )
 
-  const triggerClass = `group flex min-h-12 w-full items-center gap-3 rounded-xl px-2 outline-none transition-[background-color,color] duration-150 hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-sidebar-ring ${isCollapsed ? "justify-center px-0" : ""}`
+  const triggerClass = `group flex w-full items-center gap-3 rounded-xl outline-none transition-[background-color,color] duration-150 hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-sidebar-ring ${isCollapsed ? "min-h-10 justify-center px-0" : "min-h-14 px-2"}`
 
   if (!canSwitchRestaurants) {
     return (
@@ -192,7 +189,6 @@ export function PanelAppShell({
         defaultOpen
         disableMobileToggle
         data-panel-shell=""
-        style={{ "--sidebar-width-icon": "4rem" } as CSSProperties}
       >
         <Sidebar collapsible="icon" variant="inset">
           <motion.div
@@ -202,7 +198,7 @@ export function PanelAppShell({
             className="flex size-full flex-col"
           >
             <motion.div variants={itemVariants}>
-              <SidebarHeader className="pb-4">
+              <SidebarHeader>
                 <PanelBrand
                   restaurant={restaurant}
                   restaurants={restaurants}
@@ -222,7 +218,7 @@ export function PanelAppShell({
                           render={<Link href={cardapioHref} aria-current="page" />}
                           isActive
                           tooltip="Cardápio"
-                          className="min-h-11 transition-colors duration-150 group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:justify-center!"
+                          className="transition-colors duration-150"
                         >
                           <LuUtensils aria-hidden="true" />
                           <span className="group-data-[collapsible=icon]:sr-only">Cardápio</span>
