@@ -168,7 +168,7 @@ export function AdminMobileDock({
               }}
               className="group relative grid h-full place-items-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
-              <span className="block -translate-y-2">
+              <span className="block">
                 <motion.span
                   whileTap={reducedMotion ? undefined : { scale: 0.96 }}
                   transition={{ duration: 0.14, ease: DOCK_EASE }}
