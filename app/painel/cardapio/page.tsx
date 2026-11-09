@@ -3,7 +3,11 @@ import { redirect } from "next/navigation"
 
 import { getPanelPublicBasePath } from "@/features/panel/auth/navigation"
 import { PanelMenuTemplate } from "@/features/panel/workspace/components/panel-menu-template"
-import { getActivePanelRestaurant } from "@/features/panel/workspace/server/restaurants"
+import {
+  getActivePanelRestaurant,
+  getPanelRestaurantsForCurrentUser,
+} from "@/features/panel/workspace/server/restaurants"
+import { PanelAppShell } from "@/features/panel/shell/components/panel-app-shell"
 import { getRequestHostname } from "@/lib/routing/host"
 import { requireAuthenticatedSurface } from "@/lib/supabase/require-authenticated-surface"
 
@@ -21,5 +25,42 @@ export default async function PanelMenuPage() {
   if (!restaurant) redirect(base + "/restaurantes")
   if (restaurant.status === "draft") redirect(base + `/${restaurant.onboardingStep === "contact" ? "contato" : "identidade"}`)
   if (restaurant.status === "suspended") redirect(base + "/suspenso")
-  return <PanelMenuTemplate name={restaurant.name} slug={restaurant.slug} />
+
+  // The switcher is supplementary navigation: if its membership query is
+  // unavailable, keep the active Cardápio page usable and omit switching.
+  let restaurants: Awaited<ReturnType<typeof getPanelRestaurantsForCurrentUser>> = [
+    {
+      id: restaurant.id,
+      name: restaurant.name,
+      slug: restaurant.slug,
+      status: "active",
+      onboardingStep: restaurant.onboardingStep,
+    },
+  ]
+
+  try {
+    const availableRestaurants = await getPanelRestaurantsForCurrentUser()
+    if (availableRestaurants.some((entry) => entry.id === restaurant.id)) {
+      restaurants = availableRestaurants
+    } else {
+      console.error("[panel-shell]", JSON.stringify({ stage: "restaurant_switcher_list_incomplete" }))
+    }
+  } catch {
+    console.error("[panel-shell]", JSON.stringify({ stage: "restaurant_switcher_list_unavailable" }))
+  }
+
+  return (
+    <PanelAppShell
+      publicBasePath={base}
+      restaurant={{
+        id: restaurant.id,
+        name: restaurant.name,
+        slug: restaurant.slug,
+        hasLogo: Boolean(restaurant.logoPath),
+      }}
+      restaurants={restaurants}
+    >
+      <PanelMenuTemplate name={restaurant.name} slug={restaurant.slug} />
+    </PanelAppShell>
+  )
 }

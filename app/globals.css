@@ -130,3 +130,12 @@
     @apply font-sans;
     }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-panel-shell] [data-slot="sidebar-gap"],
+  [data-panel-shell] [data-slot="sidebar-container"],
+  [data-panel-shell] [data-slot="sidebar-menu-button"],
+  [data-panel-shell] [data-slot="sidebar-group-label"] {
+    transition: none !important;
+  }
+}

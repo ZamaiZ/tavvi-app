@@ -3,12 +3,13 @@ import Link from "next/link"
 import type { Metadata } from "next"
 
 import { ThemeToggle } from "@/components/theme-toggle"
+import { RestaurantFinder } from "@/features/public-profile/components/restaurant-finder"
 import styles from "./page.module.css"
 
 export const metadata: Metadata = {
   title: "Tavvi — Cardápio digital",
   description:
-    "Cardápios digitais acessíveis por QR Code e NFC, sem precisar instalar nada.",
+    "Encontre restaurantes ativos pelo nome, tipo de cozinha ou endereço e abra sua apresentação digital.",
 }
 
 export default function Page() {
@@ -49,8 +50,9 @@ export default function Page() {
           O cardápio está na mesa
         </h1>
         <p className="mx-auto mt-5 max-w-md text-base leading-7 text-foreground">
-          Acesse pelo QR Code ou NFC do restaurante, sem instalar nada.
+          Descubra restaurantes ativos e abra sua apresentação digital.
         </p>
+        <RestaurantFinder />
         <Link href="/painel/entrar" className="mt-8 inline-block text-sm font-medium underline underline-offset-4 hover:text-primary">Acessar painel do restaurante</Link>
       </div>
     </main>

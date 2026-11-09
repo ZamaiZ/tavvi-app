@@ -58,6 +58,37 @@ export type PublicRestaurantProfile = {
   theme: unknown
 }
 
+const publicRestaurantSearchRowSchema = z.object({
+  slug: publicRestaurantSlugSchema,
+  name: z.string().trim().min(2).max(120),
+  segment: z.string().trim().min(2).max(60).nullable().catch(null),
+  hasLogo: z.boolean(),
+  address: z.unknown(),
+}).strict()
+
+const publicRestaurantSearchPageSchema = z.object({
+  rows: z.array(publicRestaurantSearchRowSchema).max(20),
+  hasMore: z.boolean(),
+}).strict()
+
+export const publicRestaurantSearchInputSchema = z.object({
+  query: z.string().trim().max(120),
+  page: z.number().int().min(1).max(1000),
+}).strict()
+
+export type PublicRestaurantSearchResult = {
+  slug: string
+  name: string
+  segment: string | null
+  hasLogo: boolean
+  address: PublicRestaurantAddress | null
+}
+
+export type PublicRestaurantSearchPage = {
+  rows: PublicRestaurantSearchResult[]
+  hasMore: boolean
+}
+
 function recordValue(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -215,5 +246,21 @@ export function parsePublicRestaurantProfile(value: unknown): PublicRestaurantPr
     coverPath: parsed.data.cover_path,
     contact: parsePublicRestaurantContact(parsed.data.contact),
     theme: parsed.data.theme,
+  }
+}
+
+export function parsePublicRestaurantSearchPage(value: unknown): PublicRestaurantSearchPage | null {
+  const parsed = publicRestaurantSearchPageSchema.safeParse(value)
+  if (!parsed.success) return null
+
+  return {
+    rows: parsed.data.rows.map((row) => ({
+      slug: row.slug,
+      name: row.name,
+      segment: row.segment || null,
+      hasLogo: row.hasLogo,
+      address: parsePublicRestaurantContact({ address: row.address }).address,
+    })),
+    hasMore: parsed.data.hasMore,
   }
 }

@@ -13,6 +13,10 @@ function isStaticAsset(pathname: string) {
   return finalSegment.includes(".")
 }
 
+function isPublicRestaurantMediaPath(pathname: string) {
+  return /^\/[^/]+\/media\/(?:logo|cover)$/.test(pathname)
+}
+
 function getSurface(hostname: string, pathname: string): AuthSurface | null {
   if (isAdminHostname(hostname)) {
     return "admin"
@@ -48,7 +52,12 @@ function getHostRewrite(request: NextRequest, hostname: string): URL | null {
 
   const prefix = getHostRewritePrefix(hostname)
 
-  if (!prefix || pathname === prefix || pathname.startsWith(prefix + "/")) {
+  if (
+    !prefix ||
+    pathname === prefix ||
+    pathname.startsWith(prefix + "/") ||
+    (isPanelHostname(hostname) && isPublicRestaurantMediaPath(pathname))
+  ) {
     return null
   }
 
