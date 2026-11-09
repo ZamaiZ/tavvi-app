@@ -29,7 +29,7 @@ function getZodFieldErrors(issues: ReadonlyArray<{ path: readonly PropertyKey[];
   return errors
 }
 
-export function PanelLoginForm({ publicBasePath }: { publicBasePath: "" | "/painel" }) {
+export function PanelLoginForm({ publicBasePath, adminHref }: { publicBasePath: "" | "/painel"; adminHref: string }) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(loginPanelAction, initialPanelAuthFormState)
   const [clientErrors, setClientErrors] = useState<Partial<Record<PanelAuthField, string[]>>>({})
@@ -102,6 +102,9 @@ export function PanelLoginForm({ publicBasePath }: { publicBasePath: "" | "/pain
         <Link href={publicBasePath + "/criar-conta"} className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-primary">
           Criar conta
         </Link>
+      </motion.p>
+      <motion.p variants={authItemVariants} className="text-center text-sm text-muted-foreground">
+        <a href={adminHref} className="underline underline-offset-4 hover:text-primary">Acesso administrativo</a>
       </motion.p>
     </motion.form>
   )

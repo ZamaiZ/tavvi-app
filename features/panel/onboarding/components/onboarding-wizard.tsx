@@ -18,6 +18,7 @@ import {
   type PanelRestaurantDraftProfile,
 } from "@/features/panel/onboarding/schema"
 import { panelOnboardingSaveResponseSchema } from "@/features/panel/onboarding/model"
+import { panelOnboardingErrorMessage } from "@/features/panel/onboarding/errors"
 
 type FieldErrors = Record<string, string>
 type BrandSlot = "logo" | "cover"
@@ -95,6 +96,7 @@ export function OnboardingWizard({
   const [uploadError, setUploadError] = useState<Record<BrandSlot, string>>({ logo: "", cover: "" })
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState("")
+  const [retryKind, setRetryKind] = useState<"draft" | "complete">("draft")
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const editVersionRef = useRef(0)
   const saveSequenceRef = useRef(0)
@@ -130,10 +132,10 @@ export function OnboardingWizard({
       })
       const payload: unknown = await response.json()
       const parsed = panelOnboardingSaveResponseSchema.safeParse(payload)
-      if (!parsed.success) return { ok: false as const, code: "unavailable" as const }
+      if (!parsed.success) return { ok: false as const, code: "unexpected_response" as const }
       return parsed.data
     } catch {
-      return { ok: false as const, code: "unavailable" as const }
+      return { ok: false as const, code: "network_error" as const }
     } finally {
       setUploading(emptyUploadState)
     }
@@ -175,6 +177,7 @@ export function OnboardingWizard({
         if (!uploadedFile || pendingFilesRef.current[slot] !== uploadedFile) continue
         const pathKey = slot === "logo" ? "logoPath" : "coverPath"
         reconciledProfile = { ...reconciledProfile, [pathKey]: result.savedPaths[pathKey] }
+        setImageUrls((current) => ({ ...current, [slot]: `${publicBasePath}/onboarding/brand?slot=${slot}&restaurant=${restaurant.id}&version=${encodeURIComponent(result.savedPaths[pathKey] ?? "")}` }))
         nextPending[slot] = null
         changed = true
         setUploadError((current) => ({ ...current, [slot]: "" }))
@@ -192,24 +195,23 @@ export function OnboardingWizard({
     try {
       result = await operation
     } catch {
-      if (version === editVersionRef.current) setSaveStatus("error")
+      if (version === editVersionRef.current) {
+        setSaveStatus("error")
+        setRetryKind("draft")
+        setMessage(panelOnboardingErrorMessage("network_error"))
+      }
       return false
     }
     if (version !== editVersionRef.current || sequence !== saveSequenceRef.current) return result.ok
     setSaveStatus(result.ok ? "saved" : "error")
     if (!result.ok) {
-      setMessage(result.code === "context_changed"
-        ? "O restaurante ativo mudou em outra aba. Atualize a página antes de continuar."
-        : result.code === "storage_policy_denied" || result.code === "storage_unavailable"
-          ? "Não foi possível salvar a imagem. Ela continua na prévia. Tente novamente ou remova-a para continuar sem ela."
-          : result.code === "invalid_input"
-            ? "Alguns dados não puderam ser salvos. Revise os campos informados e tente novamente."
-            : "Não foi possível salvar agora. Suas alterações continuam nesta tela; tente novamente em instantes.")
+      setRetryKind("draft")
+      setMessage(panelOnboardingErrorMessage(result.code))
       return false
     }
     setMessage("")
     return true
-  }, [restaurant.id, sendProfileWithFiles])
+  }, [publicBasePath, restaurant.id, sendProfileWithFiles])
 
   const scheduleSave = useCallback((snapshot: PanelRestaurantDraftProfile, step: PanelOnboardingStep) => {
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -242,7 +244,7 @@ export function OnboardingWizard({
   }, [updateProfile])
 
   const updateContact = useCallback(<K extends keyof PanelRestaurantDraftProfile["contact"]>(key: K, value: PanelRestaurantDraftProfile["contact"][K]) => {
-    updateProfile({ ...profileRef.current, contact: { ...profileRef.current.contact, [key]: value } })
+    updateProfile({ ...profileRef.current, contact: { ...profileRef.current.contact, [key]: value, ...(key === "mapsUrl" && value !== profileRef.current.contact.mapsUrl ? { googleReviewUrl: "" } : {}) } })
   }, [updateProfile])
 
   const updateAddress = useCallback(<K extends keyof PanelRestaurantDraftProfile["contact"]["address"]>(key: K, value: PanelRestaurantDraftProfile["contact"]["address"][K]) => {
@@ -331,6 +333,8 @@ export function OnboardingWizard({
     setSaveStatus("saving")
     try {
       await saveQueueRef.current
+      const saved = await persist(profileRef.current, currentStepRef.current, editVersionRef.current)
+      if (!saved) { setBusy(false); return }
       const parsed = completePanelRestaurantProfileSchema.safeParse(profileRef.current)
       if (!parsed.success) {
         const errors: FieldErrors = {}
@@ -353,20 +357,22 @@ export function OnboardingWizard({
             profile: parsed.data,
           })
       if (!result.ok) {
+        if (result.code === "review_unavailable" || result.code === "review_invalid") {
+          setFieldErrors({ "contact.mapsUrl": panelOnboardingErrorMessage(result.code) })
+          setMessage(panelOnboardingErrorMessage(result.code))
+          setSaveStatus("saved")
+          setBusy(false)
+          return
+        }
         setSaveStatus("error")
+        setRetryKind("complete")
         if (result.code === "storage_unavailable" || result.code === "storage_policy_denied") {
           setUploadError((current) => ({
             logo: files.logo ? "Não foi possível salvar esta imagem. Ela continua na prévia. Tente novamente ou remova-a para continuar sem ela." : current.logo,
             cover: files.cover ? "Não foi possível salvar esta imagem. Ela continua na prévia. Tente novamente ou remova-a para continuar sem ela." : current.cover,
           }))
         }
-        setMessage(result.code === "context_changed"
-          ? "O restaurante ativo mudou em outra aba. Atualize a página antes de continuar."
-          : result.code === "invalid_input"
-            ? "Alguns dados precisam de revisão antes de ativar. Confira os campos destacados e tente novamente."
-            : result.code === "storage_policy_denied" || result.code === "storage_unavailable"
-              ? "Não foi possível salvar a imagem. Ela continua na prévia. Tente novamente ou remova-a para ativar sem ela."
-              : "Não foi possível ativar agora. Suas alterações continuam no rascunho; tente novamente em instantes.")
+        setMessage(panelOnboardingErrorMessage(result.code))
         setBusy(false)
         return
       }
@@ -390,10 +396,11 @@ export function OnboardingWizard({
       router.replace(publicBasePath + "/cardapio")
     } catch {
       setSaveStatus("error")
-      setMessage("Não foi possível ativar agora. Suas alterações continuam salvas como rascunho.")
+      setRetryKind("complete")
+      setMessage(panelOnboardingErrorMessage("network_error"))
       setBusy(false)
     }
-  }, [busy, publicBasePath, restaurant.id, router, sendProfileWithFiles])
+  }, [busy, persist, publicBasePath, restaurant.id, router, sendProfileWithFiles])
 
   const contextValue = useMemo<OnboardingContextValue>(() => ({
     restaurant,
@@ -495,10 +502,10 @@ export function OnboardingWizard({
                     <motion.div initial={reduceMotion ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-5">
                       <Alert variant={saveStatus === "error" ? "destructive" : "default"}>
                         {saveStatus === "error" ? <LuCircleAlert aria-hidden="true" /> : <LuCircleCheck aria-hidden="true" />}
-                        <AlertTitle>{saveStatus === "error" ? "Não foi possível continuar" : "Salvamento automático"}</AlertTitle>
+                        <AlertTitle>{saveStatus === "error" ? "Não foi possível salvar" : "Não foi possível continuar"}</AlertTitle>
                         <AlertDescription className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <span>{message}</span>
-                          {saveStatus === "error" ? <Button type="button" size="sm" variant="outline" disabled={busy || isUploading} onClick={() => void saveNow()}>Tentar salvar</Button> : null}
+                          {saveStatus === "error" ? <Button type="button" size="sm" variant="outline" disabled={busy || isUploading} onClick={() => void (retryKind === "complete" ? finish() : saveNow())}>Tentar novamente</Button> : null}
                         </AlertDescription>
                       </Alert>
                     </motion.div>

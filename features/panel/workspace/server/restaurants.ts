@@ -57,6 +57,7 @@ export async function getActivePanelRestaurant(
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims()
   const userId = claimsData?.claims?.sub
   if (claimsError || typeof userId !== "string" || !isUuid(userId)) {
+    if (claimsError) console.error("[panel-onboarding]", JSON.stringify({ stage: "restaurant_auth", code: claimsError.code, status: claimsError.status }))
     throw new Error("panel_auth_required")
   }
 
@@ -66,7 +67,10 @@ export async function getActivePanelRestaurant(
     .eq("id", activeId)
     .maybeSingle()
 
-  if (error) throw new Error("panel_restaurant_unavailable")
+  if (error) {
+    console.error("[panel-onboarding]", JSON.stringify({ stage: "restaurant_query", code: error.code }))
+    throw new Error("panel_restaurant_unavailable")
+  }
   if (!data) throw new Error("panel_restaurant_not_found")
 
   return panelRestaurantSchema.parse({

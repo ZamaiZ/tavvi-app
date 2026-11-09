@@ -1,4 +1,5 @@
 import Image from "next/image"
+import Link from "next/link"
 import type { Metadata } from "next"
 
 import styles from "./page.module.css"
@@ -46,6 +47,7 @@ export default function Page() {
         <p className="mx-auto mt-5 max-w-md text-base leading-7 text-foreground">
           Acesse pelo QR Code ou NFC do restaurante, sem instalar nada.
         </p>
+        <Link href="/painel/entrar" className="mt-8 inline-block text-sm font-medium underline underline-offset-4 hover:text-primary">Acessar painel do restaurante</Link>
       </div>
     </main>
   )

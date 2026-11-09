@@ -11,6 +11,8 @@ import type {
 } from "@/features/panel/onboarding/schema"
 import { getActivePanelRestaurant } from "@/features/panel/workspace/server/restaurants"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { resolveGoogleReview } from "./google-review"
+import type { PanelOnboardingErrorCode } from "../errors"
 
 export type PanelBrandSlot = "logo" | "cover"
 export type PanelBrandFiles = Partial<Record<PanelBrandSlot, File>>
@@ -22,7 +24,12 @@ export type PanelOnboardingPersistenceResult =
       status: "draft" | "active"
       savedPaths: { logoPath: string | null; coverPath: string | null }
     }
-  | { ok: false; code: "invalid_input" | "context_changed" | "storage_policy_denied" | "storage_unavailable" | "unavailable" }
+  | { ok: false; code: PanelOnboardingErrorCode }
+
+function logFailure(stage: string, cause?: unknown) {
+  const value = cause && typeof cause === "object" ? cause as Record<string, unknown> : {}
+  console.error("[panel-onboarding]", JSON.stringify({ stage, code: typeof value.code === "string" ? value.code : undefined, status: typeof value.status === "number" ? value.status : undefined, name: cause instanceof Error ? cause.name : undefined }))
+}
 
 type PersistInput =
   | { intent: "draft"; input: SavePanelRestaurantDraftInput }
@@ -55,7 +62,7 @@ export async function persistPanelRestaurantProfile(
   for (const file of Object.values(files)) {
     if (!file) continue
     if (!extensionByType[file.type] || file.size <= 0 || file.size > maxFileSize) {
-      return { ok: false, code: "invalid_input" }
+      return { ok: false, code: "image_invalid" }
     }
   }
 
@@ -69,14 +76,27 @@ export async function persistPanelRestaurantProfile(
     if (cause instanceof Error && cause.message === "panel_restaurant_not_found") {
       return { ok: false, code: "context_changed" }
     }
-    return { ok: false, code: "unavailable" }
+    if (cause instanceof Error && cause.message === "panel_auth_required") return { ok: false, code: "session_expired" }
+    logFailure("restaurant_lookup", cause)
+    return { ok: false, code: "restaurant_unavailable" }
   }
   if (!restaurant || restaurant.status !== "draft") return { ok: false, code: "context_changed" }
+
+  let reviewUrl = ""
+  if (request.intent === "complete" && input.profile.contact.mapsUrl) {
+    const resolution = await resolveGoogleReview(input.profile.contact.mapsUrl)
+    if (resolution.status !== "ok") {
+      logFailure("review_resolution", { code: resolution.status })
+      return { ok: false, code: resolution.status === "not_business" ? "review_invalid" : "review_unavailable" }
+    }
+    reviewUrl = resolution.url
+  }
 
   let supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
   try {
     supabase = await createSupabaseServerClient("panel")
-  } catch {
+  } catch (cause) {
+    logFailure("supabase_client", cause)
     return { ok: false, code: "unavailable" }
   }
   const uploadedPaths: string[] = []
@@ -111,6 +131,7 @@ export async function persistPanelRestaurantProfile(
 
   const profile: PanelRestaurantDraftProfile = {
     ...input.profile,
+    contact: request.intent === "complete" ? { ...input.profile.contact, googleReviewUrl: reviewUrl } : input.profile.contact,
     logoPath: nextPaths.logo ?? input.profile.logoPath,
     coverPath: nextPaths.cover ?? input.profile.coverPath,
   }
@@ -123,7 +144,9 @@ export async function persistPanelRestaurantProfile(
         p_step: request.input.step,
         p_profile: profile,
       })
+      if (error) logFailure("save_draft_rpc", error)
       const response = !error && panelRestaurantDraftResponseSchema.safeParse(data)
+      if (!error && (!response || !response.success)) logFailure("save_draft_response")
       result = response && response.success && response.data.ok && response.data.restaurantId === input.restaurantId
         ? {
             ok: true,
@@ -133,16 +156,18 @@ export async function persistPanelRestaurantProfile(
           }
         : {
             ok: false,
-            code: response && response.success && !response.data.ok && response.data.code === "invalid_input"
-              ? "invalid_input"
-              : "unavailable",
+            code: error ? "database_error" : response && response.success && !response.data.ok
+              ? response.data.code === "unauthorized" ? "session_expired" : response.data.code === "not_found" ? "context_changed" : response.data.code
+              : "database_response",
           }
     } else {
       const { data, error } = await supabase.rpc("complete_panel_restaurant_onboarding", {
         p_restaurant_id: input.restaurantId,
         p_profile: profile,
       })
+      if (error) logFailure("complete_rpc", error)
       const response = !error && panelRestaurantCompletionResponseSchema.safeParse(data)
+      if (!error && (!response || !response.success)) logFailure("complete_response")
       result = response && response.success && response.data.ok && response.data.restaurantId === input.restaurantId
         ? {
             ok: true,
@@ -152,14 +177,15 @@ export async function persistPanelRestaurantProfile(
           }
         : {
             ok: false,
-            code: response && response.success && !response.data.ok && response.data.code === "invalid_input"
-              ? "invalid_input"
-              : "unavailable",
+            code: error ? "database_error" : response && response.success && !response.data.ok
+              ? response.data.code === "unauthorized" ? "session_expired" : response.data.code === "not_found" ? "context_changed" : response.data.code
+              : "database_response",
           }
     }
-  } catch {
+  } catch (cause) {
+    logFailure(request.intent === "draft" ? "save_draft_exception" : "complete_exception", cause)
     await removeObjects(supabase, uploadedPaths)
-    return { ok: false, code: "unavailable" }
+    return { ok: false, code: "database_error" }
   }
 
   if (!result.ok) {

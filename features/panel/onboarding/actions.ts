@@ -14,6 +14,7 @@ export type PanelOnboardingActionResult = PanelOnboardingPersistenceResult
 export async function savePanelRestaurantDraftAction(rawInput: unknown): Promise<PanelOnboardingActionResult> {
   const parsed = savePanelRestaurantDraftSchema.safeParse(rawInput)
   if (!parsed.success || parsed.data.restaurantId !== parsed.data.expectedRestaurantId) {
+    console.error("[panel-onboarding]", JSON.stringify({ stage: "draft_validation", fields: parsed.success ? [] : parsed.error.issues.map((issue) => issue.path.join(".")) }))
     return { ok: false, code: "invalid_input" }
   }
   return persistPanelRestaurantProfile({ intent: "draft", input: parsed.data })
@@ -22,6 +23,7 @@ export async function savePanelRestaurantDraftAction(rawInput: unknown): Promise
 export async function completePanelRestaurantOnboardingAction(rawInput: unknown): Promise<PanelOnboardingActionResult> {
   const parsed = completePanelRestaurantOnboardingSchema.safeParse(rawInput)
   if (!parsed.success || parsed.data.restaurantId !== parsed.data.expectedRestaurantId) {
+    console.error("[panel-onboarding]", JSON.stringify({ stage: "complete_validation", fields: parsed.success ? [] : parsed.error.issues.map((issue) => issue.path.join(".")) }))
     return { ok: false, code: "invalid_input" }
   }
   return persistPanelRestaurantProfile({ intent: "complete", input: parsed.data })

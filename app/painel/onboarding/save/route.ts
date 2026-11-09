@@ -8,6 +8,7 @@ import {
   persistPanelRestaurantProfile,
   type PanelBrandFiles,
 } from "@/features/panel/onboarding/server/persistence"
+import type { PanelOnboardingErrorCode } from "@/features/panel/onboarding/errors"
 
 export const runtime = "nodejs"
 
@@ -26,22 +27,23 @@ function sameOrigin(request: NextRequest) {
   }
 }
 
-function responseForFailure(code: "invalid_input" | "context_changed" | "storage_policy_denied" | "storage_unavailable" | "unavailable") {
-  const status = code === "invalid_input" ? 400 : code === "context_changed" ? 409 : code === "storage_policy_denied" ? 403 : code === "storage_unavailable" ? 502 : 503
+function responseForFailure(code: PanelOnboardingErrorCode) {
+  const status = code === "invalid_input" || code === "invalid_request" || code === "image_invalid" ? 400 : code === "session_expired" ? 401 : code === "context_changed" ? 409 : code === "storage_policy_denied" ? 403 : 503
+  console.error("[panel-onboarding]", JSON.stringify({ stage: "multipart_response", code, status }))
   return NextResponse.json({ ok: false, code }, { status })
 }
 
 export async function POST(request: NextRequest) {
-  if (!sameOrigin(request)) return responseForFailure("invalid_input")
+  if (!sameOrigin(request)) return responseForFailure("invalid_request")
 
   const contentLength = Number(request.headers.get("content-length") ?? 0)
-  if (contentLength > maxRequestSize) return responseForFailure("invalid_input")
+  if (contentLength > maxRequestSize) return responseForFailure("image_invalid")
 
   let formData: FormData
   try {
     formData = await request.formData()
   } catch {
-    return NextResponse.json({ ok: false, code: "invalid_input" }, { status: 400 })
+    return responseForFailure("invalid_request")
   }
 
   // Content-Length may be absent for streamed requests. Bound the parsed fields too.
@@ -49,12 +51,12 @@ export async function POST(request: NextRequest) {
   const seenKeys = new Set<string>()
   for (const [key, value] of formData.entries()) {
     if (!["intent", "restaurantId", "expectedRestaurantId", "profile", "step", "logo", "cover"].includes(key)) {
-      return responseForFailure("invalid_input")
+      return responseForFailure("invalid_request")
     }
-    if (seenKeys.has(key)) return responseForFailure("invalid_input")
+    if (seenKeys.has(key)) return responseForFailure("invalid_request")
     seenKeys.add(key)
     parsedBodySize += typeof value === "string" ? new TextEncoder().encode(value).byteLength : value.size
-    if (parsedBodySize > maxRequestSize) return responseForFailure("invalid_input")
+    if (parsedBodySize > maxRequestSize) return responseForFailure("image_invalid")
   }
 
   const intent = formData.get("intent")
@@ -67,14 +69,14 @@ export async function POST(request: NextRequest) {
     typeof expectedRestaurantId !== "string" ||
     typeof profileValue !== "string"
   ) {
-    return responseForFailure("invalid_input")
+    return responseForFailure("invalid_request")
   }
 
   let profile: unknown
   try {
     profile = JSON.parse(profileValue)
   } catch {
-    return responseForFailure("invalid_input")
+    return responseForFailure("invalid_request")
   }
 
   const rawFiles: PanelBrandFiles = {}
@@ -82,10 +84,10 @@ export async function POST(request: NextRequest) {
     const value = formData.get(slot)
     if (value === null) continue
     if (typeof value === "string" || value.size <= 0 || value.size > maxImageSize) {
-      return responseForFailure("invalid_input")
+      return responseForFailure("image_invalid")
     }
     if (!["image/jpeg", "image/png", "image/webp"].includes(value.type)) {
-      return responseForFailure("invalid_input")
+      return responseForFailure("image_invalid")
     }
     const header = new Uint8Array(await value.slice(0, 12).arrayBuffer())
     const isJpeg = value.type === "image/jpeg" && header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff
@@ -93,7 +95,7 @@ export async function POST(request: NextRequest) {
     const isWebp = value.type === "image/webp"
       && String.fromCharCode(...header.slice(0, 4)) === "RIFF"
       && String.fromCharCode(...header.slice(8, 12)) === "WEBP"
-    if (!isJpeg && !isPng && !isWebp) return responseForFailure("invalid_input")
+    if (!isJpeg && !isPng && !isWebp) return responseForFailure("image_invalid")
     rawFiles[slot] = value
   }
 
@@ -106,6 +108,7 @@ export async function POST(request: NextRequest) {
         profile,
       })
       if (!parsed.success || parsed.data.restaurantId !== parsed.data.expectedRestaurantId) {
+        console.error("[panel-onboarding]", JSON.stringify({ stage: "multipart_draft_validation", fields: parsed.success ? [] : parsed.error.issues.map((issue) => issue.path.join(".")) }))
         return responseForFailure("invalid_input")
       }
       const result = await persistPanelRestaurantProfile({ intent, input: parsed.data }, rawFiles)
@@ -118,11 +121,13 @@ export async function POST(request: NextRequest) {
       profile,
     })
     if (!parsed.success || parsed.data.restaurantId !== parsed.data.expectedRestaurantId) {
+      console.error("[panel-onboarding]", JSON.stringify({ stage: "multipart_complete_validation", fields: parsed.success ? [] : parsed.error.issues.map((issue) => issue.path.join(".")) }))
       return responseForFailure("invalid_input")
     }
     const result = await persistPanelRestaurantProfile({ intent, input: parsed.data }, rawFiles)
     return result.ok ? NextResponse.json(result) : responseForFailure(result.code)
-  } catch {
+  } catch (cause) {
+    console.error("[panel-onboarding]", JSON.stringify({ stage: "multipart_exception", name: cause instanceof Error ? cause.name : undefined }))
     return responseForFailure("unavailable")
   }
 }

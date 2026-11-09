@@ -31,6 +31,9 @@ export function BrandImageDropzone({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  const [previewCode, setPreviewCode] = useState("brand_preview")
+  const previewFailed = Boolean(previewUrl && failedUrl === previewUrl)
   const hasImage = Boolean(previewUrl)
   const sizeLabel = pendingFile
     ? `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(pendingFile.size / 1024 / 1024)} MB`
@@ -40,6 +43,19 @@ export function BrandImageDropzone({
     const file = files?.[0]
     if (file) onSelect(file)
     if (inputRef.current) inputRef.current.value = ""
+  }
+
+  async function handlePreviewError(url: string) {
+    setFailedUrl(url)
+    setPreviewCode("brand_preview")
+    if (url.startsWith("blob:")) return
+    try {
+      const response = await fetch(url, { cache: "no-store" })
+      const code = response.headers.get("X-Tavvi-Error")
+      if (["brand_request", "brand_context", "brand_session", "brand_storage", "brand_unavailable"].includes(code ?? "")) setPreviewCode(code!)
+    } catch {
+      setPreviewCode("brand_network")
+    }
   }
 
   return (
@@ -73,13 +89,13 @@ export function BrandImageDropzone({
         className={`group relative flex min-h-44 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed text-center outline-none transition-[border-color,background-color,box-shadow,transform] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring/40 ${dragging ? "scale-[1.01] border-primary bg-primary/[0.07] shadow-[0_0_0_4px] shadow-primary/10" : hasImage ? "border-border bg-muted/20 hover:border-primary/45" : "border-border/80 bg-muted/10 hover:border-primary/45 hover:bg-primary/[0.025]"}`}
       >
         {previewUrl ? (
-          <img src={previewUrl} alt={`Prévia: ${title.toLowerCase()}`} className={`absolute inset-0 h-full w-full ${id.includes("logo") ? "object-contain p-6" : "object-cover"}`} />
+          previewFailed ? <span className="px-5 text-sm text-destructive">Não foi possível carregar a prévia. {saved ? "A imagem continua registrada." : "Selecione a imagem novamente."} (Código: {previewCode})</span> : <img src={previewUrl} onError={() => void handlePreviewError(previewUrl)} alt={`Prévia: ${title.toLowerCase()}`} className={`absolute inset-0 h-full w-full ${id.includes("logo") ? "object-contain p-6" : "object-cover"}`} />
         ) : (
           <span className={`mb-2 flex size-10 items-center justify-center rounded-2xl transition-colors ${dragging ? "bg-primary text-primary-foreground" : "bg-background text-primary shadow-sm"}`}>
             <LuUpload className="size-5" aria-hidden="true" />
           </span>
         )}
-        {previewUrl ? <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent px-4 pb-3 pt-10 text-xs font-medium text-white">{pendingFile ? "Prévia pronta para salvar" : saved ? "Imagem salva" : "Prévia da imagem"}</span> : (
+        {previewUrl ? !previewFailed && <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent px-4 pb-3 pt-10 text-xs font-medium text-white">{pendingFile ? "Prévia pronta para salvar" : saved ? "Imagem salva" : "Prévia da imagem"}</span> : (
           <span className="px-5 text-sm font-medium">{dragging ? "Solte a imagem aqui" : "Arraste uma imagem ou escolha um arquivo"}</span>
         )}
       </button>
@@ -95,12 +111,16 @@ export function BrandImageDropzone({
 
       <div className="mt-3 flex min-h-9 items-center justify-between gap-2">
         <p id={`${id}-hint`} className="text-xs text-muted-foreground">JPG, PNG ou WebP · até 5 MB</p>
-        {hasImage ? <Button type="button" variant="ghost" size="sm" onClick={onRemove} className="h-8 shrink-0 px-2.5 text-xs text-muted-foreground hover:text-destructive"><LuX data-icon="inline-start" aria-hidden="true" />Remover</Button> : null}
+        <div className="flex items-center gap-1">
+          {previewFailed && saved ? <Button type="button" variant="ghost" size="sm" onClick={() => setFailedUrl(null)} className="h-8 px-2 text-xs">Tentar prévia</Button> : null}
+          {hasImage ? <Button type="button" variant="ghost" size="sm" onClick={onRemove} className="h-8 shrink-0 px-2.5 text-xs text-muted-foreground hover:text-destructive"><LuX data-icon="inline-start" aria-hidden="true" />Remover</Button> : null}
+        </div>
       </div>
       <div id={`${id}-status`} role="status" aria-live="polite" className="min-h-5 text-xs">
         <AnimatePresence mode="wait" initial={false}>
           {error ? <motion.p key="error" initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-destructive">{error}</motion.p>
             : saving ? <motion.p key="saving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-primary">Salvando imagem…</motion.p>
+              : previewFailed ? <motion.p key="preview-error" className="text-destructive">Prévia indisponível.</motion.p>
               : pendingFile ? <motion.p key="pending" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-muted-foreground">{pendingFile.name} · {sizeLabel} · aguardando salvamento</motion.p>
                 : saved ? <motion.p key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-primary">Pronta para o cardápio</motion.p>
                   : <motion.p key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-muted-foreground">Campo opcional</motion.p>}

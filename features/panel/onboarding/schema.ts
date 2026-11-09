@@ -33,19 +33,6 @@ const instagramSchema = z
   .max(60)
   .regex(/^(?:@?[A-Za-z0-9._]{1,60})?$/, "Use apenas letras, números, ponto e sublinhado.")
 const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Use uma cor no formato #RRGGBB.")
-const googleReviewUrlSchema = z.string().trim().max(400).refine((value) => {
-  if (!value) return true
-  try {
-    const url = new URL(value)
-    if (url.protocol !== "https:") return false
-    if (url.hostname === "g.page") return /^\/r\/[A-Za-z0-9_-]+\/review$/.test(url.pathname)
-    return url.hostname === "search.google.com"
-      && url.pathname === "/local/writereview"
-      && /^[A-Za-z0-9_-]{10,300}$/.test(url.searchParams.get("placeid") ?? "")
-  } catch {
-    return false
-  }
-}, "Informe um link direto para avaliar no Google.")
 
 export const panelThemeSchema = z.object({
   preset: z.enum(PANEL_THEME_PRESET_IDS),
@@ -96,7 +83,7 @@ const completeAddressSchema = z.object({
   state: z.string().trim().toUpperCase().regex(/^(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)$/),
 })
 
-const validMapsUrl = z
+export const validMapsUrl = z
   .string()
   .trim()
   .max(500)
@@ -126,29 +113,21 @@ const validMapsUrl = z
 export const completePanelRestaurantProfileSchema = panelRestaurantDraftProfileSchema.superRefine(
   (profile, context) => {
     for (const field of ["phone", "whatsapp"] as const) {
-      if (!phoneSchema.safeParse(profile.contact[field]).success) {
+      const digits = profile.contact[field].replace(/\D/g, "")
+      if (!phoneSchema.safeParse(profile.contact[field]).success || (field === "whatsapp" && !digits) || (digits.length > 0 && digits.length !== 10 && digits.length !== 11)) {
         context.addIssue({
           code: "custom",
           path: ["contact", field],
-          message: "Informe um telefone válido ou deixe o campo em branco.",
+          message: field === "whatsapp" ? "Informe um WhatsApp válido com DDD." : "Informe um telefone válido com DDD.",
         })
       }
     }
     if (!instagramSchema.safeParse(profile.contact.instagram).success) {
       context.addIssue({ code: "custom", path: ["contact", "instagram"], message: "Use apenas letras, números, ponto e sublinhado." })
     }
-    const address = profile.contact.address
-    const hasAddressValue = Object.values(address).some((value) => value !== "")
-
-    if (hasAddressValue) {
-      const parsedAddress = completeAddressSchema.safeParse(address)
-      if (!parsedAddress.success) {
-        context.addIssue({
-          code: "custom",
-          path: ["contact", "address"],
-          message: "Complete o endereço ou deixe todos os campos em branco.",
-        })
-      }
+    const parsedAddress = completeAddressSchema.safeParse(profile.contact.address)
+    if (!parsedAddress.success) {
+      for (const issue of parsedAddress.error.issues) context.addIssue({ code: "custom", path: ["contact", "address", ...issue.path], message: issue.path[0] === "cep" ? "Informe um CEP válido." : "Preencha este campo." })
     }
 
     if (!validMapsUrl.safeParse(profile.contact.mapsUrl).success) {
@@ -157,9 +136,6 @@ export const completePanelRestaurantProfileSchema = panelRestaurantDraftProfileS
         path: ["contact", "mapsUrl"],
         message: "Cole um link válido do Google Maps.",
       })
-    }
-    if (!googleReviewUrlSchema.safeParse(profile.contact.googleReviewUrl).success) {
-      context.addIssue({ code: "custom", path: ["contact", "googleReviewUrl"], message: "Informe um link direto para avaliar no Google." })
     }
   },
 )

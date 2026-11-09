@@ -41,7 +41,7 @@ export function NotFoundExperience({
           </Link>
           <span className={styles.status}>
             <span className={styles.statusDot} aria-hidden="true" />
-            TAVVI · NAVEGAÇÃO
+            NAVEGAÇÃO
           </span>
         </header>
 
@@ -116,9 +116,7 @@ export function NotFoundExperience({
         </section>
 
         <footer className={styles.footer}>
-          <span>Seu próximo passo começa por aqui.</span>
           <span className={styles.footerRule} aria-hidden="true" />
-          <span>Uma experiência Tavvi</span>
         </footer>
       </div>
     </main>

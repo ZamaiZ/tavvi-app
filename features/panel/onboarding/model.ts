@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import { panelOnboardingStepSchema, panelRestaurantDraftProfileSchema } from "./schema"
+import { PANEL_ONBOARDING_ERROR_CODES } from "./errors"
 
 export const panelRestaurantSchema = z.object({
   id: z.string().uuid(),
@@ -38,7 +39,7 @@ export const panelOnboardingSaveResponseSchema = z.discriminatedUnion("ok", [
   }),
   z.object({
     ok: z.literal(false),
-    code: z.enum(["invalid_input", "context_changed", "storage_policy_denied", "storage_unavailable", "unavailable"]),
+    code: z.enum(PANEL_ONBOARDING_ERROR_CODES),
   }),
 ])
 
