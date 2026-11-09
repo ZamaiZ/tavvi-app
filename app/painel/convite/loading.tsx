@@ -3,6 +3,7 @@
 import { motion, MotionConfig, useReducedMotion, type Variants } from "motion/react"
 
 import { Skeleton } from "@/components/ui/skeleton"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const loadingSequence: Variants = {
   hidden: { opacity: 1 },
@@ -23,7 +24,10 @@ export default function InviteLoading() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <main aria-label="Validando convite" aria-busy="true" className="flex min-h-svh items-center justify-center bg-muted/35 px-4 py-10 motion-reduce:[&_[data-slot=skeleton]]:animate-none">
+      <main aria-label="Validando convite" aria-busy="true" className="relative flex min-h-svh items-center justify-center bg-muted/35 px-4 py-10 motion-reduce:[&_[data-slot=skeleton]]:animate-none">
+        <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+          <ThemeToggle />
+        </div>
         <motion.div
           initial={shouldReduceMotion ? false : "hidden"}
           animate="visible"

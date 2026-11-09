@@ -1,6 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
 
+import { ThemeToggle } from "@/components/theme-toggle"
 import styles from "./not-found-experience.module.css"
 
 type NotFoundExperienceProps = {
@@ -39,10 +40,13 @@ export function NotFoundExperience({
               priority
             />
           </Link>
-          <span className={styles.status}>
-            <span className={styles.statusDot} aria-hidden="true" />
-            NAVEGAÇÃO
-          </span>
+          <div className={styles.headerActions}>
+            <span className={styles.status}>
+              <span className={styles.statusDot} aria-hidden="true" />
+              NAVEGAÇÃO
+            </span>
+            <ThemeToggle />
+          </div>
         </header>
 
         <section className={styles.hero} aria-labelledby="not-found-title">

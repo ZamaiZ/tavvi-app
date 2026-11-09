@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   authItemVariants,
   authStaggerVariants,
@@ -71,7 +72,10 @@ export function AdminAuthShell({
               variants={authStaggerVariants}
               className="relative z-10 flex h-full flex-col justify-between"
             >
-              <motion.div variants={authItemVariants}>
+              <motion.div
+                variants={authItemVariants}
+                className="flex items-start justify-between gap-4"
+              >
                 <Image
                   src="/brand/tavvi-lockup-horizontal-dark.png"
                   alt="Tavvi"
@@ -80,6 +84,7 @@ export function AdminAuthShell({
                   priority
                   className="h-auto w-36 object-contain"
                 />
+                <ThemeToggle className="border-white/30 bg-black/20 text-white hover:bg-black/35 hover:text-white" />
               </motion.div>
               <motion.h2
                 variants={authItemVariants}
@@ -108,7 +113,7 @@ export function AdminAuthShell({
                   width={240}
                   height={94}
                   priority
-                  className="h-auto w-32 object-contain dark:hidden"
+                  className="h-auto w-28 object-contain dark:hidden sm:w-32"
                 />
                 <Image
                   src="/brand/tavvi-lockup-horizontal-dark.png"
@@ -116,11 +121,14 @@ export function AdminAuthShell({
                   width={240}
                   height={94}
                   priority
-                  className="hidden h-auto w-32 object-contain dark:block"
+                  className="hidden h-auto w-28 object-contain dark:block sm:w-32"
                 />
-                <span className="rounded-full border border-border bg-muted/40 px-3 py-1 text-[0.625rem] font-medium tracking-[0.14em] text-muted-foreground">
-                  {badgeLabel}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-border bg-muted/40 px-3 py-1 text-[0.625rem] font-medium tracking-[0.14em] text-muted-foreground">
+                    {badgeLabel}
+                  </span>
+                  <ThemeToggle />
+                </div>
               </motion.div>
 
               <Card className="gap-0 border-0 bg-transparent py-0 shadow-none ring-0">

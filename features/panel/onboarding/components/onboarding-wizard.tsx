@@ -9,6 +9,7 @@ import { LuArrowLeft, LuArrowRight, LuCheck, LuCircleAlert, LuCircleCheck, LuSav
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { authItemVariants, authStaggerVariants } from "@/features/admin/auth/components/auth-motion"
 import { completePanelRestaurantOnboardingAction, savePanelRestaurantDraftAction } from "@/features/panel/onboarding/actions"
 import {
@@ -436,12 +437,15 @@ export function OnboardingWizard({
       <MotionConfig reducedMotion="user">
         <motion.main initial="hidden" animate="visible" variants={authStaggerVariants} className="min-h-svh bg-muted/30 px-4 py-6 sm:px-6 sm:py-9">
           <motion.div variants={authStaggerVariants} className="mx-auto w-full max-w-5xl">
-            <motion.header variants={authItemVariants} className="mb-7 flex items-center justify-between gap-4">
-              <Image src="/brand/tavvi-lockup-horizontal-light.png" alt="Tavvi" width={240} height={94} priority className="h-auto w-28 object-contain dark:hidden sm:w-32" />
-              <Image src="/brand/tavvi-lockup-horizontal-dark.png" alt="Tavvi" width={240} height={94} priority className="hidden h-auto w-28 object-contain dark:block sm:w-32" />
-              <motion.div variants={authItemVariants} className="flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                <LuSave aria-hidden="true" className="size-3.5" />
-                <span role="status" aria-live="polite">{statusText}</span>
+            <motion.header variants={authItemVariants} className="mb-7 flex flex-wrap items-center justify-between gap-3">
+              <Image src="/brand/tavvi-lockup-horizontal-light.png" alt="Tavvi" width={240} height={94} priority className="h-auto w-28 shrink-0 object-contain dark:hidden sm:w-32" />
+              <Image src="/brand/tavvi-lockup-horizontal-dark.png" alt="Tavvi" width={240} height={94} priority className="hidden h-auto w-28 shrink-0 object-contain dark:block sm:w-32" />
+              <motion.div variants={authItemVariants} className="ml-auto flex min-w-0 items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2 rounded-full border border-border/70 bg-background/80 px-2.5 py-1.5 text-xs font-medium text-muted-foreground sm:px-3">
+                  <LuSave aria-hidden="true" className="size-3.5 shrink-0" />
+                  <span role="status" aria-live="polite" className="truncate">{statusText}</span>
+                </div>
+                <ThemeToggle />
               </motion.div>
             </motion.header>
 

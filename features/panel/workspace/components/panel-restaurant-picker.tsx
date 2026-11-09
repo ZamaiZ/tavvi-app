@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { AnimatePresence, motion, MotionConfig, useReducedMotion } from "motion/react"
 import { LuArrowRight, LuCircleAlert, LuCircleCheck, LuStore } from "react-icons/lu"
@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ThemeToggle } from "@/components/theme-toggle"
 import type { PanelRestaurantListItem } from "@/features/panel/workspace/server/restaurants"
 import { selectPanelRestaurantAction } from "@/features/panel/workspace/actions"
 import { authItemVariants, authStaggerVariants } from "@/features/admin/auth/components/auth-motion"
@@ -31,20 +32,34 @@ export function PanelRestaurantPicker({
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState("")
+  const autoSelectAttempted = useRef(false)
 
-  function choose(id: string) {
+  const choose = useCallback((id: string) => {
     setError("")
     setPendingId(id)
     startTransition(async () => {
-      const result = await selectPanelRestaurantAction(id)
-      if (!result.ok) {
+      try {
+        const result = await selectPanelRestaurantAction(id)
+        if (!result.ok) {
+          setError("Não foi possível abrir este restaurante. Atualize a página e tente novamente.")
+          setPendingId(null)
+          return
+        }
+        router.replace(result.destination)
+      } catch {
         setError("Não foi possível abrir este restaurante. Atualize a página e tente novamente.")
         setPendingId(null)
-        return
       }
-      router.replace(result.destination)
     })
-  }
+  }, [router, startTransition])
+
+  useEffect(() => {
+    if (restaurants.length !== 1 || autoSelectAttempted.current) return
+    autoSelectAttempted.current = true
+    choose(restaurants[0].id)
+  }, [restaurants, choose])
+
+  const autoOpening = restaurants.length === 1 && !error
 
   return (
     <MotionConfig reducedMotion="user">
@@ -52,14 +67,21 @@ export function PanelRestaurantPicker({
         initial={reduceMotion ? false : "hidden"}
         animate="visible"
         variants={authStaggerVariants}
-        className="min-h-svh bg-muted/30 px-4 py-10 sm:px-6"
+        className="relative min-h-svh bg-muted/30 px-4 py-10 sm:px-6"
       >
+        <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+          <ThemeToggle />
+        </div>
         <div className="mx-auto w-full max-w-2xl">
           <motion.header variants={authItemVariants} className="mb-7 text-center">
             <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><LuStore aria-hidden="true" className="size-6" /></span>
             <p className="mt-4 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">Painel Tavvi</p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Escolha um restaurante</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Selecione o espaço que deseja acessar.</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+              {autoOpening ? "Abrindo seu restaurante" : "Escolha um restaurante"}
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {autoOpening ? "Estamos preparando seu acesso." : "Selecione o espaço que deseja acessar."}
+            </p>
           </motion.header>
 
           <AnimatePresence initial={false}>
@@ -70,7 +92,16 @@ export function PanelRestaurantPicker({
             ) : null}
           </AnimatePresence>
 
-          {restaurants.length ? (
+          {restaurants.length ? autoOpening ? (
+            <motion.div variants={authItemVariants}>
+              <Card className="border-border/70 text-center shadow-sm">
+                <CardContent className="space-y-2 p-6" aria-live="polite">
+                  <p className="font-medium">Abrindo {restaurants[0].name}…</p>
+                  <p className="text-sm leading-6 text-muted-foreground">Você será direcionado ao painel.</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : (
             <motion.div variants={authStaggerVariants} className="space-y-3">
               {restaurants.map((restaurant) => (
                 <motion.div key={restaurant.id} variants={authItemVariants} whileHover={pending ? undefined : { y: -1 }} transition={{ duration: 0.16 }}>

@@ -29,6 +29,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import {
@@ -272,6 +273,9 @@ export function InviteRedemptionPage({
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute -top-44 left-1/2 size-[34rem] -translate-x-1/2 rounded-full bg-primary/[0.055] blur-3xl" />
           <div className="absolute right-[-14rem] bottom-[-18rem] size-[34rem] rounded-full bg-primary/[0.035] blur-3xl" />
+        </div>
+        <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+          <ThemeToggle />
         </div>
 
         <motion.div

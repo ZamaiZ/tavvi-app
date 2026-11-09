@@ -2,6 +2,7 @@ import Image from "next/image"
 import Link from "next/link"
 import type { Metadata } from "next"
 
+import { ThemeToggle } from "@/components/theme-toggle"
 import styles from "./page.module.css"
 
 export const metadata: Metadata = {
@@ -14,6 +15,9 @@ export default function Page() {
   return (
     <main className="relative isolate flex min-h-svh items-center justify-center overflow-hidden bg-background px-6 py-16 text-center text-foreground">
       <div aria-hidden="true" className={styles.rootAmbient} />
+      <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+        <ThemeToggle />
+      </div>
 
       <div className="relative z-10 w-full max-w-xl">
         <div className="flex items-center justify-center gap-2.5">
