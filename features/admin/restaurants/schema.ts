@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { isReservedRestaurantSlug } from "@/lib/routing/reserved-slugs"
 
 export const restaurantStatusSchema = z.enum(["draft", "active", "suspended"])
 
@@ -27,7 +28,9 @@ export const restaurantIdSchema = z.string().uuid("Restaurante inválido.")
 
 export const updateRestaurantSlugSchema = z.object({
   restaurantId: restaurantIdSchema,
-  slug: restaurantSlugSchema,
+  slug: restaurantSlugSchema.refine((slug) => !isReservedRestaurantSlug(slug), {
+    message: "Esse endereço é reservado pela plataforma.",
+  }),
 })
 
 export type UpdateRestaurantSlugInput = z.infer<
