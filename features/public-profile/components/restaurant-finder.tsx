@@ -8,6 +8,7 @@ import {
   LuMapPin,
   LuRotateCw,
   LuSearch,
+  LuSearchX,
   LuUtensils,
   LuX,
 } from "react-icons/lu"
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/input-group"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BrandImage } from "@/features/public-profile/components/brand-image"
+import styles from "./restaurant-finder-empty-state.module.css"
 import {
   parsePublicRestaurantSearchPage,
   type PublicRestaurantAddress,
@@ -263,11 +265,12 @@ export function RestaurantFinder() {
   }, [changePanelOpen, restaurants, router])
 
   const isLoading = status === "loading" || status === "loading-more" || navigating
+  const showEmptyState = status === "idle" && restaurants.length === 0
   const liveMessage = status === "loading"
     ? query.trim() ? "Buscando restaurantes." : "Carregando restaurantes ativos."
     : status === "error"
       ? "Não foi possível carregar os restaurantes."
-      : open && status === "idle"
+      : open && status === "idle" && restaurants.length > 0
         ? restaurants.length === 1
           ? "1 restaurante encontrado."
           : `${restaurants.length} restaurantes encontrados.`
@@ -329,16 +332,43 @@ export function RestaurantFinder() {
             ) : null}
           </InputGroupAddon>
         </ComboboxInput>
-
-        <p id="restaurant-finder-hint" className="mt-2 px-1 text-left text-xs text-muted-foreground">
-          Pesquise por nome, cozinha ou endereço.
-        </p>
-
         <ComboboxContent
           sideOffset={10}
           align="center"
           className="flex max-h-[min(28rem,var(--available-height))] flex-col rounded-2xl border border-border/70 bg-popover/95 p-1.5 shadow-2xl shadow-black/10 backdrop-blur-2xl transition-[opacity,transform] duration-150 data-open:scale-100 data-open:opacity-100 data-closed:scale-[0.98] data-closed:opacity-0 motion-reduce:transition-none"
         >
+          <ComboboxEmpty
+            className={showEmptyState
+              ? "min-h-16 justify-start gap-3 rounded-xl px-3 py-2 text-left text-xs text-muted-foreground"
+              : "block sr-only"}
+          >
+            {showEmptyState ? (
+              <>
+                <span aria-hidden="true" className="relative flex size-11 shrink-0 items-center justify-center rounded-2xl border border-primary/15 bg-primary/8 text-primary shadow-sm shadow-primary/5">
+                  <LuSearchX className={`size-5 ${styles.emptyIcon}`} />
+                  <span className={`absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full border border-border/75 bg-popover text-muted-foreground shadow-sm ${styles.emptyUtensils}`}>
+                    <LuUtensils className="size-3" />
+                  </span>
+                  <span className={`absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border border-border/75 bg-popover text-muted-foreground shadow-sm ${styles.emptyPin}`}>
+                    <LuMapPin className="size-3" />
+                  </span>
+                </span>
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate text-sm font-semibold leading-5 text-foreground">
+                    {query.trim()
+                      ? <>Sem resultados para “{query.trim()}”</>
+                      : "Ainda não há restaurantes ativos."}
+                  </span>
+                  <span className="text-xs leading-4 text-muted-foreground">
+                    {query.trim()
+                      ? "Tente outro termo para sua pesquisa."
+                      : "Os restaurantes ativos aparecerão aqui."}
+                  </span>
+                </span>
+              </>
+            ) : null}
+          </ComboboxEmpty>
+
           {status === "loading" ? (
             <LoadingRows />
           ) : status === "error" && restaurants.length === 0 ? (
@@ -360,11 +390,6 @@ export function RestaurantFinder() {
             </div>
           ) : (
             <>
-              <ComboboxEmpty className="min-h-28 px-5 py-8 text-sm text-muted-foreground">
-                {query.trim()
-                  ? "Nenhum restaurante encontrado."
-                  : "Ainda não há restaurantes ativos."}
-              </ComboboxEmpty>
               <ComboboxList className="min-h-0 max-h-none flex-1 space-y-1 overflow-y-auto p-1">
                 {restaurants.map((restaurant) => (
                   <RestaurantRow key={restaurant.slug} restaurant={restaurant} />

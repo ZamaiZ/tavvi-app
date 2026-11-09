@@ -1,0 +1,48 @@
+.emptyIcon {
+  animation: empty-icon-enter 210ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.emptyUtensils,
+.emptyPin {
+  animation: empty-detail-enter 190ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.emptyUtensils {
+  animation-delay: 35ms;
+}
+
+.emptyPin {
+  animation-delay: 70ms;
+}
+
+@keyframes empty-icon-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes empty-detail-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .emptyIcon,
+  .emptyUtensils,
+  .emptyPin {
+    animation: none;
+  }
+}
