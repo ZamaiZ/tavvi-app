@@ -85,10 +85,10 @@ function MenuCategoryActions({ category, onEdit, onDelete, onVisibility }: {
   return <DropdownMenu>
     <DropdownMenuTrigger render={<Button type="button" size="icon-sm" variant="ghost" aria-label={`Ações da categoria ${category.name}`} />}><LuEllipsis aria-hidden="true" /></DropdownMenuTrigger>
     <DropdownMenuContent align="end">
-      <DropdownMenuItem onClick={onEdit}><LuPencil aria-hidden="true" />Editar categoria</DropdownMenuItem>
+      <DropdownMenuItem onClick={onEdit}><LuPencil aria-hidden="true" />Editar</DropdownMenuItem>
       <DropdownMenuItem onClick={onVisibility}>{category.isVisible ? <LuEyeOff aria-hidden="true" /> : <LuEye aria-hidden="true" />}{category.isVisible ? "Ocultar" : "Reexibir"}</DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem variant="destructive" onClick={onDelete}><LuTrash2 aria-hidden="true" />Excluir categoria</DropdownMenuItem>
+      <DropdownMenuItem variant="destructive" onClick={onDelete}><LuTrash2 aria-hidden="true" />Excluir</DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
 }

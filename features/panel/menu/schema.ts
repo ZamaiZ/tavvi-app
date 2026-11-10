@@ -209,7 +209,7 @@ export const menuBatchSchema = z.object({
     description: menuText(600),
     isVisible: z.boolean(),
     isAvailable: z.boolean(),
-    priceCents: z.number().int().min(0).max(MENU_MAX_PRICE_CENTS),
+    pricing: pricingSchema,
     media: z.array(mediaSchema).max(MENU_MAX_MEDIA_PER_ITEM),
   }).strict()).min(1).max(50),
 }).strict().superRefine((batch, context) => {
@@ -225,6 +225,7 @@ export const menuBatchSchema = z.object({
   })
   const itemIds = new Set<string>()
   const itemNamesByCategory = new Map<string, Set<string>>()
+  const variantIds = new Set<string>()
   const mediaIds = new Set<string>()
   const mediaPaths = new Set<string>()
   batch.items.forEach((item, index) => {
@@ -239,6 +240,20 @@ export const menuBatchSchema = z.object({
     if (names.has(key)) context.addIssue({ code: "custom", path: ["items", index, "name"], message: "Nome repetido nesta categoria." })
     names.add(key)
     itemNamesByCategory.set(item.categoryId, names)
+    if (item.pricing.mode === "variants") {
+      const variantNames = new Set<string>()
+      item.pricing.variants.forEach((variant, variantIndex) => {
+        const variantKey = normalized(variant.name)
+        if (variantIds.has(variant.id)) {
+          context.addIssue({ code: "custom", path: ["items", index, "pricing", "variants", variantIndex, "id"], message: "Variação repetida no lote." })
+        }
+        if (variantNames.has(variantKey)) {
+          context.addIssue({ code: "custom", path: ["items", index, "pricing", "variants", variantIndex, "name"], message: "Use nomes diferentes para as variações." })
+        }
+        variantIds.add(variant.id)
+        variantNames.add(variantKey)
+      })
+    }
     item.media.forEach((media, mediaIndex) => {
       const pathPattern = new RegExp(`^${batch.expectedRestaurantId}/${item.id}/[0-9a-f-]{36}\\.(jpg|jpeg|png|webp|avif|mp4|webm)$`, "i")
       if (!pathPattern.test(media.storagePath) || (media.kind === "image" && !/\.(jpg|jpeg|png|webp|avif)$/i.test(media.storagePath)) || (media.kind === "video" && !/\.(mp4|webm)$/i.test(media.storagePath))) {

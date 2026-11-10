@@ -1,7 +1,14 @@
 import { z } from "zod"
+import { MENU_MAX_VARIANTS_PER_ITEM } from "../model"
 
 const uuid = z.string().uuid()
 const localFile = z.custom<File>((value) => typeof File !== "undefined" && value instanceof File)
+const draftVariantSchema = z.object({
+  id: uuid,
+  name: z.string().max(60),
+  price: z.string().max(24),
+  isAvailable: z.boolean(),
+}).strict()
 
 export const menuBatchDraftSchema = z.object({
   schemaVersion: z.literal(1),
@@ -18,6 +25,8 @@ export const menuBatchDraftSchema = z.object({
     name: z.string().max(120),
     description: z.string().max(600),
     price: z.string().max(24),
+    pricingMode: z.enum(["single", "variants"]).default("single"),
+    variants: z.array(draftVariantSchema).max(MENU_MAX_VARIANTS_PER_ITEM).default([]),
     files: z.array(localFile).max(6),
   }).strict()).max(50),
 }).strict()

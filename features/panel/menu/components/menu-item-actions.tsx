@@ -33,10 +33,10 @@ export function MenuItemActions({
           <LuEllipsis aria-hidden="true" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-44">
-          <DropdownMenuItem onClick={onEdit}><LuPencil aria-hidden="true" />Editar item</DropdownMenuItem>
+          <DropdownMenuItem onClick={onEdit}><LuPencil aria-hidden="true" />Editar</DropdownMenuItem>
           <DropdownMenuItem onClick={onVisibility}>{item.isVisible ? <LuEyeOff aria-hidden="true" /> : <LuEye aria-hidden="true" />}{item.isVisible ? "Ocultar" : "Reexibir"}</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={onDelete}><LuTrash2 aria-hidden="true" />Excluir item</DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onClick={onDelete}><LuTrash2 aria-hidden="true" />Excluir</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

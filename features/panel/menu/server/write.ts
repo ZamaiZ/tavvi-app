@@ -154,7 +154,7 @@ export async function saveMenuBatch(input: MenuBatchInput): Promise<MenuActionRe
     const { restaurant, supabase } = await getMenuContext(input.expectedRestaurantId)
     const payload = {
       categories: input.categories,
-      items: input.items.map(({ id, categoryId, name, description, isVisible, isAvailable, priceCents, media }) => ({
+      items: input.items.map(({ id, categoryId, name, description, isVisible, isAvailable, pricing, media }) => ({
         id,
         categoryId,
         payload: {
@@ -162,7 +162,7 @@ export async function saveMenuBatch(input: MenuBatchInput): Promise<MenuActionRe
           description,
           isVisible,
           isAvailable,
-          pricing: { mode: "single", basePriceCents: priceCents },
+          pricing,
           highlights: [],
           attributes: [],
           media: media.map((entry, position) => ({ ...entry, position })),
