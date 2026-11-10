@@ -32,10 +32,10 @@ export type UploadedMenuMedia = SavedMenuMediaInput & {
   cleanup: { bucket: MenuUploadTicket["bucket"]; path: string }[]
 }
 
-const ACCEPTED_MIMES = [
+const ACCEPTED_MIMES = new Set<string>([
   ...MENU_MEDIA_LIMITS.image.mimes,
   ...MENU_MEDIA_LIMITS.video.mimes,
-]
+])
 
 function waitForMedia(element: HTMLMediaElement, eventName: string, timeoutMs = 10_000) {
   return new Promise<void>((resolve, reject) => {
@@ -103,7 +103,7 @@ async function inspectVideo(file: File): Promise<{ durationMs: number | null; po
 }
 
 export async function inspectMenuFile(file: File): Promise<SelectedMenuMedia> {
-  if (!ACCEPTED_MIMES.includes(file.type)) throw new Error(`“${file.name}” não está em um formato de foto ou vídeo aceito.`)
+  if (!ACCEPTED_MIMES.has(file.type)) throw new Error(`“${file.name}” não está em um formato de foto ou vídeo aceito.`)
   const kind: MenuMediaKind = file.type.startsWith("image/") ? "image" : "video"
   const inspected = kind === "video" ? await inspectVideo(file) : { durationMs: null, poster: null }
   if (kind === "video" && inspected.durationMs === null) {
