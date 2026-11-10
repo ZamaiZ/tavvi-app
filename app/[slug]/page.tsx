@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 
 import { RestaurantPublicProfile } from "@/features/public-profile/components/restaurant-public-profile"
 import { getPublicRestaurantProfile } from "@/features/public-profile/server/public-profile"
+import { getPublicRestaurantMenu } from "@/features/public-profile/server/public-menu"
 
 type PublicRestaurantPageProps = {
   params: Promise<{ slug: string }>
@@ -70,9 +71,12 @@ export async function generateMetadata({ params }: PublicRestaurantPageProps): P
 
 export default async function PublicRestaurantPage({ params }: PublicRestaurantPageProps) {
   const { slug } = await params
-  const restaurant = await getPublicRestaurantProfile(slug)
+  const [restaurant, menu] = await Promise.all([
+    getPublicRestaurantProfile(slug),
+    getPublicRestaurantMenu(slug),
+  ])
 
   if (!restaurant) notFound()
 
-  return <RestaurantPublicProfile restaurant={restaurant} />
+  return <RestaurantPublicProfile restaurant={restaurant} menu={menu} />
 }

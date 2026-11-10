@@ -8,6 +8,7 @@ export const panelRestaurantSchema = z.object({
   name: z.string().min(2).max(120),
   slug: z.string().min(3).max(89),
   status: z.enum(["draft", "active", "suspended"]),
+  menuStatus: z.enum(["draft", "published"]),
   description: z.string().nullable(),
   segment: z.string().nullable(),
   theme: z.unknown(),

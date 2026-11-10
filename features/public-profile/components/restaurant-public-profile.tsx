@@ -20,12 +20,15 @@ import {
   type PublicRestaurantProfile as PublicRestaurantProfileData,
 } from "@/features/public-profile/model"
 import { PUBLIC_THEME_FONT_VARIABLES } from "@/features/public-profile/fonts"
+import type { PublicMenuDTO } from "@/features/public-profile/menu-model"
+import { PublicMenu } from "@/features/public-profile/components/public-menu"
 import { resolvePublicTheme } from "@/features/public-profile/theme"
 
 import styles from "@/features/public-profile/styles/public-profile.module.css"
 
 type RestaurantPublicProfileProps = {
   restaurant: PublicRestaurantProfileData
+  menu: PublicMenuDTO | null
 }
 
 type RevealStyle = CSSProperties & { "--reveal-delay": string }
@@ -55,7 +58,7 @@ function revealStyle(order: number): RevealStyle {
   return { "--reveal-delay": `${order * 45}ms` } as RevealStyle
 }
 
-function RestaurantPublicProfile({ restaurant }: RestaurantPublicProfileProps) {
+function RestaurantPublicProfile({ restaurant, menu }: RestaurantPublicProfileProps) {
   const theme = resolvePublicTheme(restaurant.theme)
   const address = formatPublicRestaurantAddress(restaurant.contact.address)
   const mapHref = directionsUrl(restaurant.contact)
@@ -221,29 +224,20 @@ function RestaurantPublicProfile({ restaurant }: RestaurantPublicProfileProps) {
               </a>
             </li>
           ) : null}
-          <li
-            className={`${styles.actionItem} ${styles.reveal}`}
-            style={revealStyle(constructionRevealOrder)}
-          >
-            <div className={`${styles.action} ${styles.constructionAction}`}>
-              <span
-                className={`${styles.actionIcon} ${styles.reveal}`}
-                style={revealStyle(constructionRevealOrder + 1)}
-                aria-hidden="true"
-              >
-                <LuBookOpen />
-              </span>
-              <span className={`${styles.actionLabel} ${styles.reveal}`} style={revealStyle(constructionRevealOrder + 2)}>
-                Cardápio em construção
-              </span>
-              <span
-                className={`${styles.constructionMark} ${styles.reveal}`}
-                style={revealStyle(constructionRevealOrder + 3)}
-                aria-hidden="true"
-              />
-            </div>
-          </li>
+          {menu ? null : (
+            <li
+              className={`${styles.actionItem} ${styles.reveal}`}
+              style={revealStyle(constructionRevealOrder)}
+            >
+              <div className={`${styles.action} ${styles.constructionAction}`}>
+                <span className={`${styles.actionIcon} ${styles.reveal}`} style={revealStyle(constructionRevealOrder + 1)} aria-hidden="true"><LuBookOpen /></span>
+                <span className={`${styles.actionLabel} ${styles.reveal}`} style={revealStyle(constructionRevealOrder + 2)}>Cardápio em construção</span>
+                <span className={`${styles.constructionMark} ${styles.reveal}`} style={revealStyle(constructionRevealOrder + 3)} aria-hidden="true" />
+              </div>
+            </li>
+          )}
         </ul>
+        {menu ? <PublicMenu menu={menu} /> : null}
       </div>
     </main>
   )

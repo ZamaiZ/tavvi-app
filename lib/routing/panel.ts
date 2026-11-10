@@ -39,3 +39,20 @@ export function createPanelInviteUrl(token: string) {
 
   return panelUrl.toString()
 }
+
+export function createPublicRestaurantUrl(slug: string) {
+  const panelUrl = getPanelBaseUrl()
+  const hostname = panelUrl.hostname.toLowerCase()
+  if (hostname === "painel.localhost") {
+    panelUrl.hostname = "localhost"
+  } else if (hostname.startsWith("painel.")) {
+    panelUrl.hostname = hostname.slice("painel.".length)
+  } else if (panelUrl.pathname.replace(/\/$/, "") !== "/painel") {
+    throw new Error("TAVVI_PANEL_BASE_URL must use the painel subdomain or /painel path to derive public restaurant links.")
+  }
+
+  panelUrl.pathname = `/${encodeURIComponent(slug)}`
+  panelUrl.search = ""
+  panelUrl.hash = ""
+  return panelUrl.toString()
+}

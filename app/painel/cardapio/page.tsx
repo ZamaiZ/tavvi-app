@@ -2,12 +2,14 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { getPanelPublicBasePath } from "@/features/panel/auth/navigation"
+import { getPanelMenu } from "@/features/panel/menu/server/read"
 import { PanelMenuTemplate } from "@/features/panel/workspace/components/panel-menu-template"
 import {
   getActivePanelRestaurant,
   getPanelRestaurantsForCurrentUser,
 } from "@/features/panel/workspace/server/restaurants"
 import { PanelAppShell } from "@/features/panel/shell/components/panel-app-shell"
+import { createPublicRestaurantUrl } from "@/lib/routing/panel"
 import { getRequestHostname } from "@/lib/routing/host"
 import { requireAuthenticatedSurface } from "@/lib/supabase/require-authenticated-surface"
 
@@ -60,7 +62,10 @@ export default async function PanelMenuPage() {
       }}
       restaurants={restaurants}
     >
-      <PanelMenuTemplate name={restaurant.name} slug={restaurant.slug} />
+      <PanelMenuTemplate
+        menu={await getPanelMenu(restaurant, base)}
+        publicUrl={createPublicRestaurantUrl(restaurant.slug)}
+      />
     </PanelAppShell>
   )
 }

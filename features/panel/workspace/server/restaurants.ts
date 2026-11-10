@@ -63,7 +63,7 @@ export async function getActivePanelRestaurant(
 
   const { data, error } = await supabase
     .from("restaurants")
-    .select("id,name,slug,status,description,segment,theme,menu_presentation,logo_path,cover_path,contact,onboarding_step")
+    .select("id,name,slug,status,menu_status,description,segment,theme,menu_presentation,logo_path,cover_path,contact,onboarding_step")
     .eq("id", activeId)
     .maybeSingle()
 
@@ -78,6 +78,7 @@ export async function getActivePanelRestaurant(
     name: data.name,
     slug: data.slug,
     status: data.status,
+    menuStatus: data.menu_status,
     description: data.description,
     segment: data.segment,
     theme: data.theme,
