@@ -3,8 +3,11 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
 import { useState } from "react"
+import { usePathname } from "next/navigation"
 import { MotionConfig, motion, useReducedMotion } from "motion/react"
 import {
+  LuContactRound,
+  LuIdCard,
   LuChevronsUpDown,
   LuUtensils,
 } from "react-icons/lu"
@@ -163,6 +166,10 @@ export function PanelAppShell({
   const reducedMotion = prefersReducedMotion === true
   const cardapioHref = `${publicBasePath}/cardapio`
   const restaurantsHref = getPanelRestaurantsPath(publicBasePath)
+  const identityHref = `${publicBasePath}/identidade`
+  const contactHref = `${publicBasePath}/contato`
+  const pathname = usePathname()
+  const activeSection = pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : "menu"
   const canSwitchRestaurants = restaurants.length > 1
 
   const sequenceVariants = {
@@ -210,18 +217,29 @@ export function PanelAppShell({
             <motion.div variants={itemVariants} className="flex min-h-0 flex-1 flex-col">
               <SidebarContent>
                 <SidebarGroup>
-                  <SidebarGroupLabel>Navegação</SidebarGroupLabel>
+                  <SidebarGroupLabel>Operação</SidebarGroupLabel>
                   <SidebarGroupContent>
                     <SidebarMenu>
                       <SidebarMenuItem>
-                        <SidebarMenuButton
-                          render={<Link href={cardapioHref} aria-current="page" />}
-                          isActive
-                          tooltip="Cardápio"
-                          className="transition-colors duration-150"
-                        >
-                          <LuUtensils aria-hidden="true" />
-                          <span className="group-data-[collapsible=icon]:sr-only">Cardápio</span>
+                        <SidebarMenuButton render={<Link href={cardapioHref} aria-current={activeSection === "menu" ? "page" : undefined} />} isActive={activeSection === "menu"} tooltip="Cardápio" className="transition-colors duration-150">
+                          <LuUtensils aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Cardápio</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+                <SidebarGroup>
+                  <SidebarGroupLabel>Perfil público</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton render={<Link href={identityHref} aria-current={activeSection === "identity" ? "page" : undefined} />} isActive={activeSection === "identity"} tooltip="Identidade" className="transition-colors duration-150">
+                          <LuIdCard aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Identidade</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton render={<Link href={contactHref} aria-current={activeSection === "contact" ? "page" : undefined} />} isActive={activeSection === "contact"} tooltip="Contato" className="transition-colors duration-150">
+                          <LuContactRound aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Contato</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     </SidebarMenu>
@@ -252,6 +270,9 @@ export function PanelAppShell({
 
         <PanelMobileDock
           cardapioHref={cardapioHref}
+          identityHref={identityHref}
+          contactHref={contactHref}
+          activeSection={activeSection}
           restaurantsHref={restaurantsHref}
           canSwitchRestaurants={canSwitchRestaurants}
         />

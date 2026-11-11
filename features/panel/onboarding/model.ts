@@ -12,7 +12,7 @@ export const panelRestaurantSchema = z.object({
   description: z.string().nullable(),
   segment: z.string().nullable(),
   theme: z.unknown(),
-  menuPresentation: z.enum(["immersive", "catalog-list", "catalog-grid"]),
+  menuPresentation: z.enum(["immersive", "standard"]),
   logoPath: z.string().nullable(),
   coverPath: z.string().nullable(),
   contact: z.unknown(),

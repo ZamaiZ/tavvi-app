@@ -2,6 +2,7 @@ import { FaWhatsapp } from "react-icons/fa"
 import { FcGoogle } from "react-icons/fc"
 import {
   LuBookOpen,
+  LuArrowRight,
   LuChevronRight,
   LuInstagram,
   LuMapPin,
@@ -101,26 +102,30 @@ function RestaurantPublicProfile({ restaurant, menu }: RestaurantPublicProfilePr
       className={`${styles.profile} ${PUBLIC_THEME_FONT_VARIABLES}`}
       data-preset={theme.presetId}
       data-density={theme.density}
+      data-has-menu={menu ? "true" : "false"}
+      data-presentation={menu?.presentation}
       style={theme.style as CSSProperties}
     >
-      <div className={styles.cover} aria-hidden="true">
-        <div className={styles.coverArtwork}>
-          {restaurant.coverPath ? (
-            <BrandImage
-              key={`${restaurant.slug}-cover`}
-              slug={restaurant.slug}
-              slot="cover"
-              alt=""
-              sizes="100vw"
-              className={styles.coverImage}
-              fetchPriority="high"
-            />
-          ) : null}
-        </div>
-        <div className={styles.coverFade} />
-      </div>
+      <div className={menu ? styles.publicExperience : undefined}>
+        <section id="restaurant-welcome" className={menu ? styles.welcomeScreen : styles.welcomeOnly} aria-label={`Apresentação de ${restaurant.name}`} tabIndex={menu ? -1 : undefined}>
+          <div className={styles.cover} aria-hidden="true">
+            <div className={styles.coverArtwork}>
+              {restaurant.coverPath ? (
+                <BrandImage
+                  key={`${restaurant.slug}-cover`}
+                  slug={restaurant.slug}
+                  slot="cover"
+                  alt=""
+                  sizes="100vw"
+                  className={styles.coverImage}
+                  fetchPriority="high"
+                />
+              ) : null}
+            </div>
+            <div className={styles.coverFade} />
+          </div>
 
-      <div className={styles.content}>
+          <div className={styles.content}>
         <p className={`${styles.heroEyebrow} ${styles.reveal}`} style={revealStyle(0)}>
           Perfil do restaurante
         </p>
@@ -237,6 +242,9 @@ function RestaurantPublicProfile({ restaurant, menu }: RestaurantPublicProfilePr
             </li>
           )}
         </ul>
+        {menu ? <a href="#public-menu" className={`${styles.menuWelcomeAction} ${styles.reveal}`} style={revealStyle(constructionRevealOrder)}><span><strong>Ver cardápio</strong><small>Deslize para o lado ou toque aqui</small></span><LuArrowRight aria-hidden="true" /></a> : null}
+          </div>
+        </section>
         {menu ? <PublicMenu menu={menu} /> : null}
       </div>
     </main>

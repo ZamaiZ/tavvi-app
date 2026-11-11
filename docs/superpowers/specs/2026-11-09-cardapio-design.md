@@ -39,10 +39,10 @@ Transformar a página `/painel/cardapio`, hoje placeholder, no espaço principal
 ### Conteúdo e operações
 
 - Categorias: nome, descrição opcional, visibilidade e posição. Não excluir categoria com itens; o usuário move ou exclui os itens primeiro.
-- Itens: categoria, nome, descrição, visibilidade, disponibilidade, preço único ou até 30 variações com disponibilidade própria, destaques livres, atributos estruturados e até seis mídias (fotos ou vídeos curtos, respeitando os limites validados no legado).
+- Itens: categoria, nome, descrição, visibilidade, disponibilidade, preço único ou até 30 variações com disponibilidade própria, destaques livres, atributos estruturados e de uma a seis mídias (fotos ou vídeos curtos, respeitando os limites validados no legado). Pelo menos uma mídia é obrigatória para criar ou salvar um item.
 - Itens indisponíveis permanecem visíveis, com estado explícito; indisponibilidade não equivale a ocultação.
-- Pesquisa cobre nome e descrição do item. Filtros: todos, sem mídia, indisponíveis e ocultos. Resultados vazios devem distinguir busca sem resultado de cardápio ainda vazio.
-  - A criação em lote aceita até 50 itens e até 20 categorias novas por envio. O fluxo permite cadastrar categoria, nome, descrição, preço único ou variações com disponibilidade individual, além de mídias; destaques e atributos podem ser ajustados no editor completo depois do lote. Valida as linhas antes de persistir.
+- Pesquisa cobre nome e descrição do item. Filtros: todos, sem mídia (para localizar dados legados antes de aplicar a nova obrigatoriedade), indisponíveis e ocultos. Resultados vazios devem distinguir busca sem resultado de cardápio ainda vazio.
+  - A criação em lote aceita até 50 itens e até 20 categorias novas por envio. Cada linha permite cadastrar categoria, nome, descrição, preço único ou variações com disponibilidade individual, destaques, atributos estruturados e de uma a seis mídias. A seção de mídia deve ter destaque visual, aceitar seleção ou arrastar arquivos e permitir reordenar por arraste e por controles de mover para trás/frente; a primeira mídia é a capa. Valida as linhas antes de persistir.
 - Um rascunho de lote é recuperável depois de recarga no mesmo navegador, vinculado ao restaurante e à versão do schema. Persistir localmente texto e Blobs de mídia em IndexedDB; não usar `localStorage` como fonte do rascunho nem para autorização. Oferecer continuar ou descartar; limpar somente após commit bem-sucedido ou descarte explícito. Falha/limite do IndexedDB não pode apagar o formulário em uso.
 - Mídias são enviadas diretamente do navegador ao Supabase Storage por autorização curta; bytes não passam por Server Action. Escrita de metadados e lote deve ser atômica no banco. Uploads parciais devem ser removidos ou permanecer recuperáveis sem aparecer no público.
 
@@ -69,6 +69,7 @@ Transformar a página `/painel/cardapio`, hoje placeholder, no espaço principal
 - Usar ícones Lucide já adotados em `react-icons/lu`, rótulos claros e dica contextual quando um ícone sozinho não for suficiente.
 - Campos de escolha usam o `Combobox` do design system, nunca `<select>` nativo ou o seletor alternativo. Inputs de texto e descrição recebem ícones coerentes; entrada de preço usa máscara BRL com `R$`, centavos e limite validado.
 - Ações destrutivas pedem confirmação. Erros de lote apontam a linha/campo; sucesso e falha são anunciados e preservam o estado editável.
+- No lote, mídia obrigatória fica junto aos campos essenciais, com contador, prévias e estado vazio claro. Destaques e atributos estão disponíveis por item em uma seção complementar expansível; atributos usam o catálogo do restaurante e qualificadores de alergênicos.
 - Skeleton acompanha a forma do modo carregado, com fallback responsivo que não pisca entre desktop e mobile.
 - Transições usam `motion/react` no padrão do shell: curtas, sequenciais e discretas. Reservar movimento para troca de conteúdo, entrada/saída e feedback de reorder; respeitar `prefers-reduced-motion`. A 404 é referência de acabamento e ritmo, não de ambientação constante numa tela operacional.
 - DnD inclui teclado, alvo/foco visível, anúncios acessíveis e alternativa sem arraste. Mobile não depende de hover nem de DnD.

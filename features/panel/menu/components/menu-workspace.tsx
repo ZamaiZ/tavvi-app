@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+import { PanelPageHeading } from "@/features/panel/workspace/components/panel-page-heading"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MenuBoard } from "./menu-board"
 import { MenuCategoryEditor } from "./menu-category-editor"
@@ -331,21 +331,14 @@ export function MenuWorkspace({ initialMenu, publicUrl }: { initialMenu: PanelMe
 
   return (
     <MotionConfig reducedMotion="user">
-      <main className="min-h-svh">
+      <div className="min-h-svh">
         <div className="mx-auto flex w-full max-w-[1480px] flex-col px-4 py-7 sm:px-6 md:py-5 lg:px-8">
           <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 md:gap-6">
             <motion.header initial={motionReduced ? false : { opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: motionReduced ? 0.12 : 0.22, ease: [0.23, 1, 0.32, 1] }} className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-3">
-                  <SidebarTrigger aria-label="Alternar navegação lateral" title="Alternar navegação lateral" className="mt-0.5 hidden shrink-0 rounded-lg border border-border/70 bg-background shadow-sm transition-colors duration-150 md:inline-flex" />
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-2 text-[0.625rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase"><span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary"><LuUtensils aria-hidden="true" /></span>Cardápio</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 self-end sm:self-auto">
-                  <Badge variant={menu.status === "published" ? "default" : "secondary"} className="gap-1.5 rounded-full px-3 py-1.5">{menu.status === "published" ? <LuCheck aria-hidden="true" /> : <LuLayers2 aria-hidden="true" />}{menu.status === "published" ? "Publicado" : "Rascunho"}</Badge>
-                  <Button nativeButton={false} render={<a href={publicUrl} target="_blank" rel="noreferrer" />} variant="outline" size="sm"><LuExternalLink aria-hidden="true" /><span className="hidden sm:inline">Ver página</span></Button>
-                </div>
+              <PanelPageHeading title="Cardápio" icon={<LuUtensils aria-hidden="true" className="size-4" />} />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <Badge variant={menu.status === "published" ? "default" : "secondary"} className="gap-1.5 rounded-full px-3 py-1.5">{menu.status === "published" ? <LuCheck aria-hidden="true" /> : <LuLayers2 aria-hidden="true" />}{menu.status === "published" ? "Publicado" : "Rascunho"}</Badge>
+                <Button nativeButton={false} render={<a href={publicUrl} target="_blank" rel="noreferrer" />} variant="outline" size="sm"><LuExternalLink aria-hidden="true" />Ver página</Button>
               </div>
 
               <div className="grid gap-2 sm:grid-cols-3">
@@ -466,11 +459,11 @@ export function MenuWorkspace({ initialMenu, publicUrl }: { initialMenu: PanelMe
             </div>
           </div>
         </div>
-      </main>
+      </div>
 
       <MenuCategoryEditor restaurantId={menu.restaurantId} category={editingCategory} open={categoryEditorOpen} onOpenChange={(open) => { setCategoryEditorOpen(open); if (!open) setEditingCategory(null) }} onSaved={() => { setFeedback(""); router.refresh() }} />
       <MenuItemEditor restaurantId={menu.restaurantId} item={editingItem} initialCategoryId={itemEditorCategoryId} categories={menu.categories} attributes={menu.attributes} open={itemEditorOpen} onOpenChange={(open) => { setItemEditorOpen(open); if (!open) { setEditingItem(null); setItemEditorCategoryId(null) } }} onSaved={() => { setFeedback(""); router.refresh() }} />
-      <MenuBatchWorkspace restaurantId={menu.restaurantId} categories={menu.categories} open={batchOpen} onOpenChange={setBatchOpen} onComplete={() => { setFeedback(""); router.refresh() }} />
+      <MenuBatchWorkspace restaurantId={menu.restaurantId} categories={menu.categories} attributes={menu.attributes} open={batchOpen} onOpenChange={setBatchOpen} onComplete={() => { setFeedback(""); router.refresh() }} />
 
       <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && !pendingOperation) setDeleteTarget(null) }}>
         <AlertDialogContent>

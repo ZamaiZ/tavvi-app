@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "motion/react"
-import { LuImage, LuLayoutGrid, LuPalette, LuStore, LuUtensils } from "react-icons/lu"
+import { LuArrowUpRight, LuImage, LuLayoutGrid, LuPalette, LuStore, LuUtensils } from "react-icons/lu"
 import { Button } from "@/components/ui/button"
 import { IconCombobox, IconInput } from "./icon-input"
 import { BrandImageDropzone } from "./brand-image-dropzone"
@@ -97,10 +97,24 @@ export function IdentityStep() {
       </motion.section>
 
       <motion.section variants={authItemVariants} className="rounded-xl border border-border/70 bg-muted/15 p-4">
-        <div className="flex items-center gap-2"><LuLayoutGrid className="size-4 text-primary" aria-hidden="true" /><h3 className="text-sm font-semibold">Apresentação futura do cardápio</h3></div>
+        <div className="flex items-center gap-2"><LuLayoutGrid className="size-4 text-primary" aria-hidden="true" /><h3 className="text-sm font-semibold">Apresentação do cardápio</h3></div>
         <motion.div variants={authStaggerVariants} initial="hidden" animate="visible" className="mt-3">
-          <motion.div variants={authItemVariants} className="flex flex-wrap gap-2">{(["immersive", "catalog-list", "catalog-grid"] as const).map((presentation) => <Button key={presentation} type="button" size="sm" variant={profile.menuPresentation === presentation ? "secondary" : "outline"} onClick={() => updateField("menuPresentation", presentation)}>{presentation === "immersive" ? "Imersivo" : presentation === "catalog-list" ? "Lista" : "Grade"}</Button>)}</motion.div>
-          <motion.p variants={authItemVariants} className="mt-2 text-xs text-muted-foreground">Você poderá ajustar essa opção depois.</motion.p>
+          <motion.div variants={authItemVariants} className="grid gap-3 sm:grid-cols-2">
+            {([
+              { value: "immersive", label: "Imersivo", copy: "Um prato por tela, com a imagem em primeiro plano.", icon: <LuImage aria-hidden="true" /> },
+              { value: "standard", label: "Padrão", copy: "Categorias em sequência e pratos em cartões deslizantes.", icon: <LuLayoutGrid aria-hidden="true" /> },
+            ] as const).map((presentation) => {
+              const selected = profile.menuPresentation === presentation.value
+              return (
+                <motion.button key={presentation.value} type="button" aria-pressed={selected} onClick={() => updateField("menuPresentation", presentation.value)} className={`group flex min-h-24 items-start gap-3 rounded-xl border p-4 text-left transition-[border-color,background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${selected ? "border-primary bg-primary/[0.045] ring-2 ring-primary/15" : "border-border/70 hover:border-primary/40"}`}>
+                  <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground group-hover:text-primary"}`}>{presentation.icon}</span>
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{presentation.label}</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">{presentation.copy}</span></span>
+                  <LuArrowUpRight aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                </motion.button>
+              )
+            })}
+          </motion.div>
+          <motion.p variants={authItemVariants} className="mt-2 text-xs text-muted-foreground">Você pode trocar a apresentação depois em Identidade.</motion.p>
         </motion.div>
       </motion.section>
 

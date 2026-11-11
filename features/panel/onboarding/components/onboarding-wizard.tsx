@@ -311,7 +311,7 @@ export function OnboardingWizard({
     const saved = await persist(profileRef.current, step, version)
     setBusy(false)
     if (!saved) return
-    router.push(publicBasePath + (step === "identity" ? "/identidade" : "/contato"))
+    router.push(publicBasePath + (step === "identity" ? "/onboarding/identidade" : "/onboarding/contato"))
   }, [busy, persist, publicBasePath, router])
 
   const saveNow = useCallback(async () => {

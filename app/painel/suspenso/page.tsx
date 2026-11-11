@@ -19,6 +19,6 @@ export default async function PanelSuspendedPage() {
     throw cause
   }
   if (!restaurant) redirect(base + "/restaurantes")
-  if (restaurant.status !== "suspended") redirect(base + (restaurant.status === "draft" ? `/${restaurant.onboardingStep === "contact" ? "contato" : "identidade"}` : "/cardapio"))
+  if (restaurant.status !== "suspended") redirect(base + (restaurant.status === "draft" ? `/onboarding/${restaurant.onboardingStep === "contact" ? "contato" : "identidade"}` : "/cardapio"))
   return <PanelSuspendedState name={restaurant.name} />
 }

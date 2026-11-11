@@ -12,7 +12,7 @@ export function getPanelEntryPath(
   publicBasePath: "" | "/painel",
 ) {
   const path = status === "draft"
-    ? `/${onboardingStep === "contact" ? "contato" : "identidade"}`
+    ? `/onboarding/${onboardingStep === "contact" ? "contato" : "identidade"}`
     : status === "suspended" ? "/suspenso" : "/cardapio"
   return publicBasePath + path
 }

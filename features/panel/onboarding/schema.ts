@@ -13,8 +13,7 @@ export const PANEL_THEME_PRESET_IDS = [
 
 export const PANEL_MENU_PRESENTATIONS = [
   "immersive",
-  "catalog-list",
-  "catalog-grid",
+  "standard",
 ] as const
 
 export const PANEL_DENSITIES = ["confortavel", "compacto"] as const

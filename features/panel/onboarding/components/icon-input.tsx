@@ -81,6 +81,7 @@ export function IconCombobox({
   onChange,
   placeholder = "Selecione uma opção",
   emptyMessage = "Nenhuma opção encontrada.",
+  error,
 }: {
   id: string
   label: string
@@ -90,7 +91,9 @@ export function IconCombobox({
   onChange: (value: string) => void
   placeholder?: string
   emptyMessage?: string
+  error?: string
 }) {
+  const errorId = `${id}-error`
   const items = useMemo(
     () => Combobox.createItems(options, {
       getValue: (option) => option.value,
@@ -100,14 +103,14 @@ export function IconCombobox({
   )
 
   return (
-    <Field>
+    <Field data-invalid={Boolean(error) || undefined}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <ComboboxRoot
         items={items}
         value={value}
         onValueChange={(next) => { onChange(typeof next === "string" ? next : "") }}
       >
-        <ComboboxInput id={id} placeholder={placeholder} startAdornment={icon} showClear className="h-11 w-full rounded-lg bg-background/70" autoComplete="off" />
+        <ComboboxInput id={id} placeholder={placeholder} startAdornment={icon} showClear className="h-11 w-full rounded-lg bg-background/70" autoComplete="off" aria-invalid={Boolean(error) || undefined} aria-describedby={error ? errorId : undefined} />
         <ComboboxContent>
           <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
           <ComboboxList>
@@ -117,6 +120,7 @@ export function IconCombobox({
           </ComboboxList>
         </ComboboxContent>
       </ComboboxRoot>
+      <FieldError id={errorId} errors={error ? [{ message: error }] : []} />
     </Field>
   )
 }

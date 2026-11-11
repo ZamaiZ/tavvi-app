@@ -4,7 +4,7 @@ import { publicRestaurantSlugSchema } from "./model"
 
 const publicMenuSchema = z.object({
   slug: publicRestaurantSlugSchema,
-  presentation: z.enum(["immersive", "catalog-list", "catalog-grid"]),
+  presentation: z.enum(["immersive", "standard", "catalog-list", "catalog-grid"]).transform((value) => value === "immersive" ? "immersive" : "standard"),
   categories: z.array(z.object({
     id: z.string().uuid(),
     name: z.string().trim().min(2).max(80),
@@ -37,14 +37,14 @@ const publicMenuSchema = z.object({
         width: z.number().int().nullable(),
         height: z.number().int().nullable(),
         durationMs: z.number().int().nullable(),
-      }).strict()).min(1).max(6),
+      }).strict()).max(6),
     }).strict()).min(1),
   }).strict()).min(1).max(1000),
 }).strict()
 
 export type PublicMenuDTO = {
   slug: string
-  presentation: "immersive" | "catalog-list" | "catalog-grid"
+  presentation: "immersive" | "standard"
   categories: {
     id: string
     name: string

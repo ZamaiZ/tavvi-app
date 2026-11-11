@@ -1,0 +1,3 @@
+-- Item media is optional. The public menu keeps visible text-only items and
+-- renders them with an identity-based fallback. The existing menu-level
+-- publication rule still requires one visible item with media.

@@ -260,7 +260,7 @@ export function InviteRedemptionPage({
           return
         }
         setAcceptedRestaurant(result.restaurant)
-        router.replace(publicBasePath + (result.restaurant.restaurantStatus === "draft" ? "/identidade" : "/cardapio"))
+        router.replace(publicBasePath + (result.restaurant.restaurantStatus === "draft" ? "/onboarding/identidade" : "/cardapio"))
       } catch {
         setActionError("Não foi possível concluir o aceite. Tente novamente.")
       }

@@ -2,6 +2,7 @@ import { z } from "zod"
 
 import {
   MENU_MAX_MEDIA_PER_ITEM,
+  MENU_MAX_ATTRIBUTES_PER_ITEM,
   MENU_MAX_PRICE_CENTS,
   MENU_MAX_VARIANTS_PER_ITEM,
   MENU_MEDIA_LIMITS,
@@ -73,8 +74,8 @@ export const menuItemSaveSchema = z.object({
   isAvailable: z.boolean(),
   pricing: pricingSchema,
   highlights: z.array(menuText(30, 1)).max(10),
-  attributes: z.array(itemAttributeSchema).max(30),
-  media: z.array(mediaSchema).max(MENU_MAX_MEDIA_PER_ITEM),
+  attributes: z.array(itemAttributeSchema).max(MENU_MAX_ATTRIBUTES_PER_ITEM),
+  media: z.array(mediaSchema).min(1, "Adicione pelo menos uma mídia ao item.").max(MENU_MAX_MEDIA_PER_ITEM),
 }).strict().superRefine((item, context) => {
   const mediaIds = new Set<string>()
   const paths = new Set<string>()
@@ -210,7 +211,9 @@ export const menuBatchSchema = z.object({
     isVisible: z.boolean(),
     isAvailable: z.boolean(),
     pricing: pricingSchema,
-    media: z.array(mediaSchema).max(MENU_MAX_MEDIA_PER_ITEM),
+    highlights: z.array(menuText(30, 1)).max(10),
+    attributes: z.array(itemAttributeSchema).max(MENU_MAX_ATTRIBUTES_PER_ITEM),
+    media: z.array(mediaSchema).min(1, "Adicione pelo menos uma mídia ao item.").max(MENU_MAX_MEDIA_PER_ITEM),
   }).strict()).min(1).max(50),
 }).strict().superRefine((batch, context) => {
   const newCategoryIds = new Set(batch.categories.map((category) => category.id))
@@ -254,6 +257,21 @@ export const menuBatchSchema = z.object({
         variantNames.add(variantKey)
       })
     }
+    const itemAttributeIds = new Set<string>()
+    item.attributes.forEach((attribute, attributeIndex) => {
+      if (itemAttributeIds.has(attribute.id)) {
+        context.addIssue({ code: "custom", path: ["items", index, "attributes", attributeIndex, "id"], message: "Atributo repetido no item." })
+      }
+      itemAttributeIds.add(attribute.id)
+    })
+    const highlightLabels = new Set<string>()
+    item.highlights.forEach((highlight, highlightIndex) => {
+      const label = normalized(highlight)
+      if (highlightLabels.has(label)) {
+        context.addIssue({ code: "custom", path: ["items", index, "highlights", highlightIndex], message: "Destaque repetido." })
+      }
+      highlightLabels.add(label)
+    })
     item.media.forEach((media, mediaIndex) => {
       const pathPattern = new RegExp(`^${batch.expectedRestaurantId}/${item.id}/[0-9a-f-]{36}\\.(jpg|jpeg|png|webp|avif|mp4|webm)$`, "i")
       if (!pathPattern.test(media.storagePath) || (media.kind === "image" && !/\.(jpg|jpeg|png|webp|avif)$/i.test(media.storagePath)) || (media.kind === "video" && !/\.(mp4|webm)$/i.test(media.storagePath))) {

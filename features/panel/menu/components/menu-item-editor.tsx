@@ -162,6 +162,10 @@ export function MenuItemEditor({
       setError("Crie uma categoria antes de adicionar itens.")
       return
     }
+    if (!media.length) {
+      setError("Adicione pelo menos uma foto ou vídeo ao item.")
+      return
+    }
     const highlightsList = [...new Set(highlights.split(/[\n,]/).map((entry) => entry.trim()).filter(Boolean))]
     if (highlightsList.length > 10 || highlightsList.some((highlight) => highlight.length > 30)) {
       setError("Use até 10 destaques, com no máximo 30 caracteres cada.")
@@ -311,7 +315,7 @@ export function MenuItemEditor({
           </div>
 
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Mídias <span className="font-normal text-muted-foreground">(até 6; foto ou vídeo de até 15 s)</span></legend>
+            <legend className="flex flex-wrap items-center gap-2 text-sm font-medium">Mídia <Badge variant="secondary">Obrigatória</Badge><span className="font-normal text-muted-foreground">(1 a 6 fotos ou vídeos de até 15 s)</span></legend>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               {media.map((entry) => {
                 const src = entry.saved

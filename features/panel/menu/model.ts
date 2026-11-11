@@ -1,7 +1,7 @@
 export type MenuStatus = "draft" | "published"
 export type MenuAttributeKind = "diet" | "allergen"
 export type MenuMediaKind = "image" | "video"
-export type MenuPresentation = "immersive" | "catalog-list" | "catalog-grid"
+export type MenuPresentation = "immersive" | "standard"
 export type MenuPricing =
   | { mode: "single"; basePriceCents: number }
   | { mode: "variants"; variants: MenuVariantDTO[] }
@@ -127,6 +127,7 @@ export const MENU_MAX_CATEGORIES_PER_BATCH = 20
 export const MENU_MAX_PRICE_CENTS = 99_999_999
 export const MENU_MAX_MEDIA_PER_ITEM = 6
 export const MENU_MAX_VARIANTS_PER_ITEM = 30
+export const MENU_MAX_ATTRIBUTES_PER_ITEM = 30
 export const MENU_MAX_VIDEO_DURATION_MS = 15_000
 
 export const MENU_MEDIA_LIMITS = {

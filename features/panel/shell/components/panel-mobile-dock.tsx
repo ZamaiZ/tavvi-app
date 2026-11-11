@@ -2,10 +2,12 @@
 
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react"
 import Link, { useLinkStatus } from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import {
   LuCheck,
+  LuContactRound,
   LuHouse,
+  LuIdCard,
   LuLoaderCircle,
   LuMenu,
   LuUtensils,
@@ -26,6 +28,31 @@ import { PanelAccountMenu } from "@/features/panel/shell/components/panel-accoun
 
 const DOCK_EASE = [0.23, 1, 0.32, 1] as const
 const PANEL_NAV_ID = "panel-mobile-navigation"
+
+function PanelMobileNavItem({
+  href,
+  label,
+  section,
+  activeSection,
+  icon,
+  onNavigate,
+}: {
+  href: string
+  label: string
+  section: "menu" | "identity" | "contact"
+  activeSection: "menu" | "identity" | "contact"
+  icon: ReactNode
+  onNavigate: () => void
+}) {
+  const active = activeSection === section
+  return (
+    <Link href={href} aria-current={active ? "page" : undefined} onClick={onNavigate} className={`group flex min-h-16 items-center gap-3 rounded-2xl border px-3.5 py-2.5 text-foreground outline-none shadow-sm transition-[background-color,border-color,transform] duration-150 ease-out active:scale-[0.99] motion-reduce:active:scale-100 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none ${active ? "border-primary/20 bg-primary/[0.07] shadow-primary/5" : "border-border/70 bg-background/60 hover:bg-muted/60"}`}>
+      <span className={`grid size-11 shrink-0 place-items-center rounded-[0.9rem] shadow-sm ${active ? "bg-primary text-primary-foreground shadow-primary/20" : "bg-muted text-muted-foreground"}`}>{icon}</span>
+      <span className="min-w-0 flex-1 text-sm font-semibold tracking-tight">{label}</span>
+      {active ? <span className="grid size-6 place-items-center rounded-full bg-primary/10 text-primary"><LuCheck aria-hidden="true" className="size-3.5" /></span> : null}
+    </Link>
+  )
+}
 
 function HomeLinkFeedback({ reducedMotion }: { reducedMotion: boolean }) {
   const { pending } = useLinkStatus()
@@ -63,10 +90,16 @@ function HomeLinkFeedback({ reducedMotion }: { reducedMotion: boolean }) {
 
 export function PanelMobileDock({
   cardapioHref,
+  identityHref,
+  contactHref,
+  activeSection,
   restaurantsHref,
   canSwitchRestaurants,
 }: {
   cardapioHref: string
+  identityHref: string
+  contactHref: string
+  activeSection: "menu" | "identity" | "contact"
   restaurantsHref: string
   canSwitchRestaurants: boolean
 }) {
@@ -140,7 +173,7 @@ export function PanelMobileDock({
             <Link
               href={cardapioHref}
               aria-label="Início — Cardápio"
-              aria-current="page"
+              aria-current={activeSection === "menu" ? "page" : undefined}
               onClick={() => {
                 setAccountOpen(false)
                 setNavigationOpen(false)
@@ -214,32 +247,17 @@ export function PanelMobileDock({
             </div>
           </SheetHeader>
 
-          <motion.nav
-            id={`${PANEL_NAV_ID}-links`}
-            aria-label="Áreas do Painel"
-            variants={sheetVariants}
-            initial={reducedMotion ? false : "hidden"}
-            animate={navigationOpen ? "visible" : "hidden"}
-            className="grid gap-2"
-          >
-            <motion.div variants={itemVariants}>
-              <Link
-                href={cardapioHref}
-                aria-current="page"
-                onClick={() => setNavigationOpen(false)}
-                className="group flex min-h-16 items-center gap-3 rounded-2xl border border-primary/20 bg-primary/[0.07] px-3.5 py-2.5 text-foreground outline-none shadow-sm shadow-primary/5 transition-[background-color,border-color,transform] duration-150 ease-out active:scale-[0.99] motion-reduce:active:scale-100 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-              >
-                <span className="grid size-11 shrink-0 place-items-center rounded-[0.9rem] bg-primary text-primary-foreground shadow-sm shadow-primary/20">
-                  <LuUtensils aria-hidden="true" className="size-[1.2rem]" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold tracking-tight">Cardápio</span>
-                  <span className="mt-0.5 block text-[0.6875rem] text-muted-foreground">Área atual</span>
-                </span>
-                <span className="grid size-6 place-items-center rounded-full bg-primary/10 text-primary">
-                  <LuCheck aria-hidden="true" className="size-3.5" />
-                </span>
-              </Link>
+          <motion.nav id={`${PANEL_NAV_ID}-links`} aria-label="Áreas do Painel" variants={sheetVariants} initial={reducedMotion ? false : "hidden"} animate={navigationOpen ? "visible" : "hidden"} className="grid gap-4">
+            <motion.div variants={itemVariants} className="space-y-2">
+              <p className="px-1 text-[0.65rem] font-semibold tracking-[0.13em] text-muted-foreground uppercase">Operação</p>
+              <PanelMobileNavItem href={cardapioHref} label="Cardápio" section="menu" activeSection={activeSection} icon={<LuUtensils aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
+            </motion.div>
+            <motion.div variants={itemVariants} className="space-y-2">
+              <p className="px-1 text-[0.65rem] font-semibold tracking-[0.13em] text-muted-foreground uppercase">Perfil público</p>
+              <div className="grid gap-2">
+                <PanelMobileNavItem href={identityHref} label="Identidade" section="identity" activeSection={activeSection} icon={<LuIdCard aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
+                <PanelMobileNavItem href={contactHref} label="Contato" section="contact" activeSection={activeSection} icon={<LuContactRound aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
+              </div>
             </motion.div>
           </motion.nav>
         </SheetContent>

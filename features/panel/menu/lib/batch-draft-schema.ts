@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { MENU_MAX_VARIANTS_PER_ITEM } from "../model"
+import { MENU_MAX_ATTRIBUTES_PER_ITEM, MENU_MAX_VARIANTS_PER_ITEM } from "../model"
 
 const uuid = z.string().uuid()
 const localFile = z.custom<File>((value) => typeof File !== "undefined" && value instanceof File)
@@ -8,6 +8,11 @@ const draftVariantSchema = z.object({
   name: z.string().max(60),
   price: z.string().max(24),
   isAvailable: z.boolean(),
+}).strict()
+const draftAttributeSchema = z.object({
+  id: uuid,
+  kind: z.enum(["diet", "allergen"]),
+  qualifier: z.enum(["contains", "may_contain"]).nullable(),
 }).strict()
 
 export const menuBatchDraftSchema = z.object({
@@ -27,6 +32,8 @@ export const menuBatchDraftSchema = z.object({
     price: z.string().max(24),
     pricingMode: z.enum(["single", "variants"]).default("single"),
     variants: z.array(draftVariantSchema).max(MENU_MAX_VARIANTS_PER_ITEM).default([]),
+    highlights: z.string().max(320).default(""),
+    attributes: z.array(draftAttributeSchema).max(MENU_MAX_ATTRIBUTES_PER_ITEM).default([]),
     files: z.array(localFile).max(6),
   }).strict()).max(50),
 }).strict()
