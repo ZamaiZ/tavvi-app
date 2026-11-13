@@ -416,10 +416,13 @@ export function IdentifiersWorkspace({
                             <IdentifierListItem
                               identifier={identifier}
                               busy={busyIdentifierId === identifier.id}
+                              copied={copiedIdentifierId === identifier.id}
                               onOpen={() => openDetails(identifier)}
                               onToggleActive={() =>
                                 void toggleActive(identifier)
                               }
+                              onCopyLink={() => copyIdentifierLink(identifier)}
+                              onEdit={() => editIdentifier(identifier)}
                             />
                           </motion.div>
                         ))}

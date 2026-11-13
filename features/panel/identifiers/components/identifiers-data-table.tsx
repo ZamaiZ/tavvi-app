@@ -320,7 +320,7 @@ export function IdentifiersDataTable({
                         if (
                           target instanceof Element &&
                           target.closest(
-                            'button,[role="switch"],[data-slot="switch"],[data-slot^="dropdown-menu-"],[data-slot^="context-menu-"]'
+                            'button,[role="switch"],[data-slot="switch"],[data-slot^="dropdown-menu-"]'
                           )
                         ) {
                           return
