@@ -601,7 +601,7 @@
   .immersiveHeader .backToWelcome { min-height: 36px; padding: 0 10px; font-size: .68rem; }
   .immersiveHeader > div { min-width: 0; text-align: right; }
   .immersiveHeader h2 { font-size: 1.15rem; }
-  .immersiveCategories { top: 68px; min-height: 42px; padding-right: 16px; padding-left: 16px; }
+  .immersiveCategories { top: 10px; min-height: 42px; padding-right: 16px; padding-left: 16px; }
   .immersiveCopy { width: calc(100% - 32px); padding: clamp(132px, 19vh, 180px) 0 78px 18px; }
   .immersiveScrim { background: linear-gradient(90deg, color-mix(in srgb, var(--profile-bg) 58%, transparent), transparent 100%), linear-gradient(to top, color-mix(in srgb, var(--profile-bg) 90%, transparent), color-mix(in srgb, var(--profile-bg) 38%, transparent) 60%, transparent); }
   .immersiveFooter { min-height: 44px; padding-right: 16px; padding-left: 16px; }
