@@ -1,11 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState, type CSSProperties } from "react"
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type UIEvent as ReactUIEvent } from "react"
 import { MotionConfig, motion, useReducedMotion } from "motion/react"
-import { LuArrowRight, LuChevronLeft, LuChevronRight, LuImages, LuX } from "react-icons/lu"
+import { LuArrowRight, LuChevronLeft, LuChevronRight } from "react-icons/lu"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import type { PublicMenuDTO } from "@/features/public-profile/menu-model"
 import { PublicAppearanceToggle } from "@/features/public-profile/components/public-profile-controls"
 import styles from "@/features/public-profile/styles/public-profile.module.css"
@@ -33,8 +32,145 @@ function PublicMenuMedia({ media, itemName }: { media: PublicMedia; itemName: st
   ) : (
     // The media route authorizes and redirects to a short lived Storage URL.
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={media.url} alt={media.altText || `Foto de ${itemName}`} loading="lazy" />
+    <img src={media.url} alt={media.altText || `Foto de ${itemName}`} loading="lazy" draggable={false} />
   )
+}
+
+type MediaAnimationFrameRef = { current: number | null }
+type MediaPointerStart = {
+  pointerId: number
+  x: number
+  y: number
+  scrollLeft: number
+  index: number
+  horizontal: boolean
+}
+
+function stopMediaAnimation(rail: HTMLDivElement | null, frameRef: MediaAnimationFrameRef) {
+  if (frameRef.current !== null) {
+    cancelAnimationFrame(frameRef.current)
+    frameRef.current = null
+  }
+  if (rail) rail.style.scrollSnapType = ""
+}
+
+function animateMediaRailTo(rail: HTMLDivElement, targetLeft: number, reducedMotion: boolean, frameRef: MediaAnimationFrameRef) {
+  stopMediaAnimation(rail, frameRef)
+  const startLeft = rail.scrollLeft
+  if (reducedMotion || Math.abs(targetLeft - startLeft) < 1) {
+    rail.scrollLeft = targetLeft
+    return
+  }
+
+  rail.style.scrollSnapType = "none"
+  const startedAt = performance.now()
+  const duration = 200
+  const tick = (now: number) => {
+    const progress = Math.min(1, (now - startedAt) / duration)
+    const eased = 1 - Math.pow(1 - progress, 3)
+    rail.scrollLeft = startLeft + (targetLeft - startLeft) * eased
+    if (progress < 1) {
+      frameRef.current = requestAnimationFrame(tick)
+      return
+    }
+    rail.scrollLeft = targetLeft
+    rail.style.scrollSnapType = ""
+    frameRef.current = null
+  }
+  frameRef.current = requestAnimationFrame(tick)
+}
+
+function useMediaRail(mediaCount: number, reducedMotion: boolean) {
+  const railRef = useRef<HTMLDivElement>(null)
+  const animationFrameRef = useRef<number | null>(null)
+  const pointerStartRef = useRef<MediaPointerStart | null>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  useEffect(() => () => stopMediaAnimation(railRef.current, animationFrameRef), [])
+
+  function moveTo(index: number) {
+    const rail = railRef.current
+    if (!rail || mediaCount < 2) return
+    const nextIndex = Math.max(0, Math.min(mediaCount - 1, index))
+    animateMediaRailTo(rail, nextIndex * rail.clientWidth, reducedMotion, animationFrameRef)
+    setActiveIndex(nextIndex)
+  }
+
+  function onScroll(event: ReactUIEvent<HTMLDivElement>) {
+    const rail = event.currentTarget
+    if (!rail.clientWidth || mediaCount < 1) return
+    setActiveIndex(Math.max(0, Math.min(mediaCount - 1, Math.round(rail.scrollLeft / rail.clientWidth))))
+  }
+
+  function onKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.target !== event.currentTarget) return
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault()
+      event.stopPropagation()
+      moveTo(activeIndex + (event.key === "ArrowRight" ? 1 : -1))
+    }
+  }
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (mediaCount < 2 || event.button !== 0) return
+    if (event.target instanceof Element && event.target.closest("button, video, input, select, textarea, a")) return
+    const rail = event.currentTarget
+    stopMediaAnimation(rail, animationFrameRef)
+    rail.style.scrollSnapType = "none"
+    pointerStartRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      scrollLeft: rail.scrollLeft,
+      index: Math.max(0, Math.min(mediaCount - 1, Math.round(rail.scrollLeft / rail.clientWidth))),
+      horizontal: false,
+    }
+    rail.setPointerCapture(event.pointerId)
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const start = pointerStartRef.current
+    if (!start || start.pointerId !== event.pointerId) return
+    const deltaX = event.clientX - start.x
+    const deltaY = event.clientY - start.y
+    if (!start.horizontal && Math.abs(deltaX) > 7 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1) {
+      start.horizontal = true
+    }
+    if (start.horizontal) {
+      event.preventDefault()
+      event.currentTarget.scrollLeft = start.scrollLeft - deltaX
+    }
+  }
+
+  function onPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    const start = pointerStartRef.current
+    if (!start || start.pointerId !== event.pointerId) return
+    pointerStartRef.current = null
+    const rail = event.currentTarget
+    if (rail.hasPointerCapture(event.pointerId)) rail.releasePointerCapture(event.pointerId)
+    if (!start.horizontal || !rail.clientWidth) {
+      rail.style.scrollSnapType = ""
+      return
+    }
+
+    const deltaX = event.clientX - start.x
+    const threshold = Math.max(36, rail.clientWidth * 0.12)
+    const nextIndex = Math.abs(deltaX) >= threshold
+      ? start.index + (deltaX < 0 ? 1 : -1)
+      : Math.round(rail.scrollLeft / rail.clientWidth)
+    moveTo(nextIndex)
+  }
+
+  function onPointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
+    const start = pointerStartRef.current
+    if (!start || start.pointerId !== event.pointerId) return
+    pointerStartRef.current = null
+    const rail = event.currentTarget
+    rail.style.scrollSnapType = ""
+    if (start.horizontal && rail.clientWidth) moveTo(Math.round(rail.scrollLeft / rail.clientWidth))
+  }
+
+  return { railRef, activeIndex, moveTo, onScroll, onKeyDown, onPointerDown, onPointerMove, onPointerUp, onPointerCancel }
 }
 
 function ItemCopy({ item }: { item: PublicItem }) {
@@ -68,19 +204,42 @@ function ItemCopy({ item }: { item: PublicItem }) {
   )
 }
 
-function ItemMedia({ item, immersive, onOpenGallery }: { item: PublicItem; immersive?: boolean; onOpenGallery: (item: PublicItem) => void }) {
-  const first = item.media[0]
+function ItemMedia({ item }: { item: PublicItem }) {
+  const reducedMotion = useReducedMotion() === true
+  const media = useMediaRail(item.media.length, reducedMotion)
   return (
-    <div className={`${styles.menuMediaFrame} ${immersive ? styles.immersiveMediaFrame : ""}`}>
-      {first ? <PublicMenuMedia media={first} itemName={item.name} /> : (
+    <div className={styles.menuMediaFrame}>
+      {item.media.length ? (
+        <div
+          ref={media.railRef}
+          className={styles.menuMediaRail}
+          role={item.media.length > 1 ? "region" : undefined}
+          aria-label={item.media.length > 1 ? "Mídias de " + item.name + ". Deslize na área da foto para trocar." : undefined}
+          tabIndex={item.media.length > 1 ? 0 : undefined}
+          onScroll={media.onScroll}
+          onKeyDown={media.onKeyDown}
+          onPointerDown={media.onPointerDown}
+          onPointerMove={media.onPointerMove}
+          onPointerUp={media.onPointerUp}
+          onPointerCancel={media.onPointerCancel}
+        >
+          {item.media.map((entry) => (
+            <div key={entry.id} className={styles.menuMediaSlide}>
+              <PublicMenuMedia media={entry} itemName={item.name} />
+            </div>
+          ))}
+        </div>
+      ) : (
         <div className={styles.menuNoMedia} role="img" aria-label={`Imagem indisponível para ${item.name}`}>
           <span aria-hidden="true">{item.name.trim().slice(0, 1).toLocaleUpperCase("pt-BR")}</span>
         </div>
       )}
       {item.media.length > 1 ? (
-        <Button type="button" variant="secondary" size="sm" className={styles.galleryButton} onClick={() => onOpenGallery(item)}>
-          <LuImages aria-hidden="true" />Ver {item.media.length} mídias
-        </Button>
+        <>
+          <Button type="button" variant="secondary" size="icon-sm" className={styles.mediaArrowPrevious} aria-label={"Mídia anterior de " + item.name} disabled={media.activeIndex === 0} onClick={() => media.moveTo(media.activeIndex - 1)}><LuChevronLeft aria-hidden="true" /></Button>
+          <Button type="button" variant="secondary" size="icon-sm" className={styles.mediaArrowNext} aria-label={"Próxima mídia de " + item.name} disabled={media.activeIndex >= item.media.length - 1} onClick={() => media.moveTo(media.activeIndex + 1)}><LuChevronRight aria-hidden="true" /></Button>
+          <span className={styles.mediaCounter} aria-live="polite" aria-atomic="true">{media.activeIndex + 1} / {item.media.length}</span>
+        </>
       ) : null}
     </div>
   )
@@ -90,33 +249,19 @@ const itemReveal = {
   hidden: { opacity: 0, y: 10, scale: 0.99 },
   visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.34, ease: [0.23, 1, 0.32, 1] as const, staggerChildren: 0.055, delayChildren: 0.045 } },
 }
-function ProductRail({ category, onOpenGallery }: { category: PublicCategory; onOpenGallery: (item: PublicItem) => void }) {
+function ProductRail({ category }: { category: PublicCategory }) {
   const railRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const reducedMotion = useReducedMotion() === true
 
-  function moveTo(index: number) {
-    const rail = railRef.current
-    if (!rail) return
-    const nextIndex = Math.max(0, Math.min(category.items.length - 1, index))
-    rail.scrollTo({ left: nextIndex * rail.clientWidth, behavior: reducedMotion ? "auto" : "smooth" })
-    setActiveIndex(nextIndex)
-  }
-
   return (
     <div className={styles.railWrap}>
-      <div className={styles.railControls} aria-label={`Navegação dos itens de ${category.name}`}>
-        <span aria-live="polite" aria-atomic="true">{activeIndex + 1} de {category.items.length}</span>
-        <div>
-          <Button type="button" variant="outline" size="icon-sm" aria-label={`Prato anterior em ${category.name}`} disabled={activeIndex === 0} onClick={() => moveTo(activeIndex - 1)}><LuChevronLeft aria-hidden="true" /></Button>
-          <Button type="button" variant="outline" size="icon-sm" aria-label={`Próximo prato em ${category.name}`} disabled={activeIndex >= category.items.length - 1} onClick={() => moveTo(activeIndex + 1)}><LuChevronRight aria-hidden="true" /></Button>
-        </div>
-      </div>
+      {category.items.length > 1 ? <div className={styles.railControls}><span aria-live="polite" aria-atomic="true">{activeIndex + 1} de {category.items.length}</span></div> : null}
       <div
         className={styles.menuItems}
         ref={railRef}
         role="region"
-        aria-label={`Pratos de ${category.name}. Deslize horizontalmente ou use os controles anterior e próximo.`}
+        aria-label={`Pratos de ${category.name}. Deslize horizontalmente para mudar de prato.`}
         tabIndex={0}
         onScroll={(event) => {
           const rail = event.currentTarget
@@ -134,7 +279,7 @@ function ProductRail({ category, onOpenGallery }: { category: PublicCategory; on
             whileInView="visible"
             viewport={{ once: true, amount: 0.18 }}
           >
-            <motion.div variants={revealPart}><ItemMedia item={item} onOpenGallery={onOpenGallery} /></motion.div>
+            <motion.div variants={revealPart}><ItemMedia item={item} /></motion.div>
             <motion.div variants={revealPart}><ItemCopy item={item} /></motion.div>
           </motion.article>
         ))}
@@ -155,17 +300,8 @@ function ImmersiveItemSlide({
   index: number
   reducedMotion: boolean
 }) {
-  const mediaRef = useRef<HTMLDivElement>(null)
+  const media = useMediaRail(item.media.length, reducedMotion)
   const mediaTouchStartRef = useRef<{ x: number; y: number; startedOnMedia: boolean } | null>(null)
-  const [activeMediaIndex, setActiveMediaIndex] = useState(0)
-
-  function moveToMedia(index: number) {
-    const rail = mediaRef.current
-    if (!rail) return
-    const nextIndex = Math.max(0, Math.min(item.media.length - 1, index))
-    rail.scrollTo({ left: nextIndex * rail.clientWidth, behavior: reducedMotion ? "auto" : "smooth" })
-    setActiveMediaIndex(nextIndex)
-  }
 
   return (
     <motion.article
@@ -186,7 +322,7 @@ function ImmersiveItemSlide({
         mediaTouchStartRef.current = {
           x: touch.clientX,
           y: touch.clientY,
-          startedOnMedia: event.target instanceof Node && Boolean(mediaRef.current?.contains(event.target)),
+          startedOnMedia: event.target instanceof Node && Boolean(media.railRef.current?.contains(event.target)),
         }
       }}
       onTouchEnd={(event) => {
@@ -198,32 +334,24 @@ function ImmersiveItemSlide({
         const deltaX = touch.clientX - start.x
         const deltaY = touch.clientY - start.y
         if (Math.abs(deltaX) < 48 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) return
-        moveToMedia(activeMediaIndex + (deltaX < 0 ? 1 : -1))
+        media.moveTo(media.activeIndex + (deltaX < 0 ? 1 : -1))
       }}
       onTouchCancel={() => { mediaTouchStartRef.current = null }}
     >
       <div className={styles.immersiveArtwork} data-has-media={item.media.length > 0}>
         {item.media.length ? (
           <div
-            ref={mediaRef}
+            ref={media.railRef}
             className={styles.immersiveMediaRail}
             role={item.media.length > 1 ? "region" : undefined}
-            aria-label={item.media.length > 1 ? `Mídias de ${item.name}. Deslize horizontalmente ou use as setas para trocar.` : undefined}
+            aria-label={item.media.length > 1 ? "Mídias de " + item.name + ". Deslize horizontalmente ou use as setas para trocar." : undefined}
             tabIndex={item.media.length > 1 ? 0 : undefined}
-            onScroll={(event) => {
-              const rail = event.currentTarget
-              if (rail.clientWidth) setActiveMediaIndex(Math.round(rail.scrollLeft / rail.clientWidth))
-            }}
-            onKeyDown={(event) => {
-              if (event.target !== event.currentTarget) return
-              if (event.key === "ArrowLeft") {
-                event.preventDefault()
-                moveToMedia(activeMediaIndex - 1)
-              } else if (event.key === "ArrowRight") {
-                event.preventDefault()
-                moveToMedia(activeMediaIndex + 1)
-              }
-            }}
+            onScroll={media.onScroll}
+            onKeyDown={media.onKeyDown}
+            onPointerDown={media.onPointerDown}
+            onPointerMove={media.onPointerMove}
+            onPointerUp={media.onPointerUp}
+            onPointerCancel={media.onPointerCancel}
           >
             {item.media.map((media) => (
               <div key={media.id} className={styles.immersiveMediaSlide}>
@@ -242,10 +370,10 @@ function ImmersiveItemSlide({
       </div>
       {item.media.length > 1 ? (
         <div className={styles.immersiveFooter} role="group" aria-label={`Navegação das mídias de ${item.name}`}>
-          <span aria-live="polite" aria-atomic="true">{activeMediaIndex + 1} / {item.media.length}</span>
+          <span aria-live="polite" aria-atomic="true">{media.activeIndex + 1} / {item.media.length}</span>
           <div>
-            <Button type="button" variant="outline" size="icon-sm" aria-label={`Mídia anterior de ${item.name}`} disabled={activeMediaIndex === 0} onClick={() => moveToMedia(activeMediaIndex - 1)}><LuChevronLeft aria-hidden="true" /></Button>
-            <Button type="button" variant="outline" size="icon-sm" aria-label={`Próxima mídia de ${item.name}`} disabled={activeMediaIndex >= item.media.length - 1} onClick={() => moveToMedia(activeMediaIndex + 1)}><LuChevronRight aria-hidden="true" /></Button>
+            <Button type="button" variant="outline" size="icon-sm" aria-label={"Mídia anterior de " + item.name} disabled={media.activeIndex === 0} onClick={() => media.moveTo(media.activeIndex - 1)}><LuChevronLeft aria-hidden="true" /></Button>
+            <Button type="button" variant="outline" size="icon-sm" aria-label={"Próxima mídia de " + item.name} disabled={media.activeIndex >= item.media.length - 1} onClick={() => media.moveTo(media.activeIndex + 1)}><LuChevronRight aria-hidden="true" /></Button>
           </div>
         </div>
       ) : null}
@@ -329,12 +457,9 @@ function ImmersiveFeed({ categories }: { categories: PublicCategory[] }) {
 }
 
 export function PublicMenu({ menu }: { menu: PublicMenuDTO }) {
-  const [galleryItem, setGalleryItem] = useState<PublicItem | null>(null)
-  const [galleryIndex, setGalleryIndex] = useState(0)
   const [activeCategoryId, setActiveCategoryId] = useState(menu.categories[0]?.id ?? "")
-  const reducedMotion = useReducedMotion() === true
   const menuRef = useRef<HTMLElement | null>(null)
-  const selectedMedia = galleryItem?.media[galleryIndex]
+  const reducedMotion = useReducedMotion() === true
 
   useEffect(() => {
     const root = menuRef.current
@@ -355,19 +480,6 @@ export function PublicMenu({ menu }: { menu: PublicMenuDTO }) {
     }
     return () => observer.disconnect()
   }, [menu.categories, menu.presentation])
-
-  function openGallery(item: PublicItem) {
-    setGalleryItem(item)
-    setGalleryIndex(0)
-  }
-
-  function returnToWelcome() {
-    const welcome = document.getElementById("restaurant-welcome")
-    if (!welcome) return
-    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`)
-    welcome.focus({ preventScroll: true })
-    welcome.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "nearest", inline: "start" })
-  }
 
   return (
     <MotionConfig reducedMotion="user">
@@ -393,7 +505,7 @@ export function PublicMenu({ menu }: { menu: PublicMenuDTO }) {
                     <span className={styles.categoryIndex}>{String(index + 1).padStart(2, "0")}</span>
                     <div><h3>{category.name}</h3>{category.description ? <p>{category.description}</p> : null}</div>
                   </motion.header>
-                  <ProductRail category={category} onOpenGallery={openGallery} />
+                  <ProductRail category={category} />
                 </motion.section>
               ))}
             </div>
@@ -403,20 +515,6 @@ export function PublicMenu({ menu }: { menu: PublicMenuDTO }) {
             <ImmersiveFeed categories={menu.categories} />
           </>
         )}
-        <Dialog open={Boolean(galleryItem)} onOpenChange={(open) => { if (!open) setGalleryItem(null) }}>
-          <DialogContent className={styles.galleryDialog} showCloseButton={false}>
-            <div className={styles.galleryDialogHeader}>
-              <div><DialogTitle>{galleryItem?.name}</DialogTitle><DialogDescription>{selectedMedia?.altText || `Mídia ${galleryIndex + 1} de ${galleryItem?.name}`}</DialogDescription></div>
-              <DialogClose render={<Button type="button" size="icon-sm" variant="ghost" aria-label="Fechar mídias" />}><LuX aria-hidden="true" /></DialogClose>
-            </div>
-            {selectedMedia ? <div className={styles.galleryDialogMedia}><PublicMenuMedia media={selectedMedia} itemName={galleryItem?.name ?? "prato"} /></div> : null}
-            {galleryItem && galleryItem.media.length > 1 ? <div className={styles.galleryDialogFooter}>
-              <Button type="button" variant="outline" size="sm" disabled={galleryIndex === 0} onClick={() => setGalleryIndex((current) => Math.max(0, current - 1))}><LuChevronLeft aria-hidden="true" />Anterior</Button>
-              <span>{galleryIndex + 1} / {galleryItem.media.length}</span>
-              <Button type="button" variant="outline" size="sm" disabled={galleryIndex >= galleryItem.media.length - 1} onClick={() => setGalleryIndex((current) => Math.min(galleryItem.media.length - 1, current + 1))}>Próxima<LuChevronRight aria-hidden="true" /></Button>
-            </div> : null}
-          </DialogContent>
-        </Dialog>
       </section>
     </MotionConfig>
   )
