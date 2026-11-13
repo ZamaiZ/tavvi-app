@@ -268,9 +268,6 @@ export function PublicMenu({ menu }: { menu: PublicMenuDTO }) {
       <section ref={menuRef} id="public-menu" className={styles.publicMenu} data-presentation={menu.presentation} aria-labelledby="public-menu-heading">
         {menu.presentation === "standard" ? (
           <div className={styles.standardMenuLayout}>
-            <header className={styles.menuHeader}>
-              <p className={styles.menuEyebrow}>Cardápio</p>
-            </header>
             <nav className={styles.menuCategoryNav} aria-label="Categorias do cardápio">
               {menu.categories.map((category) => <a key={category.id} href={`#menu-${category.id}`} aria-current={activeCategoryId === category.id ? "location" : undefined} onClick={() => setActiveCategoryId(category.id)}>{category.name}<LuChevronDown aria-hidden="true" /></a>)}
             </nav>
