@@ -300,10 +300,6 @@ export function PublicMenu({ menu }: { menu: PublicMenuDTO }) {
           </div>
         ) : (
           <>
-            <header className={styles.immersiveHeader}>
-              <button type="button" className={styles.backToWelcome} onClick={returnToWelcome}><LuArrowLeft aria-hidden="true" />Apresentação</button>
-              <div><p className={styles.menuEyebrow}>Cardápio</p><h2 id="public-menu-heading">No ritmo dos seus desejos</h2></div>
-            </header>
             <ImmersiveFeed categories={menu.categories} onOpenGallery={openGallery} />
           </>
         )}
