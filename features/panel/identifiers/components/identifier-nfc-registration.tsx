@@ -243,6 +243,7 @@ export function IdentifierNfcRegistration({
       if (document.visibilityState === "visible") return
       const session = sessionRef.current
       if (!session) return
+      if (session.phase === "scanning" || session.phase === "recoveryScanning") return
       session.controller.abort()
       if (session.kind === "registration" && session.phase === "confirming") {
         sessionRef.current = null
