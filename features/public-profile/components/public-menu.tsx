@@ -269,10 +269,7 @@ export function PublicMenu({ menu }: { menu: PublicMenuDTO }) {
         {menu.presentation === "standard" ? (
           <div className={styles.standardMenuLayout}>
             <header className={styles.menuHeader}>
-              <button type="button" className={styles.backToWelcome} onClick={returnToWelcome}><LuArrowLeft aria-hidden="true" />Apresentação do restaurante</button>
               <p className={styles.menuEyebrow}>Cardápio</p>
-              <h2 id="public-menu-heading">Escolha o seu próximo favorito</h2>
-              <p>Explore as categorias e deslize para conhecer cada prato.</p>
             </header>
             <nav className={styles.menuCategoryNav} aria-label="Categorias do cardápio">
               {menu.categories.map((category) => <a key={category.id} href={`#menu-${category.id}`} aria-current={activeCategoryId === category.id ? "location" : undefined} onClick={() => setActiveCategoryId(category.id)}>{category.name}<LuChevronDown aria-hidden="true" /></a>)}
