@@ -29,6 +29,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 import { Switch } from "@/components/ui/switch"
 import {
   Table,
@@ -304,28 +311,64 @@ export function IdentifiersDataTable({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                onClick={(event) => {
-                  const target = event.target
-                  if (
-                    target instanceof Element &&
-                    target.closest(
-                      'button,[role="switch"],[data-slot="switch"],[data-slot^="dropdown-menu-"]'
-                    )
-                  ) {
-                    return
+              <ContextMenu key={row.id}>
+                <ContextMenuTrigger
+                  render={
+                    <TableRow
+                      onClick={(event) => {
+                        const target = event.target
+                        if (
+                          target instanceof Element &&
+                          target.closest(
+                            'button,[role="switch"],[data-slot="switch"],[data-slot^="dropdown-menu-"],[data-slot^="context-menu-"]'
+                          )
+                        ) {
+                          return
+                        }
+                        onOpen(row.original)
+                      }}
+                      className="cursor-pointer border-border/60 transition-colors last:border-0 focus-within:bg-muted/25 hover:bg-muted/35 motion-reduce:transition-none"
+                    />
                   }
-                  onOpen(row.original)
-                }}
-                className="cursor-pointer border-border/60 transition-colors last:border-0 focus-within:bg-muted/25 hover:bg-muted/35 motion-reduce:transition-none"
-              >
-                {row.getAllCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-5 py-3.5">
-                    <table.FlexRender cell={cell} />
-                  </TableCell>
-                ))}
-              </TableRow>
+                >
+                  {row.getAllCells().map((cell) => (
+                    <TableCell key={cell.id} className="px-5 py-3.5">
+                      <table.FlexRender cell={cell} />
+                    </TableCell>
+                  ))}
+                </ContextMenuTrigger>
+                <ContextMenuContent
+                  className="min-w-48"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <ContextMenuItem
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      void onCopyLink(row.original)
+                    }}
+                  >
+                    {copiedIdentifierId === row.original.id ? (
+                      <LuCheck aria-hidden="true" />
+                    ) : (
+                      <LuCopy aria-hidden="true" />
+                    )}
+                    {copiedIdentifierId === row.original.id
+                      ? "Link copiado"
+                      : "Copiar link"}
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    disabled={busyIdentifierId === row.original.id}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onEdit(row.original)
+                    }}
+                  >
+                    <LuPencil aria-hidden="true" />
+                    Editar mesa
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))}
           </TableBody>
         </Table>
