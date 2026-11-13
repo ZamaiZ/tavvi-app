@@ -56,3 +56,21 @@ export function createPublicRestaurantUrl(slug: string) {
   panelUrl.hash = ""
   return panelUrl.toString()
 }
+
+export function createPublicMenuTagUrl(token: string) {
+  if (!/^[0-9A-F]{32}$/.test(token)) throw new Error("Invalid menu tag token.")
+  const panelUrl = getPanelBaseUrl()
+  const hostname = panelUrl.hostname.toLowerCase()
+  if (hostname === "painel.localhost") {
+    panelUrl.hostname = "localhost"
+  } else if (hostname.startsWith("painel.")) {
+    panelUrl.hostname = hostname.slice("painel.".length)
+  } else if (panelUrl.pathname.replace(/\/$/, "") !== "/painel") {
+    throw new Error("TAVVI_PANEL_BASE_URL must use the painel subdomain or /painel path to derive public menu tag links.")
+  }
+
+  panelUrl.pathname = `/t/${token}`
+  panelUrl.search = ""
+  panelUrl.hash = ""
+  return panelUrl.toString()
+}

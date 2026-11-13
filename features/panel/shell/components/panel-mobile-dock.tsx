@@ -10,6 +10,7 @@ import {
   LuIdCard,
   LuLoaderCircle,
   LuMenu,
+  LuNfc,
   LuUtensils,
   LuX,
 } from "react-icons/lu"
@@ -39,8 +40,8 @@ function PanelMobileNavItem({
 }: {
   href: string
   label: string
-  section: "menu" | "identity" | "contact"
-  activeSection: "menu" | "identity" | "contact"
+  section: "menu" | "identifiers" | "identity" | "contact"
+  activeSection: "menu" | "identifiers" | "identity" | "contact"
   icon: ReactNode
   onNavigate: () => void
 }) {
@@ -90,6 +91,7 @@ function HomeLinkFeedback({ reducedMotion }: { reducedMotion: boolean }) {
 
 export function PanelMobileDock({
   cardapioHref,
+  identifiersHref,
   identityHref,
   contactHref,
   activeSection,
@@ -97,9 +99,10 @@ export function PanelMobileDock({
   canSwitchRestaurants,
 }: {
   cardapioHref: string
+  identifiersHref: string
   identityHref: string
   contactHref: string
-  activeSection: "menu" | "identity" | "contact"
+  activeSection: "menu" | "identifiers" | "identity" | "contact"
   restaurantsHref: string
   canSwitchRestaurants: boolean
 }) {
@@ -250,7 +253,10 @@ export function PanelMobileDock({
           <motion.nav id={`${PANEL_NAV_ID}-links`} aria-label="Áreas do Painel" variants={sheetVariants} initial={reducedMotion ? false : "hidden"} animate={navigationOpen ? "visible" : "hidden"} className="grid gap-4">
             <motion.div variants={itemVariants} className="space-y-2">
               <p className="px-1 text-[0.65rem] font-semibold tracking-[0.13em] text-muted-foreground uppercase">Operação</p>
-              <PanelMobileNavItem href={cardapioHref} label="Cardápio" section="menu" activeSection={activeSection} icon={<LuUtensils aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
+              <div className="grid gap-2">
+                <PanelMobileNavItem href={cardapioHref} label="Cardápio" section="menu" activeSection={activeSection} icon={<LuUtensils aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
+                <PanelMobileNavItem href={identifiersHref} label="Identificadores" section="identifiers" activeSection={activeSection} icon={<LuNfc aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
+              </div>
             </motion.div>
             <motion.div variants={itemVariants} className="space-y-2">
               <p className="px-1 text-[0.65rem] font-semibold tracking-[0.13em] text-muted-foreground uppercase">Perfil público</p>

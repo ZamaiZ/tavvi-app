@@ -9,6 +9,7 @@ import {
   LuContactRound,
   LuIdCard,
   LuChevronsUpDown,
+  LuNfc,
   LuUtensils,
 } from "react-icons/lu"
 
@@ -165,11 +166,12 @@ export function PanelAppShell({
   const prefersReducedMotion = useReducedMotion()
   const reducedMotion = prefersReducedMotion === true
   const cardapioHref = `${publicBasePath}/cardapio`
+  const identifiersHref = `${publicBasePath}/identificadores`
   const restaurantsHref = getPanelRestaurantsPath(publicBasePath)
   const identityHref = `${publicBasePath}/identidade`
   const contactHref = `${publicBasePath}/contato`
   const pathname = usePathname()
-  const activeSection = pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : "menu"
+  const activeSection: "menu" | "identifiers" | "identity" | "contact" = pathname.endsWith("/identificadores") ? "identifiers" : pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : "menu"
   const canSwitchRestaurants = restaurants.length > 1
 
   const sequenceVariants = {
@@ -225,6 +227,11 @@ export function PanelAppShell({
                           <LuUtensils aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Cardápio</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton render={<Link href={identifiersHref} aria-current={activeSection === "identifiers" ? "page" : undefined} />} isActive={activeSection === "identifiers"} tooltip="Identificadores" className="transition-colors duration-150">
+                          <LuNfc aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Identificadores</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </SidebarGroup>
@@ -270,6 +277,7 @@ export function PanelAppShell({
 
         <PanelMobileDock
           cardapioHref={cardapioHref}
+          identifiersHref={identifiersHref}
           identityHref={identityHref}
           contactHref={contactHref}
           activeSection={activeSection}
