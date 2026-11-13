@@ -9,6 +9,7 @@ import styles from "@/features/public-profile/styles/public-profile.module.css"
 type MenuAppearance = "system" | "light" | "dark"
 
 const MENU_THEME_KEY = "tema-cardapio"
+const MENU_APPEARANCE_CHANGE_EVENT = "tavvi:menu-appearance-change"
 type RevealStyle = CSSProperties & { "--reveal-delay": string }
 
 const appearanceOptions: Record<
@@ -38,12 +39,38 @@ function revealStyle(order: number) {
   return { "--reveal-delay": `${order * 45}ms` } as RevealStyle
 }
 
-export function PublicAppearanceToggle({ revealOrder }: { revealOrder: number }) {
+function applyMenuAppearance(appearance: MenuAppearance) {
+  document.documentElement.dataset.menuAppearance = appearance
+  window.dispatchEvent(new CustomEvent<MenuAppearance>(MENU_APPEARANCE_CHANGE_EVENT, { detail: appearance }))
+  try {
+    window.localStorage.setItem(MENU_THEME_KEY, appearance)
+  } catch {
+    // The selection still applies for this visit if storage is unavailable.
+  }
+}
+
+export function PublicAppearanceToggle({
+  revealOrder,
+  className,
+  showLabel = false,
+}: {
+  revealOrder: number
+  className?: string
+  showLabel?: boolean
+}) {
   const [appearance, setAppearance] = useState<MenuAppearance>("system")
 
   useEffect(() => {
     const storedAppearance = document.documentElement.dataset.menuAppearance
     if (isMenuAppearance(storedAppearance)) setAppearance(storedAppearance)
+
+    function onAppearanceChange(event: Event) {
+      const next = (event as CustomEvent<MenuAppearance>).detail
+      if (isMenuAppearance(next)) setAppearance(next)
+    }
+
+    window.addEventListener(MENU_APPEARANCE_CHANGE_EVENT, onAppearanceChange)
+    return () => window.removeEventListener(MENU_APPEARANCE_CHANGE_EVENT, onAppearanceChange)
   }, [])
 
   useEffect(() => {
@@ -64,12 +91,7 @@ export function PublicAppearanceToggle({ revealOrder }: { revealOrder: number })
 
       const next = appearanceOptions[appearance].next
       setAppearance(next)
-      document.documentElement.dataset.menuAppearance = next
-      try {
-        window.localStorage.setItem(MENU_THEME_KEY, next)
-      } catch {
-        // The selection still applies for this visit if storage is unavailable.
-      }
+      applyMenuAppearance(next)
     }
 
     document.addEventListener("keydown", onKeyDown, true)
@@ -79,13 +101,7 @@ export function PublicAppearanceToggle({ revealOrder }: { revealOrder: number })
   function cycleAppearance() {
     const next = appearanceOptions[appearance].next
     setAppearance(next)
-    document.documentElement.dataset.menuAppearance = next
-
-    try {
-      window.localStorage.setItem(MENU_THEME_KEY, next)
-    } catch {
-      // The selection still applies for this visit if storage is unavailable.
-    }
+    applyMenuAppearance(next)
   }
 
   const { label, Icon, next } = appearanceOptions[appearance]
@@ -93,13 +109,14 @@ export function PublicAppearanceToggle({ revealOrder }: { revealOrder: number })
   return (
     <button
       type="button"
-      className={`${styles.appearanceToggle} ${styles.reveal}`}
+      className={`${styles.appearanceToggle} ${styles.reveal} ${className ?? ""}`}
       style={revealStyle(revealOrder)}
       onClick={cycleAppearance}
       aria-label={`Tema: ${label}. Ativar ${appearanceOptions[next].label}`}
       title={`Tema: ${label}`}
     >
       <Icon aria-hidden="true" />
+      {showLabel ? <span className={styles.appearanceToggleLabel}>{label}</span> : null}
     </button>
   )
 }

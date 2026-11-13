@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react"
 import { MotionConfig, motion, useReducedMotion } from "motion/react"
-import { LuArrowLeft, LuArrowRight, LuChevronDown, LuChevronLeft, LuChevronRight, LuImages, LuX } from "react-icons/lu"
+import { LuArrowRight, LuChevronLeft, LuChevronRight, LuImages, LuX } from "react-icons/lu"
 
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import type { PublicMenuDTO } from "@/features/public-profile/menu-model"
+import { PublicAppearanceToggle } from "@/features/public-profile/components/public-profile-controls"
 import styles from "@/features/public-profile/styles/public-profile.module.css"
 
 type PublicCategory = PublicMenuDTO["categories"][number]
@@ -143,10 +144,120 @@ function ProductRail({ category, onOpenGallery }: { category: PublicCategory; on
   )
 }
 
-function ImmersiveFeed({ categories, onOpenGallery }: { categories: PublicCategory[]; onOpenGallery: (item: PublicItem) => void }) {
+function ImmersiveItemSlide({
+  category,
+  item,
+  index,
+  reducedMotion,
+}: {
+  category: PublicCategory
+  item: PublicItem
+  index: number
+  reducedMotion: boolean
+}) {
+  const mediaRef = useRef<HTMLDivElement>(null)
+  const mediaTouchStartRef = useRef<{ x: number; y: number; startedOnMedia: boolean } | null>(null)
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0)
+
+  function moveToMedia(index: number) {
+    const rail = mediaRef.current
+    if (!rail) return
+    const nextIndex = Math.max(0, Math.min(item.media.length - 1, index))
+    rail.scrollTo({ left: nextIndex * rail.clientWidth, behavior: reducedMotion ? "auto" : "smooth" })
+    setActiveMediaIndex(nextIndex)
+  }
+
+  return (
+    <motion.article
+      key={item.id}
+      id={`menu-item-${item.id}`}
+      className={styles.immersiveSlide}
+      role="group"
+      aria-label={`${item.name}, categoria ${category.name}. Role para mudar de prato${item.media.length > 1 ? " e deslize na horizontal para ver outras mídias" : ""}.`}
+      tabIndex={0}
+      style={{ "--item-index": index } as CSSProperties}
+      variants={itemReveal}
+      initial={reducedMotion ? "visible" : "hidden"}
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.2 }}
+      onTouchStart={(event) => {
+        const touch = event.touches[0]
+        if (!touch) return
+        mediaTouchStartRef.current = {
+          x: touch.clientX,
+          y: touch.clientY,
+          startedOnMedia: event.target instanceof Node && Boolean(mediaRef.current?.contains(event.target)),
+        }
+      }}
+      onTouchEnd={(event) => {
+        const start = mediaTouchStartRef.current
+        const touch = event.changedTouches[0]
+        mediaTouchStartRef.current = null
+        if (!start || !touch || start.startedOnMedia) return
+
+        const deltaX = touch.clientX - start.x
+        const deltaY = touch.clientY - start.y
+        if (Math.abs(deltaX) < 48 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) return
+        moveToMedia(activeMediaIndex + (deltaX < 0 ? 1 : -1))
+      }}
+      onTouchCancel={() => { mediaTouchStartRef.current = null }}
+    >
+      <div className={styles.immersiveArtwork} data-has-media={item.media.length > 0}>
+        {item.media.length ? (
+          <div
+            ref={mediaRef}
+            className={styles.immersiveMediaRail}
+            role={item.media.length > 1 ? "region" : undefined}
+            aria-label={item.media.length > 1 ? `Mídias de ${item.name}. Deslize horizontalmente ou use as setas para trocar.` : undefined}
+            tabIndex={item.media.length > 1 ? 0 : undefined}
+            onScroll={(event) => {
+              const rail = event.currentTarget
+              if (rail.clientWidth) setActiveMediaIndex(Math.round(rail.scrollLeft / rail.clientWidth))
+            }}
+            onKeyDown={(event) => {
+              if (event.target !== event.currentTarget) return
+              if (event.key === "ArrowLeft") {
+                event.preventDefault()
+                moveToMedia(activeMediaIndex - 1)
+              } else if (event.key === "ArrowRight") {
+                event.preventDefault()
+                moveToMedia(activeMediaIndex + 1)
+              }
+            }}
+          >
+            {item.media.map((media) => (
+              <div key={media.id} className={styles.immersiveMediaSlide}>
+                <PublicMenuMedia media={media} itemName={item.name} />
+              </div>
+            ))}
+          </div>
+        ) : <div className={styles.immersiveFallback} aria-hidden="true" />}
+        <div className={styles.immersiveScrim} />
+      </div>
+      <div className={styles.immersiveCopy}>
+        <motion.div variants={revealPart} className={styles.immersiveCategory}>{category.name}</motion.div>
+        <motion.div variants={revealPart} className={styles.immersiveItemContent}>
+          <ItemCopy item={item} />
+        </motion.div>
+      </div>
+      {item.media.length > 1 ? (
+        <div className={styles.immersiveFooter} role="group" aria-label={`Navegação das mídias de ${item.name}`}>
+          <span aria-live="polite" aria-atomic="true">{activeMediaIndex + 1} / {item.media.length}</span>
+          <div>
+            <Button type="button" variant="outline" size="icon-sm" aria-label={`Mídia anterior de ${item.name}`} disabled={activeMediaIndex === 0} onClick={() => moveToMedia(activeMediaIndex - 1)}><LuChevronLeft aria-hidden="true" /></Button>
+            <Button type="button" variant="outline" size="icon-sm" aria-label={`Próxima mídia de ${item.name}`} disabled={activeMediaIndex >= item.media.length - 1} onClick={() => moveToMedia(activeMediaIndex + 1)}><LuChevronRight aria-hidden="true" /></Button>
+          </div>
+        </div>
+      ) : null}
+    </motion.article>
+  )
+}
+
+function ImmersiveFeed({ categories }: { categories: PublicCategory[] }) {
   const feedRef = useRef<HTMLDivElement>(null)
+  const categoryNavRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
-  const [activeCategory, setActiveCategory] = useState(categories[0]?.id ?? "")
+  const [activeCategory, setActiveCategory] = useState(categories.find((category) => category.items.length > 0)?.id ?? categories[0]?.id ?? "")
   const items = categories.flatMap((category) => category.items.map((item) => ({ category, item })))
   const reducedMotion = useReducedMotion() === true
 
@@ -154,69 +265,64 @@ function ImmersiveFeed({ categories, onOpenGallery }: { categories: PublicCatego
     const feed = feedRef.current
     if (!feed) return
     const nextIndex = Math.max(0, Math.min(items.length - 1, index))
-    feed.scrollTo({ left: nextIndex * feed.clientWidth, behavior: reducedMotion ? "auto" : "smooth" })
+    feed.scrollTo({ top: nextIndex * feed.clientHeight, behavior: reducedMotion ? "auto" : "smooth" })
     setActiveIndex(nextIndex)
     setActiveCategory(items[nextIndex]?.category.id ?? "")
   }
 
+  useEffect(() => {
+    const list = categoryNavRef.current
+    const activeButton = list?.querySelector<HTMLButtonElement>('[aria-current="true"]')
+    if (!list || !activeButton) return
+
+    const listRect = list.getBoundingClientRect()
+    const buttonRect = activeButton.getBoundingClientRect()
+    if (buttonRect.left >= listRect.left && buttonRect.right <= listRect.right) return
+
+    const centeredLeft = list.scrollLeft + buttonRect.left - listRect.left - (list.clientWidth - buttonRect.width) / 2
+    list.scrollTo({ left: Math.max(0, Math.min(centeredLeft, list.scrollWidth - list.clientWidth)), behavior: reducedMotion ? "auto" : "smooth" })
+  }, [activeCategory, reducedMotion])
+
   return (
     <div className={styles.immersiveLayout}>
       <nav className={styles.immersiveCategories} aria-label="Ir para uma categoria">
-        {categories.map((category) => (
-          <button key={category.id} type="button" aria-current={activeCategory === category.id ? "true" : undefined} onClick={() => {
-            const firstItem = items.findIndex((entry) => entry.category.id === category.id)
-            if (firstItem >= 0) moveTo(firstItem)
-          }}>{category.name}</button>
-        ))}
+        <div className={styles.immersiveCategoryList} ref={categoryNavRef}>
+          {categories.map((category) => (
+            <button key={category.id} type="button" aria-current={activeCategory === category.id ? "true" : undefined} onClick={() => {
+              const firstItem = items.findIndex((entry) => entry.category.id === category.id)
+              if (firstItem >= 0) moveTo(firstItem)
+            }}>{category.name}</button>
+          ))}
+        </div>
+        <PublicAppearanceToggle revealOrder={0} className={styles.immersiveThemeToggle} showLabel />
       </nav>
       <div
         ref={feedRef}
         className={styles.immersiveFeed}
         role="region"
-        aria-label="Pratos do cardápio imersivo. Deslize horizontalmente entre os pratos."
+        aria-label="Pratos do cardápio imersivo. Role para cima ou para baixo para mudar de prato; deslize para os lados para trocar as mídias."
         tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.target instanceof HTMLElement && event.target !== event.currentTarget && event.target.closest("button, video, input, textarea, select, [contenteditable='true']")) return
+          if (event.key === "ArrowDown") {
+            event.preventDefault()
+            moveTo(activeIndex + 1)
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault()
+            moveTo(activeIndex - 1)
+          }
+        }}
         onScroll={(event) => {
           const feed = event.currentTarget
-          if (!feed.clientWidth) return
-          const index = Math.round(feed.scrollLeft / feed.clientWidth)
+          if (!feed.clientHeight) return
+          const index = Math.round(feed.scrollTop / feed.clientHeight)
           setActiveIndex(index)
           setActiveCategory(items[index]?.category.id ?? "")
         }}
       >
         {items.map(({ category, item }, index) => (
-          <motion.article
-            key={item.id}
-            id={`menu-item-${item.id}`}
-            className={styles.immersiveSlide}
-            role="group"
-            aria-label={`${item.name}. Este prato ocupa uma tela; role para ler os detalhes e deslize para trocar.`}
-            tabIndex={0}
-            style={{ "--item-index": index } as CSSProperties}
-            variants={itemReveal}
-            initial={reducedMotion ? "visible" : "hidden"}
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
-          >
-            <div className={styles.immersiveArtwork} data-has-media={item.media.length > 0}>
-              {item.media[0] ? <PublicMenuMedia media={item.media[0]} itemName={item.name} /> : <div className={styles.immersiveFallback} aria-hidden="true" />}
-              <div className={styles.immersiveScrim} />
-            </div>
-            <div className={styles.immersiveCopy}>
-              <motion.div variants={revealPart} className={styles.immersiveCategory}>{category.name}</motion.div>
-              <motion.div variants={revealPart} className={styles.immersiveItemContent}>
-                <ItemCopy item={item} />
-                {item.media.length > 1 ? <Button type="button" variant="secondary" size="sm" className={styles.immersiveGalleryButton} onClick={() => onOpenGallery(item)}><LuImages aria-hidden="true" />Ver todas as mídias</Button> : null}
-              </motion.div>
-            </div>
-          </motion.article>
+          <ImmersiveItemSlide key={item.id} category={category} item={item} index={index} reducedMotion={reducedMotion} />
         ))}
-      </div>
-      <div className={styles.immersiveFooter}>
-        <span aria-live="polite" aria-atomic="true">{activeIndex + 1} / {items.length}</span>
-        <div>
-          <Button type="button" variant="outline" size="icon-sm" aria-label="Prato anterior" disabled={activeIndex === 0} onClick={() => moveTo(activeIndex - 1)}><LuChevronLeft aria-hidden="true" /></Button>
-          <Button type="button" variant="outline" size="icon-sm" aria-label="Próximo prato" disabled={activeIndex >= items.length - 1} onClick={() => moveTo(activeIndex + 1)}><LuChevronRight aria-hidden="true" /></Button>
-        </div>
       </div>
     </div>
   )
@@ -269,7 +375,7 @@ export function PublicMenu({ menu }: { menu: PublicMenuDTO }) {
         {menu.presentation === "standard" ? (
           <div className={styles.standardMenuLayout}>
             <nav className={styles.menuCategoryNav} aria-label="Categorias do cardápio">
-              {menu.categories.map((category) => <a key={category.id} href={`#menu-${category.id}`} aria-current={activeCategoryId === category.id ? "location" : undefined} onClick={() => setActiveCategoryId(category.id)}>{category.name}<LuChevronDown aria-hidden="true" /></a>)}
+              {menu.categories.map((category) => <a key={category.id} href={`#menu-${category.id}`} aria-current={activeCategoryId === category.id ? "location" : undefined} onClick={() => setActiveCategoryId(category.id)}>{category.name}</a>)}
             </nav>
             <div className={styles.menuCategories}>
               {menu.categories.map((category, index) => (
@@ -294,7 +400,7 @@ export function PublicMenu({ menu }: { menu: PublicMenuDTO }) {
           </div>
         ) : (
           <>
-            <ImmersiveFeed categories={menu.categories} onOpenGallery={openGallery} />
+            <ImmersiveFeed categories={menu.categories} />
           </>
         )}
         <Dialog open={Boolean(galleryItem)} onOpenChange={(open) => { if (!open) setGalleryItem(null) }}>
