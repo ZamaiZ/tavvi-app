@@ -11,6 +11,7 @@ import {
   LuClock3,
   LuLoaderCircle,
   LuRefreshCw,
+  LuUserRoundCheck,
   LuVolume2,
   LuVolumeX,
   LuWifi,
@@ -47,30 +48,21 @@ function historyFailureMessage(code: ServiceCallFailureCode) {
   return "Não foi possível carregar o histórico. Confira a conexão e tente novamente."
 }
 
-function elapsedLabel(isoDate: string, now: number) {
-  const elapsed = Math.max(0, now - new Date(isoDate).getTime())
-  const minutes = Math.floor(elapsed / 60_000)
-  if (minutes < 1) return "Agora mesmo"
-  if (minutes < 60) return `Há ${minutes} min`
-  const hours = Math.floor(minutes / 60)
-  const remainder = minutes % 60
-  return remainder ? `Há ${hours} h ${remainder} min` : `Há ${hours} h`
-}
-
 function dateTimeLabel(isoDate: string) {
-  return new Date(isoDate).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+  const date = new Date(isoDate)
+  const day = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })
+  const time = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+  return `${day} - ${time}`
 }
 
 function CallCard({
   call,
   busy,
-  now,
   itemVariants,
   onAction,
 }: {
   call: PanelServiceCallDTO
   busy: boolean
-  now: number
   itemVariants: Variants
   onAction: (call: PanelServiceCallDTO) => void
 }) {
@@ -102,9 +94,9 @@ function CallCard({
           </div>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5"><LuBell aria-hidden="true" className="size-3.5" />Solicitado {resolved ? dateTimeLabel(call.createdAt) : elapsedLabel(call.createdAt, now).toLocaleLowerCase("pt-BR")}</span>
-            {call.claimedAt ? <span>Assumido {resolved ? dateTimeLabel(call.claimedAt) : new Date(call.claimedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span> : null}
-            {resolved && call.resolvedAt ? <span>Concluído {dateTimeLabel(call.resolvedAt)}</span> : null}
+            <span className="inline-flex items-center gap-1.5"><LuBell aria-hidden="true" className="size-3.5" />Solicitado {dateTimeLabel(call.createdAt)}</span>
+            {call.claimedAt ? <span className="inline-flex items-center gap-1.5"><LuUserRoundCheck aria-hidden="true" className="size-3.5" />Assumido {dateTimeLabel(call.claimedAt)}</span> : null}
+            {resolved && call.resolvedAt ? <span className="inline-flex items-center gap-1.5"><LuCheckCheck aria-hidden="true" className="size-3.5" />Concluído {dateTimeLabel(call.resolvedAt)}</span> : null}
           </div>
 
           {resolved ? (
@@ -156,12 +148,10 @@ export function CallsWorkspace({
   restaurantId,
   initialCalls,
   initialResolvedCount,
-  initialNow,
 }: {
   restaurantId: string
   initialCalls: PanelServiceCallDTO[]
   initialResolvedCount: number
-  initialNow: number
 }) {
   const prefersReducedMotion = useReducedMotion()
   const reducedMotion = prefersReducedMotion === true
@@ -179,7 +169,6 @@ export function CallsWorkspace({
   const [busyCallId, setBusyCallId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ kind: "error" | "success"; text: string } | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
-  const [now, setNow] = useState(initialNow)
   const resolvedRequestId = useRef(0)
   const activeCallsSignature = initialCalls.map(({ id, status }) => `${id}:${status}`).join("|")
   const previousLiveState = useRef({ activeCallsSignature, connected, restaurantId })
@@ -198,10 +187,6 @@ export function CallsWorkspace({
     setActiveTab("pending")
   }, [restaurantId])
   useEffect(() => setSoundEnabled(isCallSoundEnabled()), [])
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
-    return () => window.clearInterval(timer)
-  }, [])
 
   const pendingCalls = calls.filter((call) => call.status === "pending")
   const inProgressCalls = calls.filter((call) => call.status === "in_progress")
@@ -401,7 +386,7 @@ export function CallsWorkspace({
                       >
                         <AnimatePresence initial={false} mode="popLayout">
                           {resolvedCalls.map((call) => (
-                            <CallCard key={call.id} call={call} busy={false} now={now} itemVariants={itemVariants} onAction={handleCallAction} />
+                            <CallCard key={call.id} call={call} busy={false} itemVariants={itemVariants} onAction={handleCallAction} />
                           ))}
                         </AnimatePresence>
                       </motion.section>
@@ -433,7 +418,7 @@ export function CallsWorkspace({
                   >
                     <AnimatePresence initial={false} mode="popLayout">
                       {visibleCalls.map((call) => (
-                        <CallCard key={call.id} call={call} busy={busyCallId === call.id} now={now} itemVariants={itemVariants} onAction={handleCallAction} />
+                        <CallCard key={call.id} call={call} busy={busyCallId === call.id} itemVariants={itemVariants} onAction={handleCallAction} />
                       ))}
                     </AnimatePresence>
                   </motion.section>

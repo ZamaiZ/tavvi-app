@@ -21,7 +21,7 @@ export default async function PanelCallsPage() {
       <header className="mx-auto w-full max-w-[1320px] px-4 py-7 sm:px-6 md:py-5 lg:px-8">
         <PanelPageHeading title="Chamados" icon={<LuBellRing aria-hidden="true" className="size-4" />} />
       </header>
-      <CallsWorkspace restaurantId={restaurant.id} initialCalls={calls} initialResolvedCount={resolvedCount} initialNow={Date.now()} />
+      <CallsWorkspace restaurantId={restaurant.id} initialCalls={calls} initialResolvedCount={resolvedCount} />
     </div>
   )
 }
