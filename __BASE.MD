@@ -21,7 +21,7 @@ Construir uma nova aplicação para as superfícies Admin da plataforma e Painel
 - Gestão da fila de chamados e registro de pedidos associados à mesa/comanda.
 - Operação de comandas e caixa, com pagamentos/correções, gorjeta opcional e análise financeira por período.
 
-A nova aplicação deve preservar as regras de negócio e segurança do produto, sem importar a identidade visual antiga ou seus arquivos CSS. O trabalho desta etapa é identificar o que existe e decidir a abordagem; não é uma autorização para começar a portar telas ou ações.
+A nova aplicação deve preservar as regras de negócio e segurança do produto, sem importar a identidade visual antiga ou seus arquivos CSS. Este parágrafo registra o escopo original de descoberta; pedidos atuais do usuário e planos aprovados podem autorizar novas telas e ações.
 
 ## 2. Restrições e decisões já informadas
 
@@ -37,8 +37,8 @@ A nova aplicação deve preservar as regras de negócio e segurança do produto,
 - Até a implementação futura de IAM por função, todos os membros autenticados do restaurante têm as mesmas ações; a autorização continua exigindo associação ao restaurante e respeitando o estado/invariantes dos registros.
 - Os cargos da equipe permanecem como informação organizacional, editável pelos membros, mas não restringem ações nem páginas nesta fase.
 - O Painel terá um restaurante ativo por navegador, mantido em cookie e compartilhado entre abas; essa experiência foi aceita.
-- A chave `APP_SERVER_KEY` não é requisito destas telas de Admin. Ainda é usada pelos fluxos públicos legados de avaliações e chamados; não removê-la globalmente antes de migrar ou redesenhar esses fluxos.
-- No workspace tavvi-app, o usuário autorizou Git, typecheck e build; não adicionar nem executar testes. Essa autorização não se aplica automaticamente ao workspace legado.
+- A chave `APP_SERVER_KEY` não é requisito das telas de Admin. O fluxo novo de Feedbacks anônimos a exige server-side e configura no Supabase apenas o hash; os fluxos legados de avaliação/chamado mantêm suas próprias regras até migração explícita.
+- No workspace tavvi-app, as instruções atuais do usuário proíbem Git, typecheck, build, lint e testes. Fazer revisão estática sem executar esses comandos; não estender essa regra automaticamente a outros workspaces.
 
 ## 3. O que existe hoje em `tavvi`
 
@@ -189,7 +189,7 @@ Esta seção registra o mapeamento do legado e as regras já acordadas para a no
 - Depois da primeira publicação, alterações salvas em categoria/item entram no ar imediatamente. O comando “Publicar cardápio” controla se o menu está disponível ao público; não há fluxo de revisão/rascunho de alterações em uma cópia separada.
 - Enquanto publicado, o cardápio precisa manter ao menos um item visível. Impedir ocultar/remover o último item visível até despublicar; itens indisponíveis podem continuar visíveis e identificados como indisponíveis.
 - Mídia obrigatória para todos os itens publicáveis e encomendáveis, em qualquer modo de apresentação (imersivo ou clássico).
-- Preservar no cardápio o padrão atual de fotos e vídeos curtos, com múltiplas mídias por item e os limites de formato/tamanho do legado; feedback continua aceitando fotos apenas.
+- Preservar no cardápio o padrão atual de fotos e vídeos curtos, com múltiplas mídias por item e os limites de formato/tamanho do legado; feedback aceita até três fotos/vídeos combinados conforme a especificação de 2026-11-13.
 - Substituir tags de alergênicos/restrições exclusivamente livres por atributos estruturados apropriados, mantendo destaques livres separados. O vocabulário e a apresentação final dos atributos devem ser definidos no desenho de dados do cardápio.
 - Bloquear exclusão de categoria enquanto houver itens nela; a pessoa deve mover ou remover os itens antes.
 - Primeiro corte do workspace: modos básicos de lista/índice/grade, busca, filtros, CRUD de categorias/itens, ordenação, publicação e criação em massa. Adiar `studio`, `board`, `spreadsheet`, `sequence` e `service`.
@@ -197,10 +197,10 @@ Esta seção registra o mapeamento do legado e as regras já acordadas para a no
 - A página pública por slug pode ser aberta sem cardápio publicado. Para restaurante ativo, mostrar perfil/contato e permitir envio de feedback; na área do menu, mostrar estado “em construção”, sem expor itens em rascunho.
 - A URL da slug é a navegação pública normal, sem ação de chamar equipe. O acesso por identificador de mesa conserva o contexto da mesa e, com cardápio publicado, pode oferecer chamada de equipe. Se o menu não estiver publicado, a página de construção não oferece chamada.
 - O cardápio público é de consulta neste corte: não há carrinho, pedido direto nem pagamento pelo cliente; o pedido é lançado pela equipe após o chamado ou pela operação do Caixa.
-- Contato público mostra telefone, WhatsApp, Instagram, endereço/localização e, se configurado, uma ação externa com o link direto para solicitar avaliação no perfil do Google. Feedback Tavvi continua separado, anônimo, com texto e até três fotos; não é uma avaliação Google nem uma nota de estrelas.
+- Contato público mostra telefone, WhatsApp, Instagram, endereço/localização e, se configurado, uma ação externa com o link direto para solicitar avaliação no perfil do Google. Feedback Tavvi continua separado, anônimo, com texto e até três fotos/vídeos; não é uma avaliação Google nem uma nota de estrelas.
 - O link de avaliação do Google deve ser salvo separadamente do link do Maps e ser o destino direto para escrever uma avaliação. O restaurante informa o perfil no Maps e o Tavvi gera o link de avaliação; se não conseguir gerá-lo, não conclui o onboarding com esse perfil. Exibir a ação somente com link válido e igualmente para todos os visitantes, sem condicionar à nota/conteúdo do feedback nem oferecer incentivo.
 - A regra de chamada deve ser imposta também pelo servidor/banco; esconder o botão no cliente não é autorização. Restaurantes suspensos/removidos e identificadores de mesa inválidos devem falhar sem revelar qual condição ocorreu.
-- O feedback público é anônimo e independe da publicação do cardápio, mas exige página de restaurante ativa. Não cria sessão Auth. Preservar limites, validação de texto/fotos, proteção contra spam e rate limits no novo fluxo.
+- O feedback público é anônimo e independe da publicação do cardápio, mas exige página de restaurante ativa. Não cria sessão Auth. Preservar limites, validação de texto/mídia, proteção contra spam e rate limits no novo fluxo.
 
 ### 6.3 URLs, leitura pública e cache
 
@@ -222,7 +222,7 @@ Esta seção registra o mapeamento do legado e as regras já acordadas para a no
 - Na criação em massa, manter o mesmo schema e regra do fluxo individual. Validar o lote inteiro e mostrar erros por linha antes do commit; gravar em uma transação e limitar concorrência de uploads. O limite inicial de 50 itens do legado pode ser preservado como teto, sujeito a ajuste após medir payload, tempo e experiência.
 - Preservar a regra de não publicar um cardápio sem nenhum item visível e exigir mídia em cada item publicável/encomendável, independentemente da apresentação.
 - Aplicar a invariável de cardápio não vazio também após publicar: mutações que ocultariam/removeriam o último item visível devem falhar de forma clara até que o cardápio seja despublicado. Disponibilidade é estado separado de visibilidade.
-- Criar feedback e chamada de equipe por operações públicas estreitas/RPCs restritas, sem sessão Auth, Express ou `APP_SERVER_KEY` customizada. Validar a operação e impor idempotência, cotas e rate limits no servidor/banco; nunca expor `service_role` no navegador. Credenciais privilegiadas para assinatura de uploads privados permanecem exclusivamente server-side.
+- Criar feedback e chamada de equipe por operações públicas estreitas/RPCs restritas, sem sessão Auth nem Express. Feedbacks anônimos usam `APP_SERVER_KEY` server-only, configurada também no Supabase apenas como hash; chamados seguem as credenciais e RPCs específicas do fluxo de chamados. Validar as operações e impor cotas e rate limits no servidor/banco; nunca expor `service_role` no navegador. Credenciais privilegiadas para assinatura de uploads privados permanecem exclusivamente server-side.
 - Não carregar feedback/call status junto ao cache do menu. Atualizações do Painel devem invalidar somente o cache da entidade tocada, sem reconsultar todos os dados após cada gravação.
 - Manter chamadas internas em banco e Realtime/atualização da interface apenas quando o Painel estiver aberto, conforme a decisão de não usar Web Push. Não manter Express apenas para esse fluxo. Detalhar na etapa de banco os grants mínimos das RPCs públicas, controles de abuso e autorização de uploads; não expor credencial privilegiada no navegador.
 
@@ -230,7 +230,7 @@ Esta seção registra o mapeamento do legado e as regras já acordadas para a no
 
 - Definir o conjunto estruturado de alergênicos e restrições e como representar risco de contaminação cruzada. Não declarar “sem X” automaticamente por ausência do atributo.
 - Definir UX de recuperação de rascunho da criação em massa após fechar/recarregar a página; não gravar rascunhos em `localStorage` sem uma decisão explícita de retenção/sensibilidade.
-- Especificar os limites e controles de abuso para endpoints/RPCs públicos de feedback e chamada (IP, slug/mesa, cotas e idempotência), sem confiar somente no cliente nem reintroduzir uma chave customizada `APP_SERVER_KEY`.
+- Limites e controles de abuso para Feedbacks anônimos estão implementados na especificação `docs/superpowers/specs/2026-11-13-feedback-publico-painel-design.md`: identidade derivada de IP sem persistir o IP em claro, rate limits compartilhados e cotas por restaurante. Chamados mantêm seu fluxo e suas credenciais próprios.
 
 ## 7. Direção para Identificadores e NFC
 
@@ -275,7 +275,9 @@ Esta seção mapeia a página de identificadores atual e a separação entre reg
 - Para baixa latência, a leitura da página deve ser um lookup indexado do token e redirecionamento; considerar cache de resolução somente com invalidação por identificador para que desativação/realocação reflita prontamente. Não incluir serial NFC, recibos ou histórico em cache público.
 - NFC Web exige HTTPS e gesto explícito do usuário; usar o host HTTPS de demo/staging para cadastrar tags físicas, mantendo dados e tokens do ambiente de teste. A base local continua adequada para desenvolvimento de banco e UI sem chip físico.
 
-### 7.4 Pontos para o plano técnico
+### 7.4 Direção antiga para feedback (substituída)
+
+O feedback público e o Painel de Feedbacks foram implementados nesta aplicação conforme `docs/superpowers/specs/2026-11-13-feedback-publico-painel-design.md`. As regras abaixo descrevem a proposta anterior e não devem orientar novas alterações; a implementação aceita até três fotos/vídeos e usa APP_SERVER_KEY server-only.
 
 - Preservar a janela de validade da operação NFC e a ordem exata dos eventos que autorizam conferência/bloqueio, ajustando o RPC novo para validar tudo dentro de uma transação e reduzir as chamadas de autorização duplicadas.
 - Todo identificador ativo deve estar associado a um número de mesa. A criação exige o número e a edição pode realocá-lo; não manter identificadores ativos “sem mesa”. O token/URL continua imutável e a realocação é feita no mapeamento lógico do Painel.
@@ -426,25 +428,24 @@ Feedback é um canal público e anônimo para comentários de clientes, com leit
 - Criar rascunho e reservar caminhos no servidor; enviar fotos diretamente do navegador ao bucket privado com URLs temporárias, sem encaminhar os binários pelo Next. Gerar assinaturas e fazer até três uploads em paralelo com limite controlado; publicar somente depois de confirmar os uploads.
 - Validar slug/restaurante ativo, conteúdo, formato e limites no servidor/banco. Rate limit deve ser compartilhado entre instâncias, por IP e restaurante, com teto adicional por restaurante no banco. Em produção, obter IP do cabeçalho confiável do proxy/plataforma, nunca confiar cegamente em `x-forwarded-for` enviado pelo cliente.
 - O IP usado para limitar abuso não faz parte do feedback visível ao restaurante. Minimizar retenção/identificabilidade desse dado técnico e não apresentá-lo como identidade do cliente.
-- A tabela de feedback deve ser append-only para o Painel: não oferecer exclusão nem edição do conteúdo/mídia pelo restaurante. Casos excepcionais de abuso ou pedido de remoção são tratados pela plataforma no território Admin, com ação justificada e auditada; critérios e retenção devem ser definidos antes da entrega de Feedbacks.
+- A proposta antiga previa feedback append-only e sem exclusão pelo Painel; ela foi substituída pela especificação de 2026-11-13. O Painel permite exclusão confirmada: o texto é redigido e o relato ocultado imediatamente, enquanto o tombstone mantém os caminhos privados até expirarem os tokens de upload; uma limpeza lazy remove objetos e linhas depois.
 
-### 11.2 Leitura no Painel e notificações
+### 11.2 Leitura no Painel
 
 - Rota curta `/feedbacks` no subdomínio Painel, usando o restaurante ativo do contexto autenticado. Validar associação ativa ao restaurante em toda leitura e mutation; nenhum papel terá privilégio funcional diferente nesta fase.
 - Listar os feedbacks do restaurante por publicação mais recente, com paginação por cursor. Abrir o detalhe sob demanda; usar Storage privado e URLs assinadas curtas. Carregar miniaturas na lista e mídia completa no detalhe; não compartilhar cache entre restaurantes/usuários.
-- Manter lido/não lido por membro, incluindo filtro/contador de pendentes individual. A leitura feita por uma pessoa não altera o estado das demais.
-- Gerar uma notificação interna para todos os membros ativos do restaurante após a publicação; manter Realtime/central, sem Web Push e sem worker Express. A notificação deve carregar apenas a referência do feedback e do restaurante, evitando repetir texto potencialmente sensível.
-- Como o caminho não inclui `/restaurantes/{id}`, ao abrir notificação ligada a outro restaurante o Painel deve trocar o contexto ativo com segurança antes de abrir `/feedbacks?f={feedbackId}`. Não confiar somente no restaurante atual para resolver o destino.
+- O estado lido/não lido é compartilhado no restaurante, no próprio feedback. Um membro que abre o detalhe marca o mesmo feedback como lido para os demais.
+- Não emitir notificação ou push para feedback; não há infraestrutura de notificações do Painel a reutilizar nesta tela.
 - Construir a interface do Painel com os componentes shadcn/Tailwind do boilerplate. A identidade visual independente do cardápio público não se aplica a esta tela.
 
 ### 11.3 O que existe hoje e transposição técnica
 
 - O formulário público está na capa do cardápio e aparece nos modos clássico/imersivo. Exige texto, permite até três fotos e não envia o identificador da mesa.
-- O legado usa rascunho com expiração, URLs de upload assinadas, bucket privado, rate limit por IP e limite adicional por restaurante. A nova versão não usa Express nem `APP_SERVER_KEY` customizada: chamadas públicas ficam restritas a operações/RPCs específicas com controles no servidor/banco. Credenciais privilegiadas permanecem server-side e nunca são expostas no navegador.
-- O fluxo de foto tem etapas sequenciais (iniciar, assinar cada foto, carregar cada foto, publicar), aumentando a latência conforme o número de anexos. O novo fluxo deve assinar/carregar em paralelo até o limite de anexos e finalizar uma única vez após confirmar todos os objetos.
+- O legado usa rascunho com expiração, URLs de upload assinadas, bucket privado, rate limit por IP e limite adicional por restaurante. A nova versão mantém rascunho e bucket privado, aplica limites compartilhados e exige APP_SERVER_KEY server-only nas operações públicas de feedback. Credenciais privilegiadas permanecem server-side e nunca são expostas no navegador.
+- O novo fluxo assina e carrega até três mídias em paralelo, e publica uma única vez após confirmar todos os objetos. O navegador lê dimensões e duração reais para orientar o envio; servidor, banco e Storage validam limites declarados, MIME e tamanho. Como a mídia vai direto do navegador ao Storage, uma chamada forjada pode mentir sobre dimensões/duração sem análise binária server-side.
 - A lista legada pagina 20 itens e cria URLs assinadas para as fotos da página. Preservar paginação e carregamento preguiçoso, evitar downloads de imagem em resolução cheia na lista e não refazer a consulta completa em eventos Realtime.
-- Hoje o `read_at` pertence à linha do feedback e é compartilhado por todos do restaurante: abrir por uma pessoa marca lido para as outras. O Painel legado só permite administradores e oferece exclusão; ambos divergem do novo acesso por associação e da decisão de manter o feedback sem exclusão.
-- A notificação legada é destinada ao papel `admin` e inclui um trecho do texto. No novo modelo deve ser destinada a todos os membros ativos, sem Web Push e sem incluir conteúdo do feedback no payload.
+- O `read_at` compartilhado por restaurante é mantido nesta implementação. Todos os membros ativos podem ler e gerenciar feedbacks publicados; exclusão exige confirmação e não há edição direta do conteúdo.
+- O novo Painel de Feedbacks não gera notificação interna nem Web Push.
 
 ## 12. Direção para Equipe e acessos
 
@@ -574,13 +575,13 @@ Nada abaixo foi feito nesta fase; são itens para um plano posterior:
 24. **[Resolvida] Onde ficam as configurações do caixa e as operações?** Configurações podem ficar em área própria de Financeiro. Abertura, movimentações, recebimentos, correções, fechamento e sessão pertencem a Caixa.
 25. **[Resolvida] Como tratar a gorjeta?** Decisão opcional e única por comanda; cliente pode aceitar ou recusar. Normalmente decide ao encerrar o consumo; se uma comanda for transportada sem decisão, decide junto ao primeiro recebimento posterior. Gorjeta aceita integra o total e usa os meios comuns de pagamento.
 26. **[Resolvida] Como tratar o fechamento excepcional com saldo aberto?** Transportar o saldo para uma comanda pendente sem novos pedidos, disponível para recebimento na próxima sessão. Chamados mantêm o próprio ciclo e não são encerrados pelo fechamento do caixa. Gorjeta já decidida é preservada; se não decidida, fica para o recebimento posterior.
-27. **[Resolvida] Como tratar mídia nos itens?** Mídia é obrigatória em todo item publicável/encomendável, independentemente do formato. Manter fotos e vídeos curtos, seguindo o padrão do legado; feedback aceita fotos, não vídeo.
+27. **[Resolvida] Como tratar mídia nos itens?** Mídia é obrigatória em todo item publicável/encomendável, independentemente do formato. Manter fotos e vídeos curtos, seguindo o padrão do legado. Feedback aceita até três fotos/vídeos combinados, com validação server/database dos limites declarados e upload privado direto do navegador.
 28. **[Direção acordada] Como remover a lentidão financeira e do Caixa?** Separar agregados analíticos de leituras operacionais; não somar grandes listas na aplicação; carregar detalhes sob demanda; após gravações e eventos Realtime, atualizar somente os recursos afetados.
-29. **[Resolvida] Que mídia entra em feedback?** Texto e até três fotos opcionais; vídeo fica fora do primeiro corte. A exigência de mídia obrigatória dos itens do cardápio não se aplica a feedback.
-30. **[Resolvida] Quais ações o Painel oferece sobre feedback?** Apenas visualizar conteúdo e mídia; manter lido/não lido. Não permitir resposta, reação, edição nem exclusão pelo restaurante.
-31. **[Resolvida] Quem recebe a notificação de novo feedback?** Todos os membros ativos do restaurante, por notificação interna e Realtime; sem Web Push e sem Express.
-32. **[Resolvida] O estado lido/não lido é compartilhado ou individual?** Individual por membro; uma pessoa marcar como lido não altera o estado das demais.
-33. **[Direção acordada; critérios pendentes] Como lidar com feedback abusivo ou com dados pessoais, já que o restaurante não pode excluir?** A moderação/remoção excepcional fica com a plataforma no território Admin, com justificativa e auditoria; definir critérios e retenção antes de implementar Feedbacks.
+29. **[Resolvida] Que mídia entra em feedback?** Texto e até três fotos/vídeos opcionais; a exigência de mídia obrigatória dos itens do cardápio não se aplica a feedback.
+30. **[Resolvida] Quais ações o Painel oferece sobre feedback?** Visualizar conteúdo/mídia, manter lido/não lido e excluir com confirmação. Não permitir resposta, reação nem edição do conteúdo.
+31. **[Resolvida] Quem recebe notificação de novo feedback?** Não há notificação ou push para feedback nesta entrega.
+32. **[Resolvida] O estado lido/não lido é compartilhado ou individual?** Compartilhado por restaurante; uma pessoa marcar como lido altera o estado para as demais.
+33. **[Resolvida] Como remover um feedback pelo Painel?** Ocultar e redigir imediatamente, reter tombstone/caminhos privados até expirarem os tokens de upload e limpar mídias/linhas por RPC; não conceder DELETE direto nas tabelas.
 34. **[Resolvida] Os cargos da equipe limitam o que cada pessoa pode fazer?** Não. Cargo fica como informação organizacional, visível e editável; todos os membros têm as mesmas ações por associação.
 35. **[Resolvida] Quem recebe aviso quando alguém entra na equipe?** Não há notificação de entrada para o restaurante. A notificação de novo restaurante para Admin é separada.
 36. **[Resolvida] O que ocorre ao suspender um restaurante?** Bloquear Painel e resgate de convites; manter associações e convites para reativação. Restaurante em configuração/rascunho continua gerenciável.

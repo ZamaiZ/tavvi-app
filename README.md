@@ -1,6 +1,6 @@
 # Tavvi app
 
-Next.js app for the Tavvi platform. This phase establishes local infrastructure and Preview/demo configuration; product pages and database schema are added in later approved steps.
+Next.js app for the Tavvi platform. Product features are added incrementally; database changes are versioned in `supabase/migrations`.
 
 ## Local development
 
@@ -35,4 +35,4 @@ Use pnpm supabase status to inspect the local stack and pnpm supabase stop to st
 - Production will use a separate Supabase project. Never copy Preview credentials into Production.
 - Vercel Functions use gru1 while the remote Supabase primary is in São Paulo.
 
-The app uses Next.js as its only application runtime. Express, Web Push, VAPID values, and APP_SERVER_KEY are not part of this setup.
+The app uses Next.js as its only application runtime. Express, Web Push, and VAPID values are not part of this setup. Anonymous feedback requires a server-only `APP_SERVER_KEY` with at least 32 characters, matching the one-time value configured in Supabase with `select public.set_app_server_key('<same key>');`. Apply the feedback migration before configuring the key. Configure that secret only in the local/Preview/Production server environment that uses the matching Supabase project; never expose it as a `NEXT_PUBLIC_*` variable.

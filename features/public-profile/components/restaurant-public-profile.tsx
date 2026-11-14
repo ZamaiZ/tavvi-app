@@ -23,6 +23,8 @@ import {
 import { PUBLIC_THEME_FONT_VARIABLES } from "@/features/public-profile/fonts"
 import type { PublicMenuDTO } from "@/features/public-profile/menu-model"
 import { PublicMenu } from "@/features/public-profile/components/public-menu"
+import { PublicServiceCall } from "@/features/public-profile/components/public-service-call"
+import { PublicFeedbackAction } from "@/features/public-profile/components/public-feedback-action"
 import { resolvePublicTheme } from "@/features/public-profile/theme"
 
 import styles from "@/features/public-profile/styles/public-profile.module.css"
@@ -30,6 +32,7 @@ import styles from "@/features/public-profile/styles/public-profile.module.css"
 type RestaurantPublicProfileProps = {
   restaurant: PublicRestaurantProfileData
   menu: PublicMenuDTO | null
+  tableContext?: { token: string; tableNumber: number }
 }
 
 type RevealStyle = CSSProperties & { "--reveal-delay": string }
@@ -59,7 +62,7 @@ function revealStyle(order: number): RevealStyle {
   return { "--reveal-delay": `${order * 45}ms` } as RevealStyle
 }
 
-function RestaurantPublicProfile({ restaurant, menu }: RestaurantPublicProfileProps) {
+function RestaurantPublicProfile({ restaurant, menu, tableContext }: RestaurantPublicProfileProps) {
   const theme = resolvePublicTheme(restaurant.theme)
   const address = formatPublicRestaurantAddress(restaurant.contact.address)
   const mapHref = directionsUrl(restaurant.contact)
@@ -95,7 +98,8 @@ function RestaurantPublicProfile({ restaurant, menu }: RestaurantPublicProfilePr
   const appearanceRevealOrder = contactRevealOrder + contactLinks.length
   const addressRevealOrder = appearanceRevealOrder + 1
   const actionsRevealOrder = addressRevealOrder + (address ? 1 : 0)
-  const constructionRevealOrder = actionsRevealOrder + (restaurant.contact.googleReviewUrl ? 4 : 0)
+  const feedbackRevealOrder = actionsRevealOrder + (restaurant.contact.googleReviewUrl ? 4 : 0)
+  const constructionRevealOrder = feedbackRevealOrder + 4
 
   return (
     <main
@@ -103,6 +107,7 @@ function RestaurantPublicProfile({ restaurant, menu }: RestaurantPublicProfilePr
       data-preset={theme.presetId}
       data-density={theme.density}
       data-has-menu={menu ? "true" : "false"}
+      data-table-context={tableContext ? "true" : "false"}
       data-presentation={menu?.presentation}
       style={theme.style as CSSProperties}
     >
@@ -229,6 +234,12 @@ function RestaurantPublicProfile({ restaurant, menu }: RestaurantPublicProfilePr
               </a>
             </li>
           ) : null}
+          <PublicFeedbackAction
+            slug={restaurant.slug}
+            restaurantName={restaurant.name}
+            revealOrder={feedbackRevealOrder}
+            themeStyle={theme.style}
+          />
           {menu ? null : (
             <li
               className={`${styles.actionItem} ${styles.reveal}`}
@@ -247,6 +258,13 @@ function RestaurantPublicProfile({ restaurant, menu }: RestaurantPublicProfilePr
         </section>
         {menu ? <PublicMenu menu={menu} /> : null}
       </div>
+      {menu && tableContext ? (
+        <PublicServiceCall
+          token={tableContext.token}
+          tableNumber={tableContext.tableNumber}
+          style={theme.style as CSSProperties}
+        />
+      ) : null}
     </main>
   )
 }

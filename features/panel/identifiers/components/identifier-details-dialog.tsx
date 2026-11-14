@@ -70,7 +70,11 @@ export function IdentifierDetailsDialog({
         isActive: !selectedIdentifier.isActive,
       })
       if (!result.ok) {
-        setMessage(result.code === "table_conflict" ? "Outra mesa já usa esse número." : "Não foi possível atualizar o identificador. Tente novamente.")
+        setMessage(result.code === "active_call"
+          ? "Conclua o chamado ativo antes de alterar ou desativar este identificador."
+          : result.code === "table_conflict"
+            ? "Outra mesa já usa esse número."
+            : "Não foi possível atualizar o identificador. Tente novamente.")
         return
       }
       onSaved()

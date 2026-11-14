@@ -6,10 +6,12 @@ import { useEffect, useState, type ReactNode } from "react"
 import {
   LuCheck,
   LuContactRound,
+  LuBell,
   LuHouse,
   LuIdCard,
   LuLoaderCircle,
   LuMenu,
+  LuMessageSquareText,
   LuNfc,
   LuUtensils,
   LuX,
@@ -36,20 +38,26 @@ function PanelMobileNavItem({
   section,
   activeSection,
   icon,
+  pendingCount = 0,
+  badgeLabel = "chamados aguardando",
   onNavigate,
 }: {
   href: string
   label: string
-  section: "menu" | "identifiers" | "identity" | "contact"
-  activeSection: "menu" | "identifiers" | "identity" | "contact"
+  section: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback"
+  activeSection: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback"
   icon: ReactNode
+  pendingCount?: number
+  badgeLabel?: string
   onNavigate: () => void
 }) {
   const active = activeSection === section
+  const badgeClass = badgeLabel === "não lidos" ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"
   return (
-    <Link href={href} aria-current={active ? "page" : undefined} onClick={onNavigate} className={`group flex min-h-16 items-center gap-3 rounded-2xl border px-3.5 py-2.5 text-foreground outline-none shadow-sm transition-[background-color,border-color,transform] duration-150 ease-out active:scale-[0.99] motion-reduce:active:scale-100 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none ${active ? "border-primary/20 bg-primary/[0.07] shadow-primary/5" : "border-border/70 bg-background/60 hover:bg-muted/60"}`}>
+    <Link href={href} aria-current={active ? "page" : undefined} aria-label={pendingCount > 0 ? `${label}, ${pendingCount} ${badgeLabel}` : label} onClick={onNavigate} className={`group flex min-h-16 items-center gap-3 rounded-2xl border px-3.5 py-2.5 text-foreground outline-none shadow-sm transition-[background-color,border-color,transform] duration-150 ease-out active:scale-[0.99] motion-reduce:active:scale-100 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none ${active ? "border-primary/20 bg-primary/[0.07] shadow-primary/5" : "border-border/70 bg-background/60 hover:bg-muted/60"}`}>
       <span className={`grid size-11 shrink-0 place-items-center rounded-[0.9rem] shadow-sm ${active ? "bg-primary text-primary-foreground shadow-primary/20" : "bg-muted text-muted-foreground"}`}>{icon}</span>
       <span className="min-w-0 flex-1 text-sm font-semibold tracking-tight">{label}</span>
+      {pendingCount > 0 ? <span aria-hidden="true" className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[0.65rem] font-bold ${badgeClass}`}>{pendingCount > 99 ? "99+" : pendingCount}</span> : null}
       {active ? <span className="grid size-6 place-items-center rounded-full bg-primary/10 text-primary"><LuCheck aria-hidden="true" className="size-3.5" /></span> : null}
     </Link>
   )
@@ -92,17 +100,25 @@ function HomeLinkFeedback({ reducedMotion }: { reducedMotion: boolean }) {
 export function PanelMobileDock({
   cardapioHref,
   identifiersHref,
+  callsHref,
+  feedbackHref,
   identityHref,
   contactHref,
   activeSection,
+  pendingCallCount,
+  unreadFeedbackCount,
   restaurantsHref,
   canSwitchRestaurants,
 }: {
   cardapioHref: string
   identifiersHref: string
+  callsHref: string
+  feedbackHref: string
   identityHref: string
   contactHref: string
-  activeSection: "menu" | "identifiers" | "identity" | "contact"
+  activeSection: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback"
+  pendingCallCount: number
+  unreadFeedbackCount: number
   restaurantsHref: string
   canSwitchRestaurants: boolean
 }) {
@@ -200,11 +216,11 @@ export function PanelMobileDock({
                   <Button
                     type="button"
                     variant="ghost"
-                    aria-label={navigationOpen ? "Fechar navegação" : "Abrir navegação"}
+                    aria-label={navigationOpen ? "Fechar navegação" : pendingCallCount > 0 ? `Abrir navegação, ${pendingCallCount} chamados aguardando` : "Abrir navegação"}
                     aria-haspopup="dialog"
                     aria-expanded={navigationOpen}
                     aria-controls={PANEL_NAV_ID}
-                    className={`h-14 w-full flex-col gap-1 rounded-2xl px-2 transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:active:scale-100 motion-reduce:transition-none ${
+                    className={`relative h-14 w-full flex-col gap-1 rounded-2xl px-2 transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:active:scale-100 motion-reduce:transition-none ${
                       navigationOpen
                         ? "bg-primary/10 text-primary hover:bg-primary/15"
                         : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
@@ -215,6 +231,7 @@ export function PanelMobileDock({
               >
                 <LuMenu aria-hidden="true" className="size-5" />
                 <span className="text-[0.625rem] font-medium leading-none">Navegar</span>
+                {pendingCallCount > 0 ? <span aria-hidden="true" className="absolute top-1.5 right-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[0.625rem] font-bold leading-none text-destructive-foreground">{pendingCallCount > 99 ? "99+" : pendingCallCount}</span> : null}
               </SheetTrigger>
             </div>
           </div>
@@ -256,6 +273,13 @@ export function PanelMobileDock({
               <div className="grid gap-2">
                 <PanelMobileNavItem href={cardapioHref} label="Cardápio" section="menu" activeSection={activeSection} icon={<LuUtensils aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
                 <PanelMobileNavItem href={identifiersHref} label="Identificadores" section="identifiers" activeSection={activeSection} icon={<LuNfc aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
+                <PanelMobileNavItem href={callsHref} label="Chamados" section="calls" activeSection={activeSection} pendingCount={pendingCallCount} badgeLabel="chamados aguardando" icon={<LuBell aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
+              </div>
+            </motion.div>
+            <motion.div variants={itemVariants} className="space-y-2">
+              <p className="px-1 text-[0.65rem] font-semibold tracking-[0.13em] text-muted-foreground uppercase">Clientes</p>
+              <div className="grid gap-2">
+                <PanelMobileNavItem href={feedbackHref} label="Feedbacks" section="feedback" activeSection={activeSection} pendingCount={unreadFeedbackCount} badgeLabel="não lidos" icon={<LuMessageSquareText aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
               </div>
             </motion.div>
             <motion.div variants={itemVariants} className="space-y-2">

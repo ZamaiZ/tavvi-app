@@ -36,6 +36,7 @@ export type IdentifierActionFailureCode =
   | "forbidden"
   | "not_found"
   | "table_conflict"
+  | "active_call"
   | "serial_in_use"
   | "token_conflict"
   | "inactive"

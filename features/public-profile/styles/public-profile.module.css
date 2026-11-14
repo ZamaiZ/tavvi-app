@@ -26,6 +26,156 @@
   transition: background-color 260ms ease, color 220ms ease;
 }
 
+.serviceCallDock {
+  position: fixed;
+  z-index: 50;
+  right: max(0.75rem, env(safe-area-inset-right));
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: max(0.75rem, env(safe-area-inset-left));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.serviceCallCard {
+  width: min(100%, 34rem);
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--profile-line) 78%, transparent);
+  border-radius: 1.35rem;
+  background: color-mix(in srgb, var(--profile-surface) 90%, transparent);
+  color: var(--profile-ink);
+  box-shadow: 0 16px 52px color-mix(in srgb, var(--profile-ink) 16%, transparent), 0 2px 10px color-mix(in srgb, var(--profile-ink) 7%, transparent);
+  backdrop-filter: blur(24px) saturate(1.25);
+  -webkit-backdrop-filter: blur(24px) saturate(1.25);
+  pointer-events: auto;
+}
+
+.serviceCallHeading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.serviceCallTableIcon {
+  display: grid;
+  width: 2.65rem;
+  height: 2.65rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--profile-accent) 22%, transparent);
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--profile-accent) 11%, var(--profile-surface));
+  color: var(--profile-accent);
+  font-size: 1.1rem;
+}
+
+.serviceCallText {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 0.15rem;
+}
+
+.serviceCallText strong {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.serviceCallText > span {
+  overflow: hidden;
+  color: var(--profile-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+}
+
+.serviceCallState {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--profile-line) 78%, transparent);
+  border-radius: 999px;
+  padding: 0.32rem 0.5rem;
+  color: var(--profile-muted);
+  font-size: 0.62rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.serviceCallState svg,
+.serviceCallConnection svg,
+.serviceCallError svg {
+  width: 0.82rem;
+  height: 0.82rem;
+  flex: 0 0 auto;
+}
+
+.serviceCallPending {
+  border-color: color-mix(in srgb, #d97706 24%, transparent);
+  background: color-mix(in srgb, #f59e0b 10%, var(--profile-surface));
+  color: color-mix(in srgb, #b45309 86%, var(--profile-ink));
+}
+
+.serviceCallInProgress {
+  border-color: color-mix(in srgb, #15803d 22%, transparent);
+  background: color-mix(in srgb, #22c55e 9%, var(--profile-surface));
+  color: color-mix(in srgb, #15803d 86%, var(--profile-ink));
+}
+
+.serviceCallButton {
+  width: 100%;
+  min-height: 2.9rem;
+  border: 0;
+  border-radius: 0.95rem;
+  background: var(--profile-accent);
+  color: var(--profile-on-accent);
+  box-shadow: 0 5px 15px color-mix(in srgb, var(--profile-accent) 20%, transparent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: transform 140ms var(--profile-ease-out), opacity 140ms ease, box-shadow 160ms ease;
+}
+
+.serviceCallButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--profile-accent) 92%, black);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--profile-accent) 27%, transparent);
+}
+
+.serviceCallButton:active:not(:disabled) { transform: scale(0.985); }
+.serviceCallButton:disabled { cursor: not-allowed; opacity: 0.72; }
+.serviceCallButton:focus-visible { outline: 3px solid color-mix(in srgb, var(--profile-accent) 42%, transparent); outline-offset: 3px; }
+
+.serviceCallError,
+.serviceCallConnection {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  color: var(--profile-muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.serviceCallError { color: #b42318; }
+.serviceCallError button { margin-left: auto; flex: 0 0 auto; color: var(--profile-accent); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+
+@media (min-width: 640px) {
+  .serviceCallCard { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 0.75rem 0.8rem 0.75rem 0.9rem; }
+  .serviceCallHeading { grid-row: span 2; }
+  .serviceCallButton { width: auto; min-width: 12rem; }
+  .serviceCallError,
+  .serviceCallConnection { grid-column: 1 / -1; grid-row: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .serviceCallButton { transition: opacity 140ms ease; }
+  .serviceCallButton:active:not(:disabled) { transform: none; }
+}
+
 .profile[data-has-menu="true"] {
   height: 100svh;
   height: 100dvh;
@@ -43,6 +193,16 @@
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   scroll-behavior: smooth;
+}
+
+.profile[data-has-menu="true"][data-table-context="true"] .publicExperience {
+  height: calc(100% - 9rem - env(safe-area-inset-bottom));
+}
+
+@media (min-width: 640px) {
+  .profile[data-has-menu="true"][data-table-context="true"] .publicExperience {
+    height: calc(100% - 7.25rem - env(safe-area-inset-bottom));
+  }
 }
 
 .publicExperience::-webkit-scrollbar,
@@ -302,6 +462,7 @@
   background: var(--profile-chip);
   color: var(--profile-ink);
   text-decoration: none;
+  cursor: pointer;
   transition: transform 160ms var(--profile-ease-out), border-color 160ms ease, background-color 180ms ease, color 180ms ease;
 }
 
@@ -363,6 +524,16 @@
   text-align: left;
   text-decoration: none;
   transition: background-color 220ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--profile-accent);
+  outline-offset: 3px;
+}
+
+.action:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--profile-accent) 43%, var(--profile-line));
+  background: color-mix(in srgb, var(--profile-accent) 8%, var(--profile-chip));
 }
 
 .actionIcon {

@@ -44,7 +44,7 @@ type Context = {
 
 const FAILURE_CODES = new Set<IdentifierActionFailureCode>([
   "invalid_input", "session_expired", "context_changed", "unavailable", "database_error", "forbidden",
-  "not_found", "table_conflict", "serial_in_use", "token_conflict", "inactive",
+  "not_found", "table_conflict", "active_call", "serial_in_use", "token_conflict", "inactive",
   "already_protected", "operation_exists", "operation_not_found", "operation_state", "serial_mismatch",
 ])
 

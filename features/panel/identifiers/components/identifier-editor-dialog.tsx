@@ -11,6 +11,7 @@ import { createIdentifierAction, updateIdentifierAction } from "../actions"
 
 function failureMessage(code: string) {
   if (code === "table_conflict") return "Já existe uma mesa ativa com esse número. Escolha outro número."
+  if (code === "active_call") return "Conclua o chamado ativo antes de alterar ou desativar este identificador."
   if (code === "session_expired") return "Sua sessão expirou. Entre novamente para salvar."
   if (code === "context_changed") return "O restaurante ativo mudou. Atualize a página antes de salvar."
   if (code === "invalid_input") return "Informe um número de mesa válido."

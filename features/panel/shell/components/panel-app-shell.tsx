@@ -6,11 +6,13 @@ import { useState } from "react"
 import { usePathname } from "next/navigation"
 import { MotionConfig, motion, useReducedMotion } from "motion/react"
 import {
+  LuBell,
   LuContactRound,
   LuIdCard,
   LuChevronsUpDown,
   LuNfc,
   LuUtensils,
+  LuMessageSquareText,
 } from "react-icons/lu"
 
 import { BrandImage } from "@/features/public-profile/components/brand-image"
@@ -18,6 +20,7 @@ import { restaurantInitials } from "@/features/panel/shell/lib/restaurant-initia
 import { PanelRestaurantSwitcher } from "@/features/panel/shell/components/panel-restaurant-switcher"
 import { PanelAccountMenu } from "@/features/panel/shell/components/panel-account-menu"
 import { PanelMobileDock } from "@/features/panel/shell/components/panel-mobile-dock"
+import { CallsRealtimeProvider, useCallsRealtime } from "@/features/panel/calls/components/calls-realtime-provider"
 import type { PanelRestaurantListItem } from "@/features/panel/workspace/server/restaurants"
 import { Button } from "@/components/ui/button"
 import {
@@ -54,6 +57,8 @@ type PanelAppShellProps = {
   publicBasePath: "" | "/painel"
   restaurant: PanelRestaurantIdentity
   restaurants: PanelRestaurantListItem[]
+  initialPendingCallCount: number
+  initialUnreadFeedbackCount: number
 }
 
 const SHELL_EASE = [0.23, 1, 0.32, 1] as const
@@ -157,21 +162,37 @@ function PanelBrand({
   )
 }
 
-export function PanelAppShell({
+export function PanelAppShell(props: PanelAppShellProps) {
+  return (
+    <CallsRealtimeProvider
+      key={props.restaurant.id}
+      restaurantId={props.restaurant.id}
+      initialPendingCount={props.initialPendingCallCount}
+    >
+      <PanelAppShellFrame {...props} />
+    </CallsRealtimeProvider>
+  )
+}
+
+function PanelAppShellFrame({
   children,
   publicBasePath,
   restaurant,
   restaurants,
+  initialUnreadFeedbackCount,
 }: PanelAppShellProps) {
+  const { pendingCount } = useCallsRealtime()
   const prefersReducedMotion = useReducedMotion()
   const reducedMotion = prefersReducedMotion === true
   const cardapioHref = `${publicBasePath}/cardapio`
   const identifiersHref = `${publicBasePath}/identificadores`
+  const callsHref = `${publicBasePath}/chamados`
   const restaurantsHref = getPanelRestaurantsPath(publicBasePath)
   const identityHref = `${publicBasePath}/identidade`
   const contactHref = `${publicBasePath}/contato`
+  const feedbackHref = `${publicBasePath}/feedback`
   const pathname = usePathname()
-  const activeSection: "menu" | "identifiers" | "identity" | "contact" = pathname.endsWith("/identificadores") ? "identifiers" : pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : "menu"
+  const activeSection: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback" = pathname.endsWith("/feedback") ? "feedback" : pathname.endsWith("/identificadores") ? "identifiers" : pathname.endsWith("/chamados") ? "calls" : pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : "menu"
   const canSwitchRestaurants = restaurants.length > 1
 
   const sequenceVariants = {
@@ -232,6 +253,25 @@ export function PanelAppShell({
                           <LuNfc aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Identificadores</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton render={<Link href={callsHref} aria-current={activeSection === "calls" ? "page" : undefined} />} isActive={activeSection === "calls"} tooltip="Chamados" className="relative transition-colors duration-150">
+                          <LuBell aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Chamados</span>
+                          {pendingCount > 0 ? <><span aria-hidden="true" className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[0.625rem] font-bold leading-none text-destructive-foreground group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:right-0">{pendingCount > 99 ? "99+" : pendingCount}</span><span className="sr-only">{pendingCount} chamados aguardando</span></> : null}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+                <SidebarGroup>
+                  <SidebarGroupLabel>Clientes</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton render={<Link href={feedbackHref} aria-current={activeSection === "feedback" ? "page" : undefined} />} isActive={activeSection === "feedback"} tooltip="Feedbacks" className="relative transition-colors duration-150">
+                          <LuMessageSquareText aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Feedbacks</span>
+                          {initialUnreadFeedbackCount > 0 ? <><span aria-hidden="true" className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] font-bold leading-none text-primary-foreground group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:right-0">{initialUnreadFeedbackCount > 99 ? "99+" : initialUnreadFeedbackCount}</span><span className="sr-only">{initialUnreadFeedbackCount} feedbacks não lidos</span></> : null}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </SidebarGroup>
@@ -278,9 +318,13 @@ export function PanelAppShell({
         <PanelMobileDock
           cardapioHref={cardapioHref}
           identifiersHref={identifiersHref}
+          callsHref={callsHref}
+          feedbackHref={feedbackHref}
           identityHref={identityHref}
           contactHref={contactHref}
+          unreadFeedbackCount={initialUnreadFeedbackCount}
           activeSection={activeSection}
+          pendingCallCount={pendingCount}
           restaurantsHref={restaurantsHref}
           canSwitchRestaurants={canSwitchRestaurants}
         />

@@ -38,6 +38,7 @@ const EASE = [0.23, 1, 0.32, 1] as const
 
 function toggleFailureMessage(code: IdentifierActionFailureCode) {
   if (code === "table_conflict") return "Outra mesa já usa esse número."
+  if (code === "active_call") return "Conclua o chamado ativo antes de alterar ou desativar este identificador."
   if (code === "session_expired") return "Sua sessão expirou. Entre novamente."
   if (code === "context_changed")
     return "O restaurante ativo mudou. Atualize a página."

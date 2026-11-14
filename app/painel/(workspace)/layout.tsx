@@ -5,6 +5,8 @@ import { redirect } from "next/navigation"
 import { getPanelPublicBasePath } from "@/features/panel/auth/navigation"
 import { PanelAppShell } from "@/features/panel/shell/components/panel-app-shell"
 import { getActivePanelRestaurant, getPanelRestaurantsForCurrentUser } from "@/features/panel/workspace/server/restaurants"
+import { getPanelPendingServiceCallsCount } from "@/features/panel/calls/server/read"
+import { getUnreadFeedbackCount } from "@/features/panel/feedback/server/read"
 import { getRequestHostname } from "@/lib/routing/host"
 import { requireAuthenticatedSurface } from "@/lib/supabase/require-authenticated-surface"
 
@@ -36,11 +38,21 @@ export default async function PanelWorkspaceLayout({ children }: { children: Rea
     console.error("[panel-shell]", JSON.stringify({ stage: "restaurant_switcher_list_unavailable" }))
   }
 
+  let pendingCallCount = 0
+  try {
+    pendingCallCount = await getPanelPendingServiceCallsCount(restaurant.id)
+  } catch {
+    console.error("[panel-shell]", JSON.stringify({ stage: "service_call_count_unavailable" }))
+  }
+  const unreadFeedbackCount = await getUnreadFeedbackCount(restaurant.id)
+
   return (
     <PanelAppShell
       publicBasePath={base}
       restaurant={{ id: restaurant.id, name: restaurant.name, slug: restaurant.slug, hasLogo: Boolean(restaurant.logoPath) }}
       restaurants={restaurants}
+      initialPendingCallCount={pendingCallCount}
+      initialUnreadFeedbackCount={unreadFeedbackCount}
     >
       {children}
     </PanelAppShell>
