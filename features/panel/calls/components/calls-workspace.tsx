@@ -338,15 +338,6 @@ export function CallsWorkspace({
               </CardContent>
             </Card>
           </motion.section>
-
-          <motion.div variants={itemVariants} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/75 px-4 py-3 shadow-sm">
-            <div className="flex min-h-11 items-center gap-2.5 rounded-xl px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground motion-reduce:transition-none">
-              {soundEnabled ? <LuVolume2 aria-hidden="true" className="size-4 text-primary" /> : <LuVolumeX aria-hidden="true" className="size-4" />}
-              <span id="calls-sound-toggle-label">Som de novos chamados</span>
-              <Switch checked={soundEnabled} onCheckedChange={(checked) => void toggleSound(checked)} aria-labelledby="calls-sound-toggle-label" />
-            </div>
-          </motion.div>
-
           <motion.div variants={itemVariants}>
             <Tabs value={activeTab} onValueChange={changeTab} aria-label="Filtrar chamados" className="gap-4">
               <TabsList className="grid h-11 w-full max-w-[30rem] grid-cols-3 gap-1 rounded-xl bg-muted/55 p-1 sm:inline-flex sm:w-fit sm:justify-start">
