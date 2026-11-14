@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react"
-import { LuCircleAlert, LuInbox, LuLoaderCircle, LuMessageSquareText, LuRefreshCw, LuSparkles } from "react-icons/lu"
+import { LuCircleAlert, LuInbox, LuLoaderCircle, LuMail, LuMessageSquareText, LuRefreshCw, LuSparkles } from "react-icons/lu"
 
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyContent, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -235,10 +235,17 @@ export function FeedbackWorkspace({
           </motion.section>
 
           <motion.section variants={item} aria-label="Filtrar feedbacks" className="flex flex-wrap items-center justify-between gap-3">
-            <Tabs value={filter} onValueChange={changeFilter}>
-              <TabsList className="h-11 rounded-xl border border-border/70 bg-muted/45 p-1">
-                <TabsTrigger value="all" disabled={loading || loadingMore || Boolean(busyFeedbackId)} className="h-9 gap-2 rounded-lg px-3.5 data-active:bg-background data-active:shadow-sm">Todos</TabsTrigger>
-                <TabsTrigger value="unread" disabled={loading || loadingMore || Boolean(busyFeedbackId)} className="h-9 gap-2 rounded-lg px-3.5 data-active:bg-background data-active:shadow-sm"><span>Não lidos</span><span className="min-w-5 rounded-full bg-foreground/[0.055] px-1.5 py-0.5 text-[0.62rem] tabular-nums">{unreadCount > 99 ? "99+" : unreadCount}</span></TabsTrigger>
+            <Tabs value={filter} onValueChange={changeFilter} aria-label="Filtrar feedbacks" className="w-full sm:w-fit">
+              <TabsList className="grid h-14 w-full max-w-[30rem] grid-cols-2 gap-1 rounded-xl bg-muted/55 p-1 sm:inline-flex sm:h-11 sm:w-fit sm:justify-start">
+                <TabsTrigger value="all" disabled={loading || loadingMore || Boolean(busyFeedbackId)} className="h-12 min-w-0 flex-col gap-1 rounded-lg px-1 text-[0.625rem] data-active:bg-background data-active:text-foreground data-active:shadow-sm sm:h-9 sm:flex-none sm:flex-row sm:gap-2 sm:px-3.5 sm:text-xs">
+                  <LuMessageSquareText aria-hidden="true" className="size-3.5 shrink-0 sm:size-4" />
+                  <span className="max-w-full whitespace-normal text-center leading-[1.1] sm:truncate sm:whitespace-nowrap sm:text-left sm:leading-normal">Todos</span>
+                </TabsTrigger>
+                <TabsTrigger value="unread" disabled={loading || loadingMore || Boolean(busyFeedbackId)} className="h-12 min-w-0 flex-col gap-1 rounded-lg px-1 text-[0.625rem] data-active:bg-background data-active:text-foreground data-active:shadow-sm sm:h-9 sm:flex-none sm:flex-row sm:gap-2 sm:px-3.5 sm:text-xs">
+                  <LuMail aria-hidden="true" className="size-3.5 shrink-0 sm:size-4" />
+                  <span className="max-w-full whitespace-normal text-center leading-[1.1] sm:truncate sm:whitespace-nowrap sm:text-left sm:leading-normal">Não lidos</span>
+                  <span className="absolute top-0.5 right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-foreground/5 px-1 py-0.5 text-[0.55rem] leading-none tabular-nums sm:static sm:px-1.5 sm:py-0.5 sm:text-[0.625rem]">{unreadCount > 99 ? "99+" : unreadCount}</span>
+                </TabsTrigger>
               </TabsList>
             </Tabs>
             <div className="flex min-h-10 items-center gap-2 text-[0.7rem] text-muted-foreground" aria-live="polite">
