@@ -13,6 +13,7 @@ import {
   LuNfc,
   LuUtensils,
   LuMessageSquareText,
+  LuUsers,
 } from "react-icons/lu"
 
 import { BrandImage } from "@/features/public-profile/components/brand-image"
@@ -191,8 +192,9 @@ function PanelAppShellFrame({
   const identityHref = `${publicBasePath}/identidade`
   const contactHref = `${publicBasePath}/contato`
   const feedbackHref = `${publicBasePath}/feedback`
+  const teamHref = `${publicBasePath}/equipe`
   const pathname = usePathname()
-  const activeSection: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback" = pathname.endsWith("/feedback") ? "feedback" : pathname.endsWith("/identificadores") ? "identifiers" : pathname.endsWith("/chamados") ? "calls" : pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : "menu"
+  const activeSection: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback" | "team" = pathname.endsWith("/equipe") ? "team" : pathname.endsWith("/feedback") ? "feedback" : pathname.endsWith("/identificadores") ? "identifiers" : pathname.endsWith("/chamados") ? "calls" : pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : "menu"
   const canSwitchRestaurants = restaurants.length > 1
 
   const sequenceVariants = {
@@ -292,6 +294,18 @@ function PanelAppShellFrame({
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </SidebarGroup>
+                <SidebarGroup>
+                  <SidebarGroupLabel>Restaurante</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton render={<Link href={teamHref} aria-current={activeSection === "team" ? "page" : undefined} />} isActive={activeSection === "team"} tooltip="Equipe" className="transition-colors duration-150">
+                          <LuUsers aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Equipe</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
               </SidebarContent>
             </motion.div>
 
@@ -320,6 +334,7 @@ function PanelAppShellFrame({
           identifiersHref={identifiersHref}
           callsHref={callsHref}
           feedbackHref={feedbackHref}
+          teamHref={teamHref}
           identityHref={identityHref}
           contactHref={contactHref}
           unreadFeedbackCount={initialUnreadFeedbackCount}

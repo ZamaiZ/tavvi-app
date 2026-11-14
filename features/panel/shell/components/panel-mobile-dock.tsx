@@ -14,6 +14,7 @@ import {
   LuMessageSquareText,
   LuNfc,
   LuUtensils,
+  LuUsers,
   LuX,
 } from "react-icons/lu"
 
@@ -44,8 +45,8 @@ function PanelMobileNavItem({
 }: {
   href: string
   label: string
-  section: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback"
-  activeSection: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback"
+  section: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback" | "team"
+  activeSection: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback" | "team"
   icon: ReactNode
   pendingCount?: number
   badgeLabel?: string
@@ -102,6 +103,7 @@ export function PanelMobileDock({
   identifiersHref,
   callsHref,
   feedbackHref,
+  teamHref,
   identityHref,
   contactHref,
   activeSection,
@@ -114,9 +116,10 @@ export function PanelMobileDock({
   identifiersHref: string
   callsHref: string
   feedbackHref: string
+  teamHref: string
   identityHref: string
   contactHref: string
-  activeSection: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback"
+  activeSection: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback" | "team"
   pendingCallCount: number
   unreadFeedbackCount: number
   restaurantsHref: string
@@ -287,6 +290,12 @@ export function PanelMobileDock({
               <div className="grid gap-2">
                 <PanelMobileNavItem href={identityHref} label="Identidade" section="identity" activeSection={activeSection} icon={<LuIdCard aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
                 <PanelMobileNavItem href={contactHref} label="Contato" section="contact" activeSection={activeSection} icon={<LuContactRound aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
+              </div>
+            </motion.div>
+            <motion.div variants={itemVariants} className="space-y-2">
+              <p className="px-1 text-[0.65rem] font-semibold tracking-[0.13em] text-muted-foreground uppercase">Restaurante</p>
+              <div className="grid gap-2">
+                <PanelMobileNavItem href={teamHref} label="Equipe" section="team" activeSection={activeSection} icon={<LuUsers aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
               </div>
             </motion.div>
           </motion.nav>
