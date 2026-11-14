@@ -340,14 +340,6 @@ export function CallsWorkspace({
           </motion.section>
 
           <motion.div variants={itemVariants} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/75 px-4 py-3 shadow-sm">
-            <div className="flex min-w-0 items-center gap-2.5">
-              {connected ? <LuWifi aria-hidden="true" className="size-4 shrink-0 text-emerald-600" /> : <LuWifiOff aria-hidden="true" className="size-4 shrink-0 text-amber-600" />}
-              <div className="min-w-0">
-                <p className="text-xs font-semibold">{connected ? "Atualização em tempo real ativa" : "Reconectando à fila"}</p>
-                <p className="mt-0.5 text-[0.68rem] text-muted-foreground">{connected ? "Novos chamados aparecem sem atualizar a página." : "A fila será sincronizada automaticamente ao reconectar."}</p>
-              </div>
-              {!connected ? <Button type="button" variant="ghost" size="icon-sm" aria-label="Sincronizar fila agora" title="Sincronizar fila agora" onClick={() => void refresh()} className="ml-1 shrink-0 rounded-lg"><LuRefreshCw aria-hidden="true" /></Button> : null}
-            </div>
             <div className="flex min-h-11 items-center gap-2.5 rounded-xl px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground motion-reduce:transition-none">
               {soundEnabled ? <LuVolume2 aria-hidden="true" className="size-4 text-primary" /> : <LuVolumeX aria-hidden="true" className="size-4" />}
               <span id="calls-sound-toggle-label">Som de novos chamados</span>
