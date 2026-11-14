@@ -5,10 +5,21 @@ export type PanelServiceCallDTO = {
   restaurantId: string
   tagId: string
   tableNumber: number
-  status: Exclude<ServiceCallStatus, "resolved">
+  status: ServiceCallStatus
   createdAt: string
   claimedAt: string | null
   claimedBy: string | null
+  resolvedAt: string | null
+}
+
+export type PanelServiceCallCursor = {
+  resolvedAt: string
+  id: string
+}
+
+export type PanelResolvedCallsPage = {
+  calls: PanelServiceCallDTO[]
+  nextCursor: PanelServiceCallCursor | null
 }
 
 export type ServiceCallFailureCode =

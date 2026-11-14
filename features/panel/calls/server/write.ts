@@ -2,14 +2,15 @@ import "server-only"
 
 import { getActivePanelRestaurant } from "@/features/panel/workspace/server/restaurants"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
-import { getPanelPendingServiceCallsCount } from "./read"
+import { getPanelPendingServiceCallsCount, getPanelResolvedServiceCallsPage } from "./read"
 
-import type { ServiceCallActionResult, ServiceCallFailureCode } from "../model"
-import type { panelCallMutationSchema, panelCallsContextSchema } from "../schema"
+import type { PanelResolvedCallsPage, ServiceCallActionResult, ServiceCallFailureCode } from "../model"
+import type { panelCallMutationSchema, panelCallsContextSchema, panelResolvedCallsSchema } from "../schema"
 import type { z } from "zod"
 
 type ContextInput = z.infer<typeof panelCallsContextSchema>
 type MutationInput = z.infer<typeof panelCallMutationSchema>
+type ResolvedCallsInput = z.infer<typeof panelResolvedCallsSchema>
 type RpcPayload = { ok?: unknown; code?: unknown; call?: { id?: unknown } }
 
 const FAILURE_CODES = new Set<ServiceCallFailureCode>([
@@ -76,6 +77,18 @@ export async function getPanelPendingServiceCallsCountForAction(input: ContextIn
     return { ok: true as const, data: await getPanelPendingServiceCallsCount(restaurant.id) }
   } catch (cause) {
     return contextFailure<never>(cause)
+  }
+}
+
+export async function getPanelResolvedServiceCallsForAction(
+  input: ResolvedCallsInput,
+): Promise<ServiceCallActionResult<PanelResolvedCallsPage>> {
+  try {
+    const restaurant = await getActivePanelRestaurant(input.expectedRestaurantId)
+    if (!restaurant || restaurant.status !== "active") throw new Error("panel_restaurant_context_changed")
+    return { ok: true, data: await getPanelResolvedServiceCallsPage(restaurant.id, input.cursor) }
+  } catch (cause) {
+    return contextFailure<PanelResolvedCallsPage>(cause)
   }
 }
 
