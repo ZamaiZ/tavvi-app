@@ -84,7 +84,7 @@ function CallCard({
       variants={itemVariants}
     >
       <Card className="rounded-2xl border border-border/70 bg-card shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-primary/20 hover:shadow-md motion-reduce:transition-none">
-        <CardContent className="space-y-4 p-4 p-5">
+        <CardContent className="space-y-4 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[0.65rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase">Identificador de mesa</p>
