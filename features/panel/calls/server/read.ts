@@ -104,3 +104,19 @@ export async function getPanelPendingServiceCallsCount(restaurantId: string): Pr
 
   return count
 }
+
+export async function getPanelResolvedServiceCallsCount(restaurantId: string): Promise<number> {
+  const supabase = await createSupabaseServerClient("panel")
+  const { count, error } = await supabase
+    .from("service_calls")
+    .select("id", { count: "exact", head: true })
+    .eq("restaurant_id", restaurantId)
+    .eq("status", "resolved")
+
+  if (error || count === null) {
+    console.error("[panel-service-calls]", JSON.stringify({ stage: "resolved_count", code: error?.code }))
+    throw new Error("panel_service_calls_unavailable")
+  }
+
+  return count
+}

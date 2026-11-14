@@ -27,6 +27,7 @@
 4. A failed history request must preserve loaded rows, expose retry feedback, and retry the same cursor that failed.
 5. Finalized cards must never render the active claim/resolve mutation button.
 6. Realtime reconnection while the resolved tab is open must refresh the first history page.
+7. The Finalizados badge must count all resolved rows, not only loaded pages, and refresh with the existing realtime route refresh.
 
 ---
 
@@ -60,7 +61,7 @@
 
 **Produces:** Three tab states `pending`, `in_progress`, and `resolved`; resolved history fetched on first selection and on “Carregar mais”.
 
-- [x] Replace the hidden horizontal-scroll wrapper with a full-width three-column filter that keeps all labels visible on small screens; hide only redundant icon/count details at the narrow breakpoint.
+- [x] Replace the hidden horizontal-scroll wrapper with a full-width three-column filter; stack icon and label on small screens and place the count badge in the corner so all content fits.
 - [x] Add resolved-history state for loaded rows, cursor, loading, and recoverable error; fetch page one only when the resolved tab is selected, refresh after reconnect while open, and append later pages without replacing loaded rows.
 - [x] Render finalized calls as read-only cards with mesa and conclusion time; keep existing actions available only for active calls.
 - [x] Add loading, empty, retry, and “Carregar mais” states; preserve current active queue empty states and realtime refresh behavior.
@@ -72,6 +73,19 @@
 - Modify: `docs/superpowers/specs/2026-11-13-chamados-filtros-design.md`
 
 - [x] Mark the approved short design as implemented and record that the project-mandated validation was static review only.
+
+### Task 4: Show the total finalized count in the filter
+
+**Files:**
+- Modify: `app/painel/(workspace)/chamados/page.tsx`
+- Modify: `features/panel/calls/server/read.ts`
+- Modify: `features/panel/calls/components/calls-workspace.tsx`
+- Modify: `docs/superpowers/specs/2026-11-13-chamados-filtros-design.md`
+
+- [x] Read the exact total of `resolved` rows under the authenticated member session, independent of the 25-row history page.
+- [x] Pass the count from the Server Component and show it in the Finalizados tab using the same responsive badge treatment as the other tabs.
+- [x] Keep the count current by syncing the prop on `router.refresh()`, already triggered by Realtime events and reconnects.
+- [x] Static review: verify status/restaurant filters, count error handling, prop flow, and badge rendering.
 
 ### Final review
 

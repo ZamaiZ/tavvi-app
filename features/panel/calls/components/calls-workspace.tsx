@@ -155,10 +155,12 @@ function EmptyQueue({ activeTab, allCount }: { activeTab: CallTab; allCount: num
 export function CallsWorkspace({
   restaurantId,
   initialCalls,
+  initialResolvedCount,
   initialNow,
 }: {
   restaurantId: string
   initialCalls: PanelServiceCallDTO[]
+  initialResolvedCount: number
   initialNow: number
 }) {
   const prefersReducedMotion = useReducedMotion()
@@ -166,6 +168,7 @@ export function CallsWorkspace({
   const { connected, refresh } = useCallsRealtime()
   const [calls, setCalls] = useState(initialCalls)
   const [activeTab, setActiveTab] = useState<CallTab>("pending")
+  const [resolvedCount, setResolvedCount] = useState(initialResolvedCount)
   const [resolvedCalls, setResolvedCalls] = useState<PanelServiceCallDTO[]>([])
   const [resolvedCursor, setResolvedCursor] = useState<PanelServiceCallCursor | null>(null)
   const [resolvedLoaded, setResolvedLoaded] = useState(false)
@@ -182,6 +185,7 @@ export function CallsWorkspace({
   const previousLiveState = useRef({ activeCallsSignature, connected, restaurantId })
 
   useEffect(() => setCalls(initialCalls), [initialCalls])
+  useEffect(() => setResolvedCount(initialResolvedCount), [initialResolvedCount])
   useEffect(() => {
     resolvedRequestId.current += 1
     setResolvedCalls([])
@@ -340,15 +344,15 @@ export function CallsWorkspace({
           </motion.section>
           <motion.div variants={itemVariants}>
             <Tabs value={activeTab} onValueChange={changeTab} aria-label="Filtrar chamados" className="gap-4">
-              <TabsList className="grid h-11 w-full max-w-[30rem] grid-cols-3 gap-1 rounded-xl bg-muted/55 p-1 sm:inline-flex sm:w-fit sm:justify-start">
-                <TabsTrigger value="pending" className="h-9 min-w-0 gap-1 rounded-lg px-1 text-[0.625rem] data-active:bg-background data-active:text-foreground data-active:shadow-sm sm:flex-none sm:gap-2 sm:px-2.5 sm:text-xs">
-                  <LuBell aria-hidden="true" className="hidden sm:inline-flex" /><span className="truncate">Aguardando</span><span className="hidden rounded-full bg-foreground/5 px-1.5 py-0.5 text-[0.625rem] tabular-nums sm:inline-flex">{pendingCalls.length}</span>
+              <TabsList className="grid h-14 w-full max-w-[30rem] grid-cols-3 gap-1 rounded-xl bg-muted/55 p-1 sm:inline-flex sm:h-11 sm:w-fit sm:justify-start">
+                <TabsTrigger value="pending" className="h-12 min-w-0 flex-col gap-1 rounded-lg px-0.5 text-[0.625rem] data-active:bg-background data-active:text-foreground data-active:shadow-sm sm:h-9 sm:flex-none sm:flex-row sm:gap-2 sm:px-2.5 sm:text-xs">
+                  <LuBell aria-hidden="true" className="size-3.5 shrink-0 sm:size-4" /><span className="max-w-full whitespace-normal text-center leading-[1.1] sm:truncate sm:whitespace-nowrap sm:text-left sm:leading-normal">Aguardando</span><span className="absolute top-0.5 right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-foreground/5 px-1 py-0.5 text-[0.55rem] leading-none tabular-nums sm:static sm:px-1.5 sm:py-0.5 sm:text-[0.625rem]">{pendingCalls.length}</span>
                 </TabsTrigger>
-                <TabsTrigger value="in_progress" className="h-9 min-w-0 gap-1 rounded-lg px-1 text-[0.625rem] data-active:bg-background data-active:text-foreground data-active:shadow-sm sm:flex-none sm:gap-2 sm:px-2.5 sm:text-xs">
-                  <LuCheck aria-hidden="true" className="hidden sm:inline-flex" /><span className="truncate">Em atendimento</span><span className="hidden rounded-full bg-foreground/5 px-1.5 py-0.5 text-[0.625rem] tabular-nums sm:inline-flex">{inProgressCalls.length}</span>
+                <TabsTrigger value="in_progress" className="h-12 min-w-0 flex-col gap-1 rounded-lg px-0.5 text-[0.625rem] data-active:bg-background data-active:text-foreground data-active:shadow-sm sm:h-9 sm:flex-none sm:flex-row sm:gap-2 sm:px-2.5 sm:text-xs">
+                  <LuCheck aria-hidden="true" className="size-3.5 shrink-0 sm:size-4" /><span className="max-w-full whitespace-normal text-center leading-[1.1] sm:truncate sm:whitespace-nowrap sm:text-left sm:leading-normal">Em atendimento</span><span className="absolute top-0.5 right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-foreground/5 px-1 py-0.5 text-[0.55rem] leading-none tabular-nums sm:static sm:px-1.5 sm:py-0.5 sm:text-[0.625rem]">{inProgressCalls.length}</span>
                 </TabsTrigger>
-                <TabsTrigger value="resolved" className="h-9 min-w-0 gap-1 rounded-lg px-1 text-[0.625rem] data-active:bg-background data-active:text-foreground data-active:shadow-sm sm:flex-none sm:gap-2 sm:px-2.5 sm:text-xs">
-                  <LuCheckCheck aria-hidden="true" className="hidden sm:inline-flex" /><span className="truncate">Finalizados</span>
+                <TabsTrigger value="resolved" className="h-12 min-w-0 flex-col gap-1 rounded-lg px-0.5 text-[0.625rem] data-active:bg-background data-active:text-foreground data-active:shadow-sm sm:h-9 sm:flex-none sm:flex-row sm:gap-2 sm:px-2.5 sm:text-xs">
+                  <LuCheckCheck aria-hidden="true" className="size-3.5 shrink-0 sm:size-4" /><span className="max-w-full whitespace-normal text-center leading-[1.1] sm:truncate sm:whitespace-nowrap sm:text-left sm:leading-normal">Finalizados</span><span className="absolute top-0.5 right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-foreground/5 px-1 py-0.5 text-[0.55rem] leading-none tabular-nums sm:static sm:px-1.5 sm:py-0.5 sm:text-[0.625rem]">{resolvedCount}</span>
                 </TabsTrigger>
               </TabsList>
 

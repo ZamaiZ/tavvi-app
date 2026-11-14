@@ -10,6 +10,7 @@ Corrigir o filtro de chamados para que as três opções caibam em telas estreit
 ## Objetivos
 
 - Exibir “Aguardando”, “Em atendimento” e “Finalizados” em um controle responsivo sem rolagem horizontal escondida.
+- Exibir o total de chamados finalizados na terceira aba, atualizado pelo refresh já acionado pelo Realtime.
 - Carregar finalizados ao abrir essa aba, em páginas de 25 com cursor estável por `resolved_at` e `id`.
 - Mostrar chamados concluídos em cartões somente leitura, incluindo o horário da conclusão e um controle “Carregar mais” quando houver registros seguintes.
 - Revalidar o restaurante ativo nas consultas da equipe e manter a leitura sob as políticas existentes.
@@ -29,9 +30,10 @@ Corrigir o filtro de chamados para que as três opções caibam em telas estreit
 
 ## Decisões de implementação
 
-- No celular, as três abas usarão largura equilibrada e rótulos compactos; os detalhes redundantes (ícones e contagens) podem ser ocultados nesse breakpoint. Em telas maiores, preservam-se os detalhes visuais atuais.
+- No celular, cada aba empilha ícone e rótulo e mostra a contagem como badge no canto para caber nas três colunas. Em telas maiores, ícone, rótulo e contagem ficam em linha e o trilho acompanha a largura intrínseca dos botões.
 - A aba “Finalizados” consultará apenas registros `resolved`, ordenados do mais recente ao mais antigo. Cada página buscará até 25 itens; o cursor será formado por `resolved_at` e `id` para não repetir nem pular itens quando novas conclusões ocorrerem.
 - A tela inicial continuará carregando somente chamados ativos. A primeira página do histórico será buscada ao selecionar “Finalizados”.
+- A contagem total de finalizados é consultada no Server Component, fora da lista paginada, e passa a refletir os INSERT/UPDATE após o refresh do Realtime.
 - Se a conexão Realtime cair e voltar enquanto “Finalizados” estiver aberta, a primeira página será recarregada para cobrir eventos ocorridos durante a desconexão.
 - O cartão finalizado não terá ação de mutação; exibirá a mesa, os horários disponíveis e estado de conclusão.
 
