@@ -11,6 +11,7 @@ import {
   LuIdCard,
   LuChevronsUpDown,
   LuNfc,
+  LuReceiptText,
   LuUtensils,
   LuMessageSquareText,
   LuUsers,
@@ -188,13 +189,14 @@ function PanelAppShellFrame({
   const cardapioHref = `${publicBasePath}/cardapio`
   const identifiersHref = `${publicBasePath}/identificadores`
   const callsHref = `${publicBasePath}/chamados`
+  const cashHref = `${publicBasePath}/caixa`
   const restaurantsHref = getPanelRestaurantsPath(publicBasePath)
   const identityHref = `${publicBasePath}/identidade`
   const contactHref = `${publicBasePath}/contato`
   const feedbackHref = `${publicBasePath}/feedback`
   const teamHref = `${publicBasePath}/equipe`
   const pathname = usePathname()
-  const activeSection: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback" | "team" = pathname.endsWith("/equipe") ? "team" : pathname.endsWith("/feedback") ? "feedback" : pathname.endsWith("/identificadores") ? "identifiers" : pathname.endsWith("/chamados") ? "calls" : pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : "menu"
+  const activeSection: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" = pathname.endsWith("/equipe") ? "team" : pathname.endsWith("/feedback") ? "feedback" : pathname.endsWith("/identificadores") ? "identifiers" : pathname.endsWith("/chamados") ? "calls" : pathname.endsWith("/caixa") ? "cash" : pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : "menu"
   const canSwitchRestaurants = restaurants.length > 1
 
   const sequenceVariants = {
@@ -259,6 +261,11 @@ function PanelAppShellFrame({
                         <SidebarMenuButton render={<Link href={callsHref} aria-current={activeSection === "calls" ? "page" : undefined} />} isActive={activeSection === "calls"} tooltip="Chamados" className="relative transition-colors duration-150">
                           <LuBell aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Chamados</span>
                           {pendingCount > 0 ? <><span aria-hidden="true" className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[0.625rem] font-bold leading-none text-destructive-foreground group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:right-0">{pendingCount > 99 ? "99+" : pendingCount}</span><span className="sr-only">{pendingCount} chamados aguardando</span></> : null}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton render={<Link href={cashHref} aria-current={activeSection === "cash" ? "page" : undefined} />} isActive={activeSection === "cash"} tooltip="Caixa" className="transition-colors duration-150">
+                          <LuReceiptText aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Caixa</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     </SidebarMenu>
@@ -333,6 +340,7 @@ function PanelAppShellFrame({
           cardapioHref={cardapioHref}
           identifiersHref={identifiersHref}
           callsHref={callsHref}
+          cashHref={cashHref}
           feedbackHref={feedbackHref}
           teamHref={teamHref}
           identityHref={identityHref}

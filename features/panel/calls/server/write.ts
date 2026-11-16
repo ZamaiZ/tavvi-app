@@ -15,7 +15,7 @@ type RpcPayload = { ok?: unknown; code?: unknown; call?: { id?: unknown } }
 
 const FAILURE_CODES = new Set<ServiceCallFailureCode>([
   "invalid_input", "session_expired", "context_changed", "unavailable", "database_error",
-  "forbidden", "not_found", "claim_conflict", "resolve_conflict",
+  "forbidden", "not_found", "not_assignee", "claim_conflict", "resolve_conflict",
 ])
 
 function failure<T>(code: ServiceCallFailureCode): ServiceCallActionResult<T> {

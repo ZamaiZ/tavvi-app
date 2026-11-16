@@ -1,6 +1,7 @@
 packages: []
 
 allowBuilds:
+  msw: false
+  ngrok: true
   sharp: true
   unrs-resolver: true
-  msw: false

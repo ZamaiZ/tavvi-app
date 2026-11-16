@@ -5,12 +5,14 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import {
   LuBell,
   LuBellRing,
+  LuArrowRight,
   LuCheck,
   LuCheckCheck,
   LuCircleAlert,
   LuClock3,
   LuLoaderCircle,
   LuRefreshCw,
+  LuShoppingBag,
   LuUserRoundCheck,
   LuVolume2,
   LuVolumeX,
@@ -24,14 +26,17 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { PanelServiceCallCursor, PanelServiceCallDTO, ServiceCallFailureCode } from "@/features/panel/calls/model"
-import { claimServiceCallAction, getResolvedServiceCallsAction, resolveServiceCallAction } from "@/features/panel/calls/actions"
+import { claimServiceCallAction, getResolvedServiceCallsAction } from "@/features/panel/calls/actions"
 import { isCallSoundEnabled, setCallSoundEnabled } from "@/features/panel/calls/components/call-sound"
 import { useCallsRealtime } from "@/features/panel/calls/components/calls-realtime-provider"
+import { CallOrderDialog } from "@/features/panel/orders/components/call-order-dialog"
+import type { PanelMenuDTO } from "@/features/panel/menu/model"
 
 const EASE = [0.23, 1, 0.32, 1] as const
 type CallTab = "pending" | "in_progress" | "resolved"
 
 function failureMessage(code: ServiceCallFailureCode) {
+  if (code === "not_assignee") return "Somente a pessoa responsável pelo chamado pode concluir o atendimento."
   if (code === "claim_conflict") return "Outra pessoa da equipe assumiu este chamado. A fila foi atualizada."
   if (code === "resolve_conflict") return "Este chamado já foi concluído ou ainda não foi assumido. A fila foi atualizada."
   if (code === "session_expired") return "Sua sessão expirou. Entre novamente para continuar."
@@ -60,11 +65,13 @@ function CallCard({
   busy,
   itemVariants,
   onAction,
+  onOpen,
 }: {
   call: PanelServiceCallDTO
   busy: boolean
   itemVariants: Variants
   onAction: (call: PanelServiceCallDTO) => void
+  onOpen: (call: PanelServiceCallDTO) => void
 }) {
   const pending = call.status === "pending"
   const resolved = call.status === "resolved"
@@ -75,7 +82,19 @@ function CallCard({
       transition={{ duration: 0.18, ease: EASE }}
       variants={itemVariants}
     >
-      <Card className="rounded-2xl border border-border/70 bg-card shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-primary/20 hover:shadow-md motion-reduce:transition-none">
+      <Card
+        role={!pending && !resolved ? "button" : undefined}
+        tabIndex={!pending && !resolved ? 0 : undefined}
+        aria-label={!pending && !resolved ? `Abrir pedido da mesa ${call.tableNumber}` : undefined}
+        onClick={!pending && !resolved ? () => onOpen(call) : undefined}
+        onKeyDown={!pending && !resolved ? (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault()
+            onOpen(call)
+          }
+        } : undefined}
+        className={`group rounded-2xl border border-border/70 bg-card shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:border-primary/20 hover:shadow-md motion-reduce:transition-none ${!pending && !resolved ? "cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.998]" : ""}`}
+      >
         <CardContent className="space-y-4 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -104,7 +123,7 @@ function CallCard({
               <LuCheckCheck aria-hidden="true" className="size-4 shrink-0" />
               Atendimento concluído
             </div>
-          ) : (
+          ) : pending ? (
             <Button
               type="button"
               disabled={busy}
@@ -113,9 +132,9 @@ function CallCard({
               className="min-h-11 w-full rounded-xl font-semibold shadow-sm transition-[transform,box-shadow] duration-150 active:scale-[0.99] motion-reduce:active:scale-100 motion-reduce:transition-none"
             >
               {busy ? <LuLoaderCircle aria-hidden="true" className="animate-spin motion-reduce:animate-none" /> : pending ? <LuBellRing aria-hidden="true" /> : <LuCheck aria-hidden="true" />}
-              {busy ? "Atualizando chamado" : pending ? "Assumir chamado" : "Concluir atendimento"}
+              {busy ? "Atualizando chamado" : "Assumir chamado"}
             </Button>
-          )}
+          ) : <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-primary/15 bg-primary/[0.045] px-3 text-xs font-medium text-primary"><span className="inline-flex items-center gap-2"><LuShoppingBag aria-hidden="true" className="size-4" />Montar pedido da mesa</span><LuArrowRight aria-hidden="true" className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5" /></div>}
         </CardContent>
       </Card>
     </motion.div>
@@ -146,10 +165,16 @@ function EmptyQueue({ activeTab, allCount }: { activeTab: CallTab; allCount: num
 
 export function CallsWorkspace({
   restaurantId,
+  viewerId,
+  menu,
+  cardapioHref,
   initialCalls,
   initialResolvedCount,
 }: {
   restaurantId: string
+  viewerId: string
+  menu: PanelMenuDTO
+  cardapioHref: string
   initialCalls: PanelServiceCallDTO[]
   initialResolvedCount: number
 }) {
@@ -167,6 +192,7 @@ export function CallsWorkspace({
   const [resolvedError, setResolvedError] = useState<string | null>(null)
   const [resolvedRetryCursor, setResolvedRetryCursor] = useState<PanelServiceCallCursor | null>(null)
   const [busyCallId, setBusyCallId] = useState<string | null>(null)
+  const [selectedCall, setSelectedCall] = useState<PanelServiceCallDTO | null>(null)
   const [feedback, setFeedback] = useState<{ kind: "error" | "success"; text: string } | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const resolvedRequestId = useRef(0)
@@ -174,6 +200,12 @@ export function CallsWorkspace({
   const previousLiveState = useRef({ activeCallsSignature, connected, restaurantId })
 
   useEffect(() => setCalls(initialCalls), [initialCalls])
+  useEffect(() => {
+    if (!selectedCall) return
+    const currentCall = calls.find((call) => call.id === selectedCall.id)
+    if (currentCall) setSelectedCall(currentCall)
+    else if (selectedCall.status === "in_progress") setSelectedCall(null)
+  }, [calls, selectedCall])
   useEffect(() => setResolvedCount(initialResolvedCount), [initialResolvedCount])
   useEffect(() => {
     resolvedRequestId.current += 1
@@ -268,26 +300,15 @@ export function CallsWorkspace({
   }
 
   async function handleCallAction(call: PanelServiceCallDTO) {
-    if (call.status === "resolved") return
+    if (call.status !== "pending") return
     setBusyCallId(call.id)
     setFeedback(null)
     try {
-      const result = call.status === "pending"
-        ? await claimServiceCallAction({ expectedRestaurantId: restaurantId, callId: call.id })
-        : await resolveServiceCallAction({ expectedRestaurantId: restaurantId, callId: call.id })
+      if (call.status !== "pending") return
+      const result = await claimServiceCallAction({ expectedRestaurantId: restaurantId, callId: call.id })
 
       if (result.ok) {
-        setFeedback({ kind: "success", text: call.status === "pending" ? `Chamado da mesa ${call.tableNumber} assumido.` : `Atendimento da mesa ${call.tableNumber} concluído.` })
-        if (call.status === "in_progress") {
-          resolvedRequestId.current += 1
-          setResolvedCalls([])
-          setResolvedCursor(null)
-          setResolvedLoaded(false)
-          setResolvedError(null)
-          setResolvedRetryCursor(null)
-          setResolvedLoading(false)
-          setResolvedLoadingMore(false)
-        }
+        setFeedback({ kind: "success", text: `Chamado da mesa ${call.tableNumber} assumido.` })
       } else {
         setFeedback({ kind: "error", text: failureMessage(result.code) })
       }
@@ -386,7 +407,7 @@ export function CallsWorkspace({
                       >
                         <AnimatePresence initial={false} mode="popLayout">
                           {resolvedCalls.map((call) => (
-                            <CallCard key={call.id} call={call} busy={false} itemVariants={itemVariants} onAction={handleCallAction} />
+                          <CallCard key={call.id} call={call} busy={false} itemVariants={itemVariants} onAction={handleCallAction} onOpen={setSelectedCall} />
                           ))}
                         </AnimatePresence>
                       </motion.section>
@@ -418,7 +439,7 @@ export function CallsWorkspace({
                   >
                     <AnimatePresence initial={false} mode="popLayout">
                       {visibleCalls.map((call) => (
-                        <CallCard key={call.id} call={call} busy={busyCallId === call.id} itemVariants={itemVariants} onAction={handleCallAction} />
+                        <CallCard key={call.id} call={call} busy={busyCallId === call.id} itemVariants={itemVariants} onAction={handleCallAction} onOpen={setSelectedCall} />
                       ))}
                     </AnimatePresence>
                   </motion.section>
@@ -432,6 +453,18 @@ export function CallsWorkspace({
           </motion.div>
         </motion.div>
       </main>
+      {selectedCall ? (
+        <CallOrderDialog
+          open
+          call={selectedCall}
+          restaurantId={restaurantId}
+          viewerId={viewerId}
+          menu={menu}
+          cardapioHref={cardapioHref}
+          onOpenChange={(open) => { if (!open) setSelectedCall(null) }}
+          onRefresh={refresh}
+        />
+      ) : null}
     </MotionConfig>
   )
 }

@@ -13,6 +13,7 @@ import {
   LuMenu,
   LuMessageSquareText,
   LuNfc,
+  LuReceiptText,
   LuUtensils,
   LuUsers,
   LuX,
@@ -45,8 +46,8 @@ function PanelMobileNavItem({
 }: {
   href: string
   label: string
-  section: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback" | "team"
-  activeSection: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback" | "team"
+  section: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team"
+  activeSection: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team"
   icon: ReactNode
   pendingCount?: number
   badgeLabel?: string
@@ -102,6 +103,7 @@ export function PanelMobileDock({
   cardapioHref,
   identifiersHref,
   callsHref,
+  cashHref,
   feedbackHref,
   teamHref,
   identityHref,
@@ -115,11 +117,12 @@ export function PanelMobileDock({
   cardapioHref: string
   identifiersHref: string
   callsHref: string
+  cashHref: string
   feedbackHref: string
   teamHref: string
   identityHref: string
   contactHref: string
-  activeSection: "menu" | "identifiers" | "calls" | "identity" | "contact" | "feedback" | "team"
+  activeSection: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team"
   pendingCallCount: number
   unreadFeedbackCount: number
   restaurantsHref: string
@@ -277,6 +280,7 @@ export function PanelMobileDock({
                 <PanelMobileNavItem href={cardapioHref} label="Cardápio" section="menu" activeSection={activeSection} icon={<LuUtensils aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
                 <PanelMobileNavItem href={identifiersHref} label="Identificadores" section="identifiers" activeSection={activeSection} icon={<LuNfc aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
                 <PanelMobileNavItem href={callsHref} label="Chamados" section="calls" activeSection={activeSection} pendingCount={pendingCallCount} badgeLabel="chamados aguardando" icon={<LuBell aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
+                <PanelMobileNavItem href={cashHref} label="Caixa" section="cash" activeSection={activeSection} icon={<LuReceiptText aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
               </div>
             </motion.div>
             <motion.div variants={itemVariants} className="space-y-2">

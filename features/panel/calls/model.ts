@@ -30,6 +30,7 @@ export type ServiceCallFailureCode =
   | "database_error"
   | "forbidden"
   | "not_found"
+  | "not_assignee"
   | "claim_conflict"
   | "resolve_conflict"
 
