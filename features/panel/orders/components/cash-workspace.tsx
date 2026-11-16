@@ -27,7 +27,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { formatPaymentCents } from "@/features/panel/payments/lib/currency"
 import { PANEL_PAYMENT_METHODS, type PanelPaymentMethod } from "@/features/panel/payments/model"
-import { ComandaPaymentSheet } from "@/features/panel/orders/components/comanda-payment-sheet"
+import { ComandaPaymentDialog } from "@/features/panel/orders/components/comanda-payment-dialog"
 import type { PanelComandaDTO, PanelComandasPage } from "@/features/panel/orders/model"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
 
@@ -290,14 +290,6 @@ export function CashWorkspace({
     <MotionConfig reducedMotion="user">
       <main className="min-h-svh">
         <div className="mx-auto w-full max-w-[1320px] space-y-5 px-4 pb-32 sm:px-6 md:pb-10 lg:px-8">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-background/65 px-3.5 py-2.5 text-xs shadow-sm">
-            <p className="text-muted-foreground">Acompanhe as comandas, registre pagamentos e consulte encerramentos.</p>
-            <span className={`inline-flex items-center gap-1.5 font-medium ${connected ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}`} role="status">
-              {connected ? <LuWifi aria-hidden="true" className="size-3.5" /> : <LuWifiOff aria-hidden="true" className="size-3.5" />}
-              {connected ? "Atualização ao vivo ativa" : "Atualização automática"}
-            </span>
-          </div>
-
           <section aria-label="Resumo do caixa" className="grid gap-3 sm:grid-cols-3">
             <Card className="rounded-2xl border-border/70 bg-gradient-to-br from-primary/[0.08] via-card to-card shadow-sm"><CardContent className="flex items-center justify-between gap-3 p-4 sm:p-5"><div><p className="text-xs font-medium text-muted-foreground">{closed ? "Comandas encerradas" : "Comandas abertas"}</p><p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">{closed ? initialData.totalRows : initialData.comandas.length}</p></div><span className="grid size-11 place-items-center rounded-2xl bg-primary/10 text-primary"><LuTable2 aria-hidden="true" className="size-5" /></span></CardContent></Card>
             <Card className="rounded-2xl border-border/70 bg-card shadow-sm"><CardContent className="flex items-center justify-between gap-3 p-4 sm:p-5"><div><p className="text-xs font-medium text-muted-foreground">{closed ? "Recebido nesta página" : "Pedidos registrados"}</p><p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">{closed ? `R$ ${formatPaymentCents(sumPaid)}` : orderCount}</p></div><span className="grid size-11 place-items-center rounded-2xl bg-muted text-foreground/75"><LuShoppingBag aria-hidden="true" className="size-5" /></span></CardContent></Card>
@@ -347,7 +339,7 @@ export function CashWorkspace({
       </main>
 
       {selectedComanda ? (
-        <ComandaPaymentSheet
+        <ComandaPaymentDialog
           key={`${selectedComanda.id}:${selected?.closeOnly ? "close" : "payment"}`}
           open
           onOpenChange={(nextOpen) => { if (!nextOpen) setSelected(null) }}

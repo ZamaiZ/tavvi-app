@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react"
+import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 import {
   LuBanknote,
   LuCheck,
@@ -17,16 +18,9 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Combobox as ComboboxRoot, ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList } from "@/components/ui/combobox"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field, FieldLabel } from "@/components/ui/field"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PANEL_PAYMENT_METHODS, PANEL_PAYMENT_METHOD_VALUES, type PanelPaymentMethod, type PaymentSplitInput } from "@/features/panel/payments/model"
 import { formatPaymentCents, parsePaymentAmountCents } from "@/features/panel/payments/lib/currency"
 import { PaymentAmountInput } from "@/features/panel/payments/components/payment-amount-input"
@@ -111,7 +105,7 @@ function paymentErrorMessage(code: PanelPaymentFailureCode) {
   return messages[code]
 }
 
-export function ComandaPaymentSheet({
+export function ComandaPaymentDialog({
   open,
   onOpenChange,
   comanda,
@@ -282,24 +276,23 @@ export function ComandaPaymentSheet({
 
   return (
     <MotionConfig reducedMotion="user">
-      <Sheet open={open} onOpenChange={(nextOpen) => { if (!pending) onOpenChange(nextOpen) }}>
-        <SheetContent
-          side="right"
-          className="w-full overflow-y-auto border-l border-border/70 bg-background/95 p-0 shadow-2xl backdrop-blur-2xl motion-reduce:transition-none sm:max-w-xl"
-          overlayClassName="bg-black/30 backdrop-blur-[2px] motion-reduce:transition-none"
+      <Dialog open={open} onOpenChange={(nextOpen) => { if (!pending) onOpenChange(nextOpen) }}>
+        <DialogContent
+          className="fixed inset-0 top-0 left-0 z-50 flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-background/95 p-0 shadow-none backdrop-blur-2xl motion-reduce:transition-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-auto sm:max-h-[min(92dvh,48rem)] sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[1.5rem] sm:border sm:border-border/70 sm:shadow-2xl"
+          showCloseButton={!pending}
         >
-          <div className="flex min-h-full flex-col">
-            <SheetHeader className="border-b border-border/60 bg-gradient-to-br from-primary/[0.07] via-background to-background px-5 py-5 sm:px-7">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <DialogHeader className="shrink-0 border-b border-border/60 bg-gradient-to-br from-primary/[0.07] via-background to-background px-5 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-5 sm:px-7 sm:pt-5">
               <div className="flex items-start gap-3 pr-9">
                 <span className="grid size-11 shrink-0 place-items-center rounded-2xl border border-primary/15 bg-primary/10 text-primary shadow-sm"><LuReceiptText aria-hidden="true" className="size-5" /></span>
                 <div className="min-w-0">
-                  <SheetTitle className="text-lg font-semibold tracking-tight">{closeOnly ? "Encerrar comanda" : "Registrar pagamento"}</SheetTitle>
-                  <SheetDescription className="mt-1 text-xs leading-5">Mesa {comanda.tableNumber} · lançamento manual, sem confirmação por intermediário.</SheetDescription>
+                  <DialogTitle className="text-lg font-semibold tracking-tight">{closeOnly ? "Encerrar comanda" : "Registrar pagamento"}</DialogTitle>
+                  <DialogDescription className="mt-1 text-xs leading-5">Mesa {comanda.tableNumber} · lançamento manual, sem confirmação por intermediário.</DialogDescription>
                 </div>
               </div>
-            </SheetHeader>
+            </DialogHeader>
 
-            <div className="flex-1 space-y-5 px-5 py-5 sm:px-7">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7">
               <section aria-label="Resumo da comanda" className="grid grid-cols-3 gap-2 rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm sm:p-4">
                 <div><p className="text-[0.65rem] font-medium text-muted-foreground">Total</p><p className="mt-1 text-sm font-semibold tabular-nums">R$ {formatPaymentCents(comanda.totalCents)}</p></div>
                 <div className="border-l border-border/60 pl-3"><p className="text-[0.65rem] font-medium text-muted-foreground">Pago</p><p className="mt-1 text-sm font-semibold tabular-nums">R$ {formatPaymentCents(comanda.paidCents)}</p></div>
@@ -325,6 +318,13 @@ export function ComandaPaymentSheet({
                         const choices = enabledMethods.filter((method) => method === row.method || !usedMethods.has(method))
                         const method = methodByValue.get(row.method)
                         const Icon = methodIcons[row.method]
+                        const choiceOptions = (choices.includes(row.method) ? choices : [row.method, ...choices])
+                          .map((value) => methodByValue.get(value))
+                          .filter((option): option is (typeof PANEL_PAYMENT_METHODS)[number] => option !== undefined)
+                        const choiceItems = ComboboxPrimitive.createItems(choiceOptions, {
+                          getValue: (option) => option.value,
+                          getLabel: (option) => option.label,
+                        })
                         return (
                           <motion.div key={row.id} variants={rowVariants} initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: reducedMotion ? 1 : 0.98 }} layout={!reducedMotion} className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm sm:p-4">
                             <div className="mb-3 flex items-center justify-between gap-2">
@@ -334,14 +334,18 @@ export function ComandaPaymentSheet({
                             <div className="grid gap-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] sm:items-start">
                               <Field>
                                 <FieldLabel htmlFor={`payment-method-${row.id}`}>Forma de pagamento</FieldLabel>
-                                <Select value={row.method} onValueChange={(value) => { if (typeof value === "string") updateRow(row.id, { method: value as PanelPaymentMethod }) }}>
-                                  <SelectTrigger id={`payment-method-${row.id}`} className="h-11 w-full rounded-xl bg-background/80 px-3 text-sm" disabled={pending || uncertainAttempt} aria-label={`Forma de pagamento ${index + 1}`}>
-                                    <SelectValue>{method?.label ?? "Escolha uma forma"}</SelectValue>
-                                  </SelectTrigger>
-                                  <SelectContent align="start" className="rounded-xl">
-                                    {choices.map((choice) => <SelectItem key={choice} value={choice} className="min-h-10 rounded-lg text-sm">{methodByValue.get(choice)?.label}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
+                                <ComboboxRoot items={choiceItems} value={row.method} onValueChange={(value) => { if (typeof value === "string") updateRow(row.id, { method: value as PanelPaymentMethod }) }}>
+                                  <ComboboxInput id={`payment-method-${row.id}`} placeholder="Selecione uma forma" className="h-11 w-full rounded-xl bg-background/80 text-sm" autoComplete="off" disabled={pending || uncertainAttempt} aria-label={`Forma de pagamento ${index + 1}`} />
+                                  <ComboboxContent className="border border-border/70 bg-popover/95 shadow-xl">
+                                    <ComboboxEmpty>Nenhuma forma disponível.</ComboboxEmpty>
+                                    <ComboboxList>
+                                      {choiceOptions.map((choice) => {
+                                        const ChoiceIcon = methodIcons[choice.value]
+                                        return <ComboboxItem key={choice.value} value={choice.value} disabled={!enabledMethods.includes(choice.value)} className="min-h-10 rounded-lg text-sm"><ChoiceIcon aria-hidden="true" className="size-4 text-muted-foreground" />{choice.label}</ComboboxItem>
+                                      })}
+                                    </ComboboxList>
+                                  </ComboboxContent>
+                                </ComboboxRoot>
                               </Field>
                               <PaymentAmountInput
                                 id={`payment-amount-${row.id}`}
@@ -394,7 +398,7 @@ export function ComandaPaymentSheet({
               ) : null}
             </div>
 
-            <SheetFooter className="sticky bottom-0 border-t border-border/70 bg-background/90 px-5 py-4 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-7">
+            <DialogFooter className="sticky bottom-0 z-10 mt-auto shrink-0 flex-col border-t border-border/70 bg-background/90 px-5 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-4">
               <p className="text-[0.65rem] leading-5 text-muted-foreground sm:max-w-[13rem]">Registro interno para controle da equipe. O pagamento não é processado pelo Tavvi.</p>
               {closeOnly ? (
                 <Button type="button" onClick={closeComanda} disabled={pending || comanda.balanceCents !== 0} className="min-h-11 w-full rounded-xl px-4 sm:w-auto">
@@ -407,10 +411,10 @@ export function ComandaPaymentSheet({
                   {pending ? uncertainAttempt ? "Confirmando resultado" : "Registrando pagamento" : uncertainAttempt ? "Reenviar com segurança" : "Registrar pagamento"}
                 </Button>
               )}
-            </SheetFooter>
+            </DialogFooter>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </MotionConfig>
   )
 }
