@@ -15,8 +15,8 @@ import Link from "next/link"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { PanelServiceCallDTO } from "@/features/panel/calls/model"
 import { resolveServiceCallAction } from "@/features/panel/calls/actions"
@@ -59,6 +59,7 @@ export function CallOrderDialog({
   menu,
   cardapioHref,
   onOpenChange,
+  onOrderCompleted,
   onRefresh,
 }: {
   open: boolean
@@ -68,6 +69,7 @@ export function CallOrderDialog({
   menu: PanelMenuDTO
   cardapioHref: string
   onOpenChange: (open: boolean) => void
+  onOrderCompleted: (message: string) => void
   onRefresh: () => Promise<unknown>
 }) {
   const reducedMotion = useReducedMotion() === true
@@ -181,7 +183,10 @@ export function CallOrderDialog({
         requestId.current = null
         setRetryPending(false)
         setItems([])
-        setFeedback({ kind: "success", text: `Pedido de R$ ${formatMenuPriceCents(result.data.totalCents)} registrado. Comanda da mesa ${call.tableNumber} atualizada.` })
+        const message = `Pedido de R$ ${formatMenuPriceCents(result.data.totalCents)} registrado na comanda da mesa ${call.tableNumber}. Chamado finalizado.`
+        setFeedback({ kind: "success", text: message })
+        onOrderCompleted(message)
+        onOpenChange(false)
         void onRefresh().catch(() => undefined)
         return
       }
@@ -197,7 +202,7 @@ export function CallOrderDialog({
     } finally {
       setSubmitting(false)
     }
-  }, [call.id, call.tableNumber, isAssignee, items, onRefresh, restaurantId, submitting])
+  }, [call.id, call.tableNumber, isAssignee, items, onOpenChange, onOrderCompleted, onRefresh, restaurantId, submitting])
 
   async function resolveCall() {
     if (!isAssignee || items.length > 0 || resolving) return
@@ -238,13 +243,14 @@ export function CallOrderDialog({
 
   return (
     <MotionConfig reducedMotion="user">
-      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-        <DialogContent
+      <Sheet open={open} onOpenChange={handleDialogOpenChange}>
+        <SheetContent
+          side="right"
           showCloseButton={false}
-          className="!fixed !inset-0 !top-0 !left-0 !h-dvh !w-auto !max-w-none !translate-x-0 !translate-y-0 !gap-0 !rounded-none !p-0 !ring-0 overflow-hidden bg-background text-foreground duration-200 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.99] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.99] motion-reduce:duration-0"
+          className="!fixed !inset-0 !h-dvh !w-full !max-w-none !gap-0 !rounded-none !border-0 !p-0 !ring-0 !shadow-none !bg-background !text-foreground overflow-hidden duration-200 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.99] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.99] motion-reduce:duration-0"
         >
-          <DialogTitle className="sr-only">Pedido da mesa {call.tableNumber}</DialogTitle>
-          <DialogDescription className="sr-only">Escolha itens do cardápio e registre o pedido da mesa.</DialogDescription>
+          <SheetTitle className="sr-only">Pedido da mesa {call.tableNumber}</SheetTitle>
+          <SheetDescription className="sr-only">Escolha itens do cardápio e registre o pedido da mesa.</SheetDescription>
 
           <div className="relative flex h-full min-h-0 min-w-0 flex-col bg-background">
             <header className="relative z-10 flex shrink-0 items-center gap-3 border-b border-border/70 bg-background/95 px-3 pt-[max(0.625rem,env(safe-area-inset-top))] pb-2.5 backdrop-blur-xl sm:px-6 sm:py-3">
@@ -369,8 +375,8 @@ export function CallOrderDialog({
             </AnimatePresence>
 
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       <AlertDialog open={closeConfirmationOpen} onOpenChange={setCloseConfirmationOpen}>
         <AlertDialogContent>

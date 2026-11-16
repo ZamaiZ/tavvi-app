@@ -60,6 +60,20 @@ function dateTimeLabel(isoDate: string) {
   return `${day} - ${time}`
 }
 
+function durationLabel(start: string, end: string) {
+  const elapsedMs = Date.parse(end) - Date.parse(start)
+  if (!Number.isFinite(elapsedMs)) return "—"
+
+  const totalSeconds = Math.floor(Math.max(0, elapsedMs) / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0) return `${hours} h ${String(minutes).padStart(2, "0")} min`
+  if (minutes > 0) return `${minutes} min ${String(seconds).padStart(2, "0")} s`
+  return `${seconds} s`
+}
+
 function CallCard({
   call,
   busy,
@@ -117,6 +131,21 @@ function CallCard({
             {call.claimedAt ? <span className="inline-flex items-center gap-1.5"><LuUserRoundCheck aria-hidden="true" className="size-3.5" />Assumido {dateTimeLabel(call.claimedAt)}</span> : null}
             {resolved && call.resolvedAt ? <span className="inline-flex items-center gap-1.5"><LuCheckCheck aria-hidden="true" className="size-3.5" />Concluído {dateTimeLabel(call.resolvedAt)}</span> : null}
           </div>
+
+          {call.claimedAt ? (
+            <div aria-label="Tempos do chamado" className={`grid gap-2 ${resolved && call.resolvedAt ? "sm:grid-cols-2" : ""}`}>
+              <div className="rounded-xl border border-border/60 bg-muted/25 px-3 py-2">
+                <p className="text-[0.65rem] font-medium text-muted-foreground">Tempo até aceite</p>
+                <p className="mt-0.5 text-sm font-semibold tabular-nums">{durationLabel(call.createdAt, call.claimedAt)}</p>
+              </div>
+              {resolved && call.resolvedAt ? (
+                <div className="rounded-xl border border-border/60 bg-muted/25 px-3 py-2">
+                  <p className="text-[0.65rem] font-medium text-muted-foreground">Tempo de atendimento</p>
+                  <p className="mt-0.5 text-sm font-semibold tabular-nums">{durationLabel(call.claimedAt, call.resolvedAt)}</p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           {resolved ? (
             <div className="flex min-h-11 items-center gap-2 rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] px-3 text-xs font-medium text-emerald-700 dark:text-emerald-300">
@@ -462,6 +491,7 @@ export function CallsWorkspace({
           menu={menu}
           cardapioHref={cardapioHref}
           onOpenChange={(open) => { if (!open) setSelectedCall(null) }}
+          onOrderCompleted={(text) => setFeedback({ kind: "success", text })}
           onRefresh={refresh}
         />
       ) : null}
