@@ -1,6 +1,9 @@
 import "server-only"
 
+import { z } from "zod"
+
 import type { PanelRestaurantDTO } from "@/features/panel/onboarding/model"
+import { PANEL_PAYMENT_METHOD_VALUES } from "@/features/panel/payments/model"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
 import type {
@@ -8,41 +11,79 @@ import type {
   PanelComandaDTO,
   PanelComandaItemDTO,
   PanelComandaOrderDTO,
+  PanelComandaPaymentDTO,
+  PanelComandasPage,
 } from "../model"
 
-type RawAddition = {
-  id: string
-  name: string
-  quantity: number
-  unit_price_cents: number
-  position: number
+export const CLOSED_COMANDA_PAGE_SIZE = 25
+
+const centsSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
+const paymentSplitSchema = z.object({
+  id: z.string().uuid(),
+  method: z.enum(PANEL_PAYMENT_METHOD_VALUES),
+  amount_cents: centsSchema,
+  position: z.number().int().nonnegative(),
+})
+const paymentSchema = z.object({
+  id: z.string().uuid(),
+  created_at: z.string().datetime({ offset: true }),
+  created_by: z.string().uuid(),
+  created_by_name: z.string().min(1).max(120),
+  amount_cents: centsSchema,
+  comanda_payment_splits: z.array(paymentSplitSchema).nullable(),
+})
+const additionSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(80),
+  quantity: z.number().int().positive(),
+  unit_price_cents: centsSchema,
+  position: z.number().int().nonnegative(),
+})
+const itemSchema = z.object({
+  id: z.string().uuid(),
+  category_name: z.string(),
+  item_name: z.string(),
+  variant_name: z.string().nullable(),
+  quantity: z.number().int().positive(),
+  unit_price_cents: centsSchema,
+  observations: z.string(),
+  position: z.number().int().nonnegative(),
+  order_item_additions: z.array(additionSchema).nullable(),
+})
+const orderSchema = z.object({
+  id: z.string().uuid(),
+  created_at: z.string().datetime({ offset: true }),
+  order_items: z.array(itemSchema).nullable(),
+})
+const comandaSchema = z.object({
+  id: z.string().uuid(),
+  restaurant_id: z.string().uuid(),
+  table_number: z.number().int().positive(),
+  status: z.enum(["open", "closed"]),
+  opened_at: z.string().datetime({ offset: true }),
+  closed_at: z.string().datetime({ offset: true }).nullable(),
+  closed_by: z.string().uuid().nullable(),
+  orders: z.array(orderSchema).nullable(),
+  comanda_payments: z.array(paymentSchema).nullable(),
+})
+const pageSchema = z.object({
+  status: z.enum(["open", "closed"]),
+  page: z.number().int().min(1).max(1_000_000),
+})
+
+type RawAddition = z.infer<typeof additionSchema>
+type RawItem = z.infer<typeof itemSchema>
+type RawOrder = z.infer<typeof orderSchema>
+type RawPayment = z.infer<typeof paymentSchema>
+type RawComanda = z.infer<typeof comandaSchema>
+
+function safeCents(value: bigint) {
+  if (value < BigInt(0) || value > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("panel_comanda_amount_overflow")
+  return Number(value)
 }
 
-type RawItem = {
-  id: string
-  category_name: string
-  item_name: string
-  variant_name: string | null
-  quantity: number
-  unit_price_cents: number
-  observations: string
-  position: number
-  order_item_additions: RawAddition[] | null
-}
-
-type RawOrder = {
-  id: string
-  created_at: string
-  order_items: RawItem[] | null
-}
-
-type RawComanda = {
-  id: string
-  restaurant_id: string
-  table_number: number
-  status: "open"
-  opened_at: string
-  orders: RawOrder[] | null
+function sumCents(values: number[]) {
+  return safeCents(values.reduce((total, value) => total + BigInt(value), BigInt(0)))
 }
 
 function toAddition(row: RawAddition): PanelComandaAdditionDTO {
@@ -58,7 +99,7 @@ function toItem(row: RawItem): PanelComandaItemDTO {
   const additions = [...(row.order_item_additions ?? [])]
     .sort((left, right) => left.position - right.position || left.id.localeCompare(right.id))
     .map(toAddition)
-  const additionTotal = additions.reduce((total, addition) => total + addition.quantity * addition.unitPriceCents, 0)
+  const additionTotal = safeCents(additions.reduce((total, addition) => total + BigInt(addition.quantity) * BigInt(addition.unitPriceCents), BigInt(0)))
 
   return {
     id: row.id,
@@ -69,7 +110,7 @@ function toItem(row: RawItem): PanelComandaItemDTO {
     unitPriceCents: row.unit_price_cents,
     observations: row.observations,
     additions,
-    totalCents: row.quantity * (row.unit_price_cents + additionTotal),
+    totalCents: safeCents(BigInt(row.quantity) * (BigInt(row.unit_price_cents) + BigInt(additionTotal))),
   }
 }
 
@@ -82,48 +123,116 @@ function toOrder(row: RawOrder): PanelComandaOrderDTO {
     id: row.id,
     createdAt: row.created_at,
     items,
-    totalCents: items.reduce((total, item) => total + item.totalCents, 0),
+    totalCents: sumCents(items.map((item) => item.totalCents)),
   }
 }
 
-export async function getPanelOpenComandas(restaurant: PanelRestaurantDTO): Promise<PanelComandaDTO[]> {
-  const supabase = await createSupabaseServerClient("panel")
-  const { data, error } = await supabase
-    .from("comandas")
-    .select(`
-      id, restaurant_id, table_number, status, opened_at,
-      orders (
-        id, created_at,
-        order_items (
-          id, category_name, item_name, variant_name, quantity,
-          unit_price_cents, observations, position,
-          order_item_additions (id, name, quantity, unit_price_cents, position)
-        )
-      )
-    `)
-    .eq("restaurant_id", restaurant.id)
-    .eq("status", "open")
-    .order("table_number", { ascending: true })
+function toPayment(row: RawPayment): PanelComandaPaymentDTO {
+  const splits = [...(row.comanda_payment_splits ?? [])]
+    .sort((left, right) => left.position - right.position || left.id.localeCompare(right.id))
+    .map((split) => ({ id: split.id, method: split.method, amountCents: split.amount_cents }))
 
-  if (error || !data) {
-    console.error("[panel-orders]", JSON.stringify({ stage: "open_comandas", code: error?.code }))
-    throw new Error("panel_open_comandas_unavailable")
+  return {
+    id: row.id,
+    createdAt: row.created_at,
+    createdBy: row.created_by,
+    createdByName: row.created_by_name,
+    amountCents: row.amount_cents,
+    splits,
+  }
+}
+
+function toComanda(row: RawComanda): PanelComandaDTO {
+  const orders = [...(row.orders ?? [])]
+    .sort((left, right) => right.created_at.localeCompare(left.created_at))
+    .map(toOrder)
+  const payments = [...(row.comanda_payments ?? [])]
+    .sort((left, right) => right.created_at.localeCompare(left.created_at) || right.id.localeCompare(left.id))
+    .map(toPayment)
+  const totalCents = sumCents(orders.map((order) => order.totalCents))
+  const paidCents = sumCents(payments.map((payment) => payment.amountCents))
+
+  return {
+    id: row.id,
+    restaurantId: row.restaurant_id,
+    tableNumber: row.table_number,
+    status: row.status,
+    openedAt: row.opened_at,
+    closedAt: row.closed_at,
+    closedBy: row.closed_by,
+    orders,
+    orderCount: orders.length,
+    itemCount: orders.reduce((total, order) => total + order.items.reduce((count, item) => count + item.quantity, 0), 0),
+    totalCents,
+    payments,
+    paidCents,
+    balanceCents: Math.max(0, totalCents - paidCents),
+  }
+}
+
+const COMANDA_SELECT = `
+  id, restaurant_id, table_number, status, opened_at, closed_at, closed_by,
+  orders (
+    id, created_at,
+    order_items (
+      id, category_name, item_name, variant_name, quantity,
+      unit_price_cents, observations, position,
+      order_item_additions (id, name, quantity, unit_price_cents, position)
+    )
+  ),
+  comanda_payments (
+    id, created_at, created_by, created_by_name, amount_cents,
+    comanda_payment_splits (id, method, amount_cents, position)
+  )
+`
+
+export async function getPanelComandasPage(
+  restaurant: PanelRestaurantDTO,
+  queryInput: { status: "open" | "closed"; page: number },
+): Promise<PanelComandasPage> {
+  const parsedQuery = pageSchema.safeParse(queryInput)
+  if (!parsedQuery.success) throw new Error("panel_comanda_query_invalid")
+  const { status, page } = parsedQuery.data
+  const supabase = await createSupabaseServerClient("panel")
+
+  let request = supabase
+    .from("comandas")
+    .select(COMANDA_SELECT, { count: "exact" })
+    .eq("restaurant_id", restaurant.id)
+    .eq("status", status)
+
+  if (status === "closed") {
+    const from = (page - 1) * CLOSED_COMANDA_PAGE_SIZE
+    request = request
+      .order("closed_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, from + CLOSED_COMANDA_PAGE_SIZE - 1)
+  } else {
+    request = request.order("table_number", { ascending: true })
   }
 
-  return (data as unknown as RawComanda[]).map((row) => {
-    const orders = [...(row.orders ?? [])]
-      .sort((left, right) => right.created_at.localeCompare(left.created_at))
-      .map(toOrder)
-    return {
-      id: row.id,
-      restaurantId: row.restaurant_id,
-      tableNumber: row.table_number,
-      status: row.status,
-      openedAt: row.opened_at,
-      orders,
-      orderCount: orders.length,
-      itemCount: orders.reduce((total, order) => total + order.items.reduce((count, item) => count + item.quantity, 0), 0),
-      totalCents: orders.reduce((total, order) => total + order.totalCents, 0),
-    }
-  })
+  const { data, error, count } = await request
+  if (error || !data) {
+    console.error("[panel-orders]", JSON.stringify({ stage: `${status}_comandas`, code: error?.code }))
+    throw new Error("panel_comandas_unavailable")
+  }
+
+  const parsedRows = z.array(comandaSchema).safeParse(data)
+  if (!parsedRows.success) {
+    console.error("[panel-orders]", JSON.stringify({ stage: `${status}_comandas_response_invalid` }))
+    throw new Error("panel_comandas_unavailable")
+  }
+
+  const totalRows = count ?? parsedRows.data.length
+  const lastPage = Math.max(1, Math.ceil(totalRows / CLOSED_COMANDA_PAGE_SIZE))
+  if (status === "closed" && page > lastPage) {
+    return getPanelComandasPage(restaurant, { status, page: lastPage })
+  }
+
+  return {
+    comandas: parsedRows.data.map(toComanda),
+    page: status === "closed" ? page : 1,
+    pageSize: status === "closed" ? CLOSED_COMANDA_PAGE_SIZE : Math.max(parsedRows.data.length, 1),
+    totalRows,
+  }
 }

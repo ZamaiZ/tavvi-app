@@ -14,6 +14,7 @@ import {
   LuMessageSquareText,
   LuNfc,
   LuReceiptText,
+  LuSettings2,
   LuUtensils,
   LuUsers,
   LuX,
@@ -46,8 +47,8 @@ function PanelMobileNavItem({
 }: {
   href: string
   label: string
-  section: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team"
-  activeSection: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team"
+  section: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" | "settings"
+  activeSection: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" | "settings"
   icon: ReactNode
   pendingCount?: number
   badgeLabel?: string
@@ -104,6 +105,7 @@ export function PanelMobileDock({
   identifiersHref,
   callsHref,
   cashHref,
+  settingsHref,
   feedbackHref,
   teamHref,
   identityHref,
@@ -118,11 +120,12 @@ export function PanelMobileDock({
   identifiersHref: string
   callsHref: string
   cashHref: string
+  settingsHref: string
   feedbackHref: string
   teamHref: string
   identityHref: string
   contactHref: string
-  activeSection: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team"
+  activeSection: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" | "settings"
   pendingCallCount: number
   unreadFeedbackCount: number
   restaurantsHref: string
@@ -300,6 +303,7 @@ export function PanelMobileDock({
               <p className="px-1 text-[0.65rem] font-semibold tracking-[0.13em] text-muted-foreground uppercase">Restaurante</p>
               <div className="grid gap-2">
                 <PanelMobileNavItem href={teamHref} label="Equipe" section="team" activeSection={activeSection} icon={<LuUsers aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
+                <PanelMobileNavItem href={settingsHref} label="Configurações" section="settings" activeSection={activeSection} icon={<LuSettings2 aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
               </div>
             </motion.div>
           </motion.nav>

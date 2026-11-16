@@ -1,5 +1,7 @@
 # Pedidos da Mesa e Caixa
 
+> Esta especificação descreve pedidos e o primeiro Caixa. Pagamentos, configurações e encerramento foram detalhados posteriormente em [pagamentos e fechamento de comanda](2026-11-16-pagamentos-fechamento-comanda-design.md), que prevalece quando o assunto for liquidação e histórico de comandas.
+
 ## Intenção
 
 Permitir que a equipe registre pedidos enquanto atende um chamado e consulte, no Caixa, as comandas abertas das mesas. O lançamento deve ser rápido no salão, funcionar bem em desktop e celular e preservar a diferença entre atendimento, pedido e comanda.
@@ -16,7 +18,7 @@ Permitir que a equipe registre pedidos enquanto atende um chamado e consulte, no
 
 ## Fora de escopo
 
-- Pagamentos, sessões de caixa, gorjetas, liquidação, fechamento de comanda, descontos, impressão e fluxo de cozinha.
+- Sessões de caixa, gorjetas, descontos, impressão e fluxo de cozinha. Pagamentos e fechamento são tratados na especificação posterior de pagamentos e fechamento de comanda.
 - Cadastro persistente de adicionais no Cardápio. Os acréscimos desta etapa são descritos e precificados no próprio pedido.
 - Criar uma comanda vazia quando alguém assume um chamado.
 - Persistir rascunhos de pedido antes de confirmar.
@@ -40,8 +42,8 @@ Permitir que a equipe registre pedidos enquanto atende um chamado e consulte, no
 - Valores de itens simples e variações são lidos e revalidados no banco na confirmação. O preço de acréscimos livres é submetido pelo membro responsável, validado como centavos não negativos e salvo como snapshot.
 - Uma chave request_id única por restaurante torna a confirmação idempotente.
 - Cada item e acréscimo confirma snapshots de nome, variação e preço. Alterações posteriores no Cardápio não reescrevem pedidos existentes.
-- Uma comanda aberta é única por restaurante e número da mesa. A criação concorrente da primeira comanda é protegida por índice único e transação.
-- A página Caixa lista somente comandas abertas nesta etapa. O total é calculado a partir dos snapshots dos pedidos.
+- Uma comanda aberta é única por restaurante e número da mesa. A criação concorrente da primeira comanda é protegida por índice único e transação. Após encerrada, uma nova visita à mesa pode abrir outra comanda.
+- O total é calculado a partir dos snapshots dos pedidos. A especificação posterior define pagamentos, saldo, fechamento e consulta de encerradas.
 
 ## Composição visual
 

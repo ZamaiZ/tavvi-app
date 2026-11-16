@@ -2,16 +2,32 @@ import type { Metadata } from "next"
 import { LuReceiptText } from "react-icons/lu"
 
 import { CashRealtimeProvider, CashWorkspace } from "@/features/panel/orders/components/cash-workspace"
-import { getPanelOpenComandas } from "@/features/panel/orders/server/read"
+import { getPanelComandasPage } from "@/features/panel/orders/server/read"
+import { getPanelPaymentMethods } from "@/features/panel/settings/server/read"
 import { PanelPageHeading } from "@/features/panel/workspace/components/panel-page-heading"
 import { getActivePanelRestaurant } from "@/features/panel/workspace/server/restaurants"
 
 export const metadata: Metadata = { title: "Caixa" }
 
-export default async function PanelCashPage() {
+type PanelCashPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+export default async function PanelCashPage({ searchParams }: PanelCashPageProps) {
+  const params = await searchParams
   const restaurant = await getActivePanelRestaurant()
   if (!restaurant || restaurant.status !== "active") throw new Error("panel_restaurant_not_found")
-  const comandas = await getPanelOpenComandas(restaurant)
+  const status = firstParam(params.status) === "closed" ? "closed" : "open"
+  const pageValue = Number(firstParam(params.page) ?? "1")
+  const page = Number.isSafeInteger(pageValue) && pageValue > 0 && pageValue <= 1_000_000 ? pageValue : 1
+  const [initialData, enabledMethods] = await Promise.all([
+    getPanelComandasPage(restaurant, { status, page }),
+    getPanelPaymentMethods(restaurant.id),
+  ])
 
   return (
     <div className="min-h-svh">
@@ -19,7 +35,7 @@ export default async function PanelCashPage() {
         <PanelPageHeading title="Caixa" icon={<LuReceiptText aria-hidden="true" className="size-4" />} />
       </header>
       <CashRealtimeProvider restaurantId={restaurant.id}>
-        <CashWorkspace initialComandas={comandas} />
+        <CashWorkspace initialData={initialData} status={status} enabledMethods={enabledMethods} restaurantId={restaurant.id} />
       </CashRealtimeProvider>
     </div>
   )

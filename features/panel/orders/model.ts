@@ -1,3 +1,5 @@
+import type { PanelPaymentMethod } from "@/features/panel/payments/model"
+
 export type OrderAdditionInput = {
   name: string
   quantity: number
@@ -81,14 +83,69 @@ export type PanelComandaOrderDTO = {
   totalCents: number
 }
 
+export type PanelComandaPaymentSplitDTO = {
+  id: string
+  method: PanelPaymentMethod
+  amountCents: number
+}
+
+export type PanelComandaPaymentDTO = {
+  id: string
+  createdAt: string
+  createdBy: string
+  createdByName: string
+  amountCents: number
+  splits: PanelComandaPaymentSplitDTO[]
+}
+
 export type PanelComandaDTO = {
   id: string
   restaurantId: string
   tableNumber: number
-  status: "open"
+  status: "open" | "closed"
   openedAt: string
+  closedAt: string | null
+  closedBy: string | null
   orders: PanelComandaOrderDTO[]
   orderCount: number
   itemCount: number
   totalCents: number
+  payments: PanelComandaPaymentDTO[]
+  paidCents: number
+  balanceCents: number
 }
+
+export type PanelComandasPage = {
+  comandas: PanelComandaDTO[]
+  page: number
+  pageSize: number
+  totalRows: number
+}
+
+export type PanelPaymentFailureCode =
+  | "invalid_input"
+  | "session_expired"
+  | "context_changed"
+  | "unavailable"
+  | "database_error"
+  | "forbidden"
+  | "comanda_not_found"
+  | "comanda_conflict"
+  | "request_conflict"
+  | "payment_method_disabled"
+  | "balance_already_paid"
+  | "payment_exceeds_balance"
+  | "close_requires_full_payment"
+  | "balance_remaining"
+
+export type RecordPanelComandaPaymentResult = {
+  paymentId: string
+  closed: boolean
+  paidCents: number
+  balanceCents: number
+}
+
+export type PanelPaymentActionResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; code: PanelPaymentFailureCode }
+

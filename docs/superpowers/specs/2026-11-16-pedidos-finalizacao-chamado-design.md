@@ -1,5 +1,7 @@
 # Pedidos: finalização do chamado e tempos de atendimento
 
+> Esta especificação preserva o ciclo de chamados e pedidos. Pagamentos e encerramento financeiro de comandas estão definidos em [pagamentos e fechamento de comanda](2026-11-16-pagamentos-fechamento-comanda-design.md).
+
 ## Intenção
 
 Ao confirmar o pedido da mesa, registrar todos os itens na comanda e concluir o chamado em uma única transação. Exibir no histórico quanto tempo o chamado aguardou até ser assumido e quanto tempo o atendimento durou.
@@ -22,7 +24,7 @@ Ao confirmar o pedido da mesa, registrar todos os itens na comanda e concluir o 
 
 ## Fora de escopo
 
-- Pagamentos, fechamento de comanda ou alteração dos estados da Caixa.
+- Mudanças no ciclo de chamados ou pedidos decorrentes do fluxo de pagamentos. O fechamento financeiro de comandas está tratado na especificação posterior de pagamentos.
 - Novo painel analítico ou agregações de tempo por período/equipe.
 - Novas colunas para durações: os horários existentes são a fonte de verdade e as durações são derivadas.
 - Reestruturação do catálogo, da comanda ou dos componentes existentes além do necessário para usar `Sheet`.

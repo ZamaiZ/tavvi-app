@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { PANEL_PAYMENT_METHOD_VALUES } from "@/features/panel/payments/model"
 import { MENU_MAX_PRICE_CENTS } from "@/features/panel/menu/model"
 
 const uuid = z.string().uuid()
@@ -22,4 +23,25 @@ export const recordPanelOrderSchema = z.object({
   callId: uuid,
   requestId: uuid,
   items: z.array(orderItemSchema).min(1).max(100),
+}).strict()
+
+const paymentSplitSchema = z.object({
+  method: z.enum(PANEL_PAYMENT_METHOD_VALUES),
+  amountCents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+}).strict()
+
+export const recordPanelComandaPaymentSchema = z.object({
+  expectedRestaurantId: uuid,
+  comandaId: uuid,
+  requestId: uuid,
+  splits: z.array(paymentSplitSchema).min(1).max(PANEL_PAYMENT_METHOD_VALUES.length),
+  closeIfPaid: z.boolean(),
+}).strict().refine(
+  (input) => new Set(input.splits.map((split) => split.method)).size === input.splits.length,
+  { path: ["splits"], message: "duplicate_payment_method" },
+)
+
+export const closePaidComandaSchema = z.object({
+  expectedRestaurantId: uuid,
+  comandaId: uuid,
 }).strict()

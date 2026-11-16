@@ -12,6 +12,7 @@ import {
   LuChevronsUpDown,
   LuNfc,
   LuReceiptText,
+  LuSettings2,
   LuUtensils,
   LuMessageSquareText,
   LuUsers,
@@ -191,12 +192,13 @@ function PanelAppShellFrame({
   const callsHref = `${publicBasePath}/chamados`
   const cashHref = `${publicBasePath}/caixa`
   const restaurantsHref = getPanelRestaurantsPath(publicBasePath)
+  const settingsHref = publicBasePath + "/configuracoes"
   const identityHref = `${publicBasePath}/identidade`
   const contactHref = `${publicBasePath}/contato`
   const feedbackHref = `${publicBasePath}/feedback`
   const teamHref = `${publicBasePath}/equipe`
   const pathname = usePathname()
-  const activeSection: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" = pathname.endsWith("/equipe") ? "team" : pathname.endsWith("/feedback") ? "feedback" : pathname.endsWith("/identificadores") ? "identifiers" : pathname.endsWith("/chamados") ? "calls" : pathname.endsWith("/caixa") ? "cash" : pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : "menu"
+  const activeSection: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" | "settings" = pathname.endsWith("/configuracoes") ? "settings" : pathname.endsWith("/equipe") ? "team" : pathname.endsWith("/feedback") ? "feedback" : pathname.endsWith("/identificadores") ? "identifiers" : pathname.endsWith("/chamados") ? "calls" : pathname.endsWith("/caixa") ? "cash" : pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : "menu"
   const canSwitchRestaurants = restaurants.length > 1
 
   const sequenceVariants = {
@@ -310,6 +312,11 @@ function PanelAppShellFrame({
                           <LuUsers aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Equipe</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton render={<Link href={settingsHref} aria-current={activeSection === "settings" ? "page" : undefined} />} isActive={activeSection === "settings"} tooltip="Configurações" className="transition-colors duration-150">
+                          <LuSettings2 aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Configurações</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </SidebarGroup>
@@ -341,6 +348,7 @@ function PanelAppShellFrame({
           identifiersHref={identifiersHref}
           callsHref={callsHref}
           cashHref={cashHref}
+          settingsHref={settingsHref}
           feedbackHref={feedbackHref}
           teamHref={teamHref}
           identityHref={identityHref}
