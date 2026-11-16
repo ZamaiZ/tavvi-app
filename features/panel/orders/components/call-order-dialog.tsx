@@ -241,12 +241,12 @@ export function CallOrderDialog({
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent
           showCloseButton={false}
-          className="!fixed !inset-0 !top-0 !left-0 !h-dvh !w-screen !max-w-none !translate-x-0 !translate-y-0 !gap-0 !rounded-none !p-0 !ring-0 overflow-hidden bg-background text-foreground duration-200 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.99] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.99] motion-reduce:duration-0"
+          className="!fixed !inset-0 !top-0 !left-0 !h-dvh !w-auto !max-w-none !translate-x-0 !translate-y-0 !gap-0 !rounded-none !p-0 !ring-0 overflow-hidden bg-background text-foreground duration-200 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.99] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.99] motion-reduce:duration-0"
         >
           <DialogTitle className="sr-only">Pedido da mesa {call.tableNumber}</DialogTitle>
           <DialogDescription className="sr-only">Escolha itens do cardápio e registre o pedido da mesa.</DialogDescription>
 
-          <div className="relative flex h-full min-h-0 flex-col bg-background">
+          <div className="relative flex h-full min-h-0 min-w-0 flex-col bg-background">
             <header className="relative z-10 flex shrink-0 items-center gap-3 border-b border-border/70 bg-background/95 px-3 pt-[max(0.625rem,env(safe-area-inset-top))] pb-2.5 backdrop-blur-xl sm:px-6 sm:py-3">
               <Button type="button" variant="ghost" size="icon" aria-label="Fechar pedido" onClick={requestClose} className="size-11 shrink-0 rounded-xl">
                 <LuX aria-hidden="true" className="size-5" />
