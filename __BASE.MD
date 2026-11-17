@@ -363,6 +363,17 @@ Esta seção separa análise financeira de operação do caixa físico e registr
 - Não compartilhar cache de dados financeiros entre restaurantes ou usuários. A análise deve permanecer autenticada e respeitar RLS/associação ao restaurante; qualquer cache de leitura precisa ser segmentado por contexto e invalidado após gravação.
 - A gorjeta aceita integra o total recebido; pode ser mostrada como composição/subindicador sem ser somada novamente ao total.
 
+### 9.4 Decisões confirmadas para a implementação
+
+- O Caixa terá uma sessão por data operacional local. Almoço e jantar pertencem à mesma sessão; ela permanece ligada ao dia em que foi aberta até o fechamento explícito, inclusive se atravessar a meia-noite. Um dia encerrado não pode ser reaberto.
+- O fuso inicial do restaurante é `America/Sao_Paulo`. Os relatórios usam dias de calendário nesse fuso; a data operacional da sessão continua sendo a data local de abertura.
+- Toda movimentação financeira é registrada como abertura, reforço, retirada, recebimento ou despesa. Despesas exigem categoria, descrição e forma de pagamento e aparecem em Financeiro; uma despesa paga em espécie vinculada à sessão reduz o esperado do caixa uma única vez. Despesas eletrônicas também podem ser registradas sem sessão aberta.
+- A abertura e o fechamento recebem valores totais em centavos; contagem por cédulas/moedas fica para uma etapa posterior. Ao menos uma forma padrão ou personalizada deve permanecer ativa.
+- Financeiro apresenta despesas tanto por categoria quanto por forma de pagamento, separadas de reforços e retiradas.
+- O resumo por período apresenta sessões encerradas pela data operacional de abertura, com valores esperados/contados e diferenças acumuladas; sessões abertas aparecem pendentes de fechamento.
+- PIX é um meio configurável junto dos meios padrão. Meios personalizados podem ser cadastrados com natureza em espécie ou eletrônica e mantêm o rótulo histórico após desativação.
+- Financeiro é a página inicial do restaurante ativo no Painel; a operação de abertura, movimentações, pagamentos e fechamento permanece em Caixa.
+
 ## 10. Direção para Caixa e integração com Financeiro
 
 Caixa concentra a operação das comandas e do caixa físico. Pedido vindo de chamado e pedido lançado diretamente no Caixa convergem para a mesma comanda, os mesmos totais e as mesmas operações de recebimento.

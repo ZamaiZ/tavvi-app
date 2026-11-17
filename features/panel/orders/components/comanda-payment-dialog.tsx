@@ -8,9 +8,11 @@ import {
   LuCheck,
   LuCircleAlert,
   LuCreditCard,
+  LuCircleDollarSign,
   LuHandshake,
   LuLoaderCircle,
   LuPlus,
+  LuQrCode,
   LuReceiptText,
   LuTrash2,
   LuWalletCards,
@@ -21,7 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Combobox as ComboboxRoot, ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList } from "@/components/ui/combobox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field, FieldLabel } from "@/components/ui/field"
-import { PANEL_PAYMENT_METHODS, PANEL_PAYMENT_METHOD_VALUES, type PanelPaymentMethod, type PaymentSplitInput } from "@/features/panel/payments/model"
+import { PANEL_PAYMENT_METHOD_VALUES, type PanelPaymentMethodOption, type PaymentSplitInput } from "@/features/panel/payments/model"
 import { formatPaymentCents, parsePaymentAmountCents } from "@/features/panel/payments/lib/currency"
 import { PaymentAmountInput } from "@/features/panel/payments/components/payment-amount-input"
 import { closePaidComandaAction, recordPanelComandaPaymentAction } from "@/features/panel/orders/actions"
@@ -29,16 +31,17 @@ import type { PanelComandaDTO, PanelPaymentFailureCode } from "@/features/panel/
 
 const EASE = [0.23, 1, 0.32, 1] as const
 
-const methodIcons = {
+const methodIcons: Record<string, typeof LuBanknote> = {
   cash: LuBanknote,
   debit: LuCreditCard,
   credit: LuCreditCard,
+  pix: LuQrCode,
   meal_voucher: LuWalletCards,
   food_voucher: LuWalletCards,
   partnership: LuHandshake,
 }
 
-type PaymentDraft = { id: string; method: PanelPaymentMethod; value: string; touched: boolean }
+type PaymentDraft = { id: string; method: string; value: string; cashReceivedValue: string; touched: boolean }
 type PendingPaymentAttempt = { requestId: string; splits: PaymentSplitInput[]; closeIfPaid: boolean }
 
 function readPendingPaymentAttempt(key: string): PendingPaymentAttempt | null {
@@ -50,17 +53,19 @@ function readPendingPaymentAttempt(key: string): PendingPaymentAttempt | null {
       || typeof candidate.closeIfPaid !== "boolean"
       || !Array.isArray(candidate.splits)
       || candidate.splits.length < 1
-      || candidate.splits.length > PANEL_PAYMENT_METHOD_VALUES.length) return null
+      || candidate.splits.length > PANEL_PAYMENT_METHOD_VALUES.length + 20) return null
 
-    const seenMethods = new Set<PanelPaymentMethod>()
+    const seenMethods = new Set<string>()
     const splits: PaymentSplitInput[] = []
     for (const split of candidate.splits) {
-      if (!split || !PANEL_PAYMENT_METHOD_VALUES.includes(split.method)
+      if (!split || typeof split.method !== "string"
+        || !(PANEL_PAYMENT_METHOD_VALUES.includes(split.method as (typeof PANEL_PAYMENT_METHOD_VALUES)[number]) || /^custom:[0-9a-f-]{36}$/i.test(split.method))
         || !Number.isSafeInteger(split.amountCents)
         || split.amountCents <= 0
         || seenMethods.has(split.method)) return null
+      if (split.cashReceivedCents !== undefined && (!Number.isSafeInteger(split.cashReceivedCents) || split.cashReceivedCents < split.amountCents)) return null
       seenMethods.add(split.method)
-      splits.push({ method: split.method, amountCents: split.amountCents })
+      splits.push({ method: split.method, amountCents: split.amountCents, ...(split.cashReceivedCents === undefined ? {} : { cashReceivedCents: split.cashReceivedCents }) })
     }
 
     return { requestId: candidate.requestId, splits, closeIfPaid: candidate.closeIfPaid }
@@ -86,7 +91,7 @@ function clearPendingPaymentAttempt(key: string) {
 }
 
 function paymentErrorMessage(code: PanelPaymentFailureCode) {
-  const messages: Record<PanelPaymentFailureCode, string> = {
+  const messages: Partial<Record<PanelPaymentFailureCode, string>> = {
     invalid_input: "Confira os valores informados e tente novamente.",
     session_expired: "Sua sessão expirou. Entre novamente para continuar.",
     context_changed: "O restaurante ativo mudou. Atualize o Caixa antes de continuar.",
@@ -102,7 +107,9 @@ function paymentErrorMessage(code: PanelPaymentFailureCode) {
     close_requires_full_payment: "Para fechar junto com o pagamento, o valor precisa quitar todo o saldo.",
     balance_remaining: "Ainda há saldo em aberto. Não é possível encerrar esta comanda.",
   }
-  return messages[code]
+  messages.cash_session_required = "Abra o caixa do dia antes de registrar pagamentos."
+  messages.cash_session_closed = "O caixa foi fechado. Atualize a página para continuar."
+  return messages[code] ?? "Não foi possível concluir esta operação."
 }
 
 export function ComandaPaymentDialog({
@@ -110,7 +117,8 @@ export function ComandaPaymentDialog({
   onOpenChange,
   comanda,
   expectedRestaurantId,
-  enabledMethods,
+  paymentMethods,
+  cashSessionOpen,
   closeOnly = false,
   onRefresh,
   onSuccess,
@@ -119,7 +127,8 @@ export function ComandaPaymentDialog({
   onOpenChange: (open: boolean) => void
   comanda: PanelComandaDTO
   expectedRestaurantId: string
-  enabledMethods: PanelPaymentMethod[]
+  paymentMethods: PanelPaymentMethodOption[]
+  cashSessionOpen: boolean
   closeOnly?: boolean
   onRefresh: () => void
   onSuccess: () => void
@@ -134,7 +143,7 @@ export function ComandaPaymentDialog({
   const orderContext = latestOrder
     ? `${latestOrder.fulfillmentType === "takeaway" ? "para viagem" : "no local"}${latestOrder.customerName ? ` · ${latestOrder.customerName}` : ""}`
     : ""
-  const [rows, setRows] = useState<PaymentDraft[]>(() => [{ id: "split-0", method: enabledMethods[0] ?? "cash", value: "", touched: false }])
+  const [rows, setRows] = useState<PaymentDraft[]>(() => [{ id: "split-0", method: paymentMethods[0]?.value ?? "cash", value: "", cashReceivedValue: "", touched: false }])
   const [closeIfPaid, setCloseIfPaid] = useState(false)
   const [error, setError] = useState("")
   const [refreshAvailable, setRefreshAvailable] = useState(false)
@@ -153,6 +162,7 @@ export function ComandaPaymentDialog({
         id: `split-${index}`,
         method: split.method,
         value: formatPaymentCents(split.amountCents),
+        cashReceivedValue: split.cashReceivedCents === undefined ? "" : formatPaymentCents(split.cashReceivedCents),
         touched: false,
       })))
       setCloseIfPaid(pendingAttempt.closeIfPaid)
@@ -163,14 +173,22 @@ export function ComandaPaymentDialog({
     }
   }, [open, closeOnly, pendingAttemptKey])
 
-  const parsedRows = rows.map((row) => ({ ...row, amountCents: parsePaymentAmountCents(row.value) }))
+  const methodByValue = new Map(paymentMethods.map((method) => [method.value, method]))
+  const parsedRows = rows.map((row) => {
+    const amountCents = parsePaymentAmountCents(row.value)
+    const methodOption = methodByValue.get(row.method)
+    const receivedCents = methodOption?.kind === "cash"
+      ? row.cashReceivedValue.trim() ? parsePaymentAmountCents(row.cashReceivedValue) : amountCents
+      : null
+    return { ...row, amountCents, receivedCents, methodOption }
+  })
   const paymentCents = parsedRows.reduce((total, row) => total + (row.amountCents ?? 0), 0)
   const balanceAfterCents = Math.max(0, comanda.balanceCents - paymentCents)
   const exactBalance = paymentCents > 0 && paymentCents === comanda.balanceCents
   const exceedsBalance = !uncertainAttempt && paymentCents > comanda.balanceCents
-  const allRowsValid = parsedRows.every((row) => row.amountCents !== null)
-  const methodsValid = rows.every((row) => enabledMethods.includes(row.method))
-  const canSubmit = allRowsValid && paymentCents > 0 && (uncertainAttempt || (!exceedsBalance && methodsValid)) && enabledMethods.length > 0
+  const allRowsValid = parsedRows.every((row) => row.amountCents !== null && (row.methodOption?.kind !== "cash" || (row.receivedCents !== null && row.receivedCents >= row.amountCents)))
+  const methodsValid = rows.every((row) => paymentMethods.some((method) => method.value === row.method))
+  const canSubmit = allRowsValid && paymentCents > 0 && (uncertainAttempt || (!exceedsBalance && methodsValid)) && paymentMethods.length > 0 && (cashSessionOpen || uncertainAttempt)
   const usedMethods = useMemo(() => new Set(rows.map((row) => row.method)), [rows])
 
   function invalidateAttempt() {
@@ -192,12 +210,12 @@ export function ComandaPaymentDialog({
   }
 
   function addRow() {
-    if (rows.length >= enabledMethods.length || pending || uncertainAttempt) return
-    const method = enabledMethods.find((entry) => !usedMethods.has(entry))
+    if (rows.length >= paymentMethods.length || pending || uncertainAttempt) return
+    const method = paymentMethods.find((entry) => !usedMethods.has(entry.value))?.value
     if (!method) return
     invalidateAttempt()
     setCloseIfPaid(false)
-    setRows((current) => [...current, { id: `split-${nextRowId}`, method, value: "", touched: false }])
+    setRows((current) => [...current, { id: `split-${nextRowId}`, method, value: "", cashReceivedValue: "", touched: false }])
     setNextRowId((current) => current + 1)
   }
 
@@ -210,7 +228,11 @@ export function ComandaPaymentDialog({
 
   function submitPayment() {
     if (!canSubmit || pending || closeOnly) return
-    const splits = parsedRows.map((row) => ({ method: row.method, amountCents: row.amountCents as number })) as PaymentSplitInput[]
+    const splits = parsedRows.map((row) => ({
+      method: row.method,
+      amountCents: row.amountCents as number,
+      ...(row.methodOption?.kind === "cash" && row.receivedCents !== null ? { cashReceivedCents: row.receivedCents } : {}),
+    })) as PaymentSplitInput[]
     const requestId = requestIdRef.current ?? crypto.randomUUID()
     requestIdRef.current = requestId
     setError("")
@@ -273,7 +295,6 @@ export function ComandaPaymentDialog({
     })
   }
 
-  const methodByValue = new Map(PANEL_PAYMENT_METHODS.map((method) => [method.value, method]))
   const sequence = {
     hidden: {},
     visible: { transition: { delayChildren: reducedMotion ? 0 : 0.015, staggerChildren: reducedMotion ? 0 : 0.035 } },
@@ -318,18 +339,16 @@ export function ComandaPaymentDialog({
                 <section className="space-y-3">
                   <div className="flex items-end justify-between gap-3">
                     <div><h3 className="text-sm font-semibold tracking-tight">Dividir entre formas</h3><p className="mt-0.5 text-xs text-muted-foreground">Cada linha registra uma forma e seu valor.</p></div>
-                    <span className="shrink-0 text-[0.65rem] font-medium text-muted-foreground">{rows.length} de {enabledMethods.length}</span>
+                    <span className="shrink-0 text-[0.65rem] font-medium text-muted-foreground">{rows.length} de {paymentMethods.length}</span>
                   </div>
 
                   <motion.div variants={sequence} initial={reducedMotion ? false : "hidden"} animate="visible" className="space-y-3">
                     <AnimatePresence initial={false}>
                       {rows.map((row, index) => {
-                        const choices = enabledMethods.filter((method) => method === row.method || !usedMethods.has(method))
+                        const choices = paymentMethods.filter((method) => method.value === row.method || !usedMethods.has(method.value))
                         const method = methodByValue.get(row.method)
-                        const Icon = methodIcons[row.method]
-                        const choiceOptions = (choices.includes(row.method) ? choices : [row.method, ...choices])
-                          .map((value) => methodByValue.get(value))
-                          .filter((option): option is (typeof PANEL_PAYMENT_METHODS)[number] => option !== undefined)
+                        const Icon = methodIcons[row.method] ?? LuCircleDollarSign
+                        const choiceOptions = choices.some((option) => option.value === row.method) ? choices : [method, ...choices].filter((option): option is PanelPaymentMethodOption => option !== undefined)
                         const choiceItems = ComboboxPrimitive.createItems(choiceOptions, {
                           getValue: (option) => option.value,
                           getLabel: (option) => option.label,
@@ -343,14 +362,14 @@ export function ComandaPaymentDialog({
                             <div className="grid gap-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] sm:items-start">
                               <Field>
                                 <FieldLabel htmlFor={`payment-method-${row.id}`}>Forma de pagamento</FieldLabel>
-                                <ComboboxRoot items={choiceItems} value={row.method} onValueChange={(value) => { if (typeof value === "string") updateRow(row.id, { method: value as PanelPaymentMethod }) }}>
+                                <ComboboxRoot items={choiceItems} value={row.method} onValueChange={(value) => { if (typeof value === "string") updateRow(row.id, { method: value }) }}>
                                   <ComboboxInput id={`payment-method-${row.id}`} placeholder="Selecione uma forma" className="h-11 w-full rounded-xl bg-background/80 text-sm" autoComplete="off" disabled={pending || uncertainAttempt} aria-label={`Forma de pagamento ${index + 1}`} />
                                   <ComboboxContent className="border border-border/70 bg-popover/95 shadow-xl">
                                     <ComboboxEmpty>Nenhuma forma disponível.</ComboboxEmpty>
                                     <ComboboxList>
                                       {choiceOptions.map((choice) => {
-                                        const ChoiceIcon = methodIcons[choice.value]
-                                        return <ComboboxItem key={choice.value} value={choice.value} disabled={!enabledMethods.includes(choice.value)} className="min-h-10 rounded-lg text-sm"><ChoiceIcon aria-hidden="true" className="size-4 text-muted-foreground" />{choice.label}</ComboboxItem>
+                                        const ChoiceIcon = methodIcons[choice.value] ?? LuCircleDollarSign
+                                        return <ComboboxItem key={choice.value} value={choice.value} disabled={!paymentMethods.some((option) => option.value === choice.value)} className="min-h-10 rounded-lg text-sm"><ChoiceIcon aria-hidden="true" className="size-4 text-muted-foreground" />{choice.label}</ComboboxItem>
                                       })}
                                     </ComboboxList>
                                   </ComboboxContent>
@@ -365,6 +384,16 @@ export function ComandaPaymentDialog({
                                 disabled={pending || uncertainAttempt}
                                 error={row.touched && parsePaymentAmountCents(row.value) === null ? "Informe um valor maior que zero." : undefined}
                               />
+                              {method?.kind === "cash" ? <PaymentAmountInput
+                                id={`payment-cash-received-${row.id}`}
+                                label="Dinheiro recebido"
+                                value={row.cashReceivedValue}
+                                onValueChange={(value) => updateRow(row.id, { cashReceivedValue: value, touched: false })}
+                                onBlur={() => markRowTouched(row.id)}
+                                disabled={pending || uncertainAttempt}
+                                error={row.touched && row.cashReceivedValue.trim() !== "" && (parsedRows[index]?.receivedCents === null || (parsedRows[index]?.amountCents !== null && parsedRows[index]?.receivedCents !== null && (parsedRows[index]?.receivedCents ?? 0) < (parsedRows[index]?.amountCents ?? 0))) ? "O valor recebido precisa cobrir o valor aplicado." : undefined}
+                              /> : null}
+                              {method?.kind === "cash" && row.cashReceivedValue.trim() !== "" && parsedRows[index]?.receivedCents !== null && parsedRows[index]?.amountCents !== null && (parsedRows[index]?.receivedCents ?? 0) > (parsedRows[index]?.amountCents ?? 0) ? <p className="text-xs font-medium text-muted-foreground sm:col-span-2">Troco: <span className="tabular-nums text-foreground">R$ {formatPaymentCents((parsedRows[index]?.receivedCents ?? 0) - (parsedRows[index]?.amountCents ?? 0))}</span></p> : null}
                             </div>
                           </motion.div>
                         )
@@ -372,7 +401,7 @@ export function ComandaPaymentDialog({
                     </AnimatePresence>
                   </motion.div>
 
-                  <Button type="button" variant="outline" disabled={pending || uncertainAttempt || rows.length >= enabledMethods.length} onClick={addRow} className="min-h-11 w-full rounded-xl border-dashed bg-background/50">
+                  <Button type="button" variant="outline" disabled={pending || uncertainAttempt || rows.length >= paymentMethods.length} onClick={addRow} className="min-h-11 w-full rounded-xl border-dashed bg-background/50">
                     <LuPlus aria-hidden="true" className="size-4" />Adicionar forma de pagamento
                   </Button>
                 </section>
@@ -390,6 +419,7 @@ export function ComandaPaymentDialog({
                 </section>
               ) : null}
 
+              {!closeOnly && !cashSessionOpen ? <p role="status" className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3.5 py-3 text-xs leading-5 text-amber-800 dark:text-amber-200">Abra o caixa do dia antes de registrar pagamentos.</p> : null}
               {retryNotice ? <p role="status" className="rounded-xl border border-primary/15 bg-primary/[0.045] px-3.5 py-3 text-xs leading-5 text-foreground/80">{retryNotice}</p> : null}
 
               {!closeOnly && exactBalance ? (

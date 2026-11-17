@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation"
 import { MotionConfig, motion, useReducedMotion } from "motion/react"
 import {
   LuBell,
+  LuChartNoAxesCombined,
   LuContactRound,
   LuIdCard,
   LuChevronsUpDown,
@@ -93,11 +94,11 @@ function RestaurantMark({ restaurant }: { restaurant: PanelRestaurantIdentity })
 function PanelBrand({
   restaurant,
   restaurants,
-  cardapioHref,
+  financeHref,
 }: {
   restaurant: PanelRestaurantIdentity
   restaurants: PanelRestaurantListItem[]
-  cardapioHref: string
+  financeHref: string
 }) {
   const { isMobile, state } = useSidebar()
   const [switcherOpen, setSwitcherOpen] = useState(false)
@@ -120,8 +121,8 @@ function PanelBrand({
   if (!canSwitchRestaurants) {
     return (
       <Link
-        href={cardapioHref}
-        aria-label={`Cardápio de ${restaurant.name}`}
+        href={financeHref}
+        aria-label={`Financeiro de ${restaurant.name}`}
         className={triggerClass}
       >
         {brandContent}
@@ -188,17 +189,18 @@ function PanelAppShellFrame({
   const prefersReducedMotion = useReducedMotion()
   const reducedMotion = prefersReducedMotion === true
   const cardapioHref = `${publicBasePath}/cardapio`
+  const financeHref = `${publicBasePath}/financeiro`
   const identifiersHref = `${publicBasePath}/identificadores`
   const callsHref = `${publicBasePath}/chamados`
   const cashHref = `${publicBasePath}/caixa`
   const restaurantsHref = getPanelRestaurantsPath(publicBasePath)
-  const settingsHref = publicBasePath + "/configuracoes"
+  const settingsHref = `${publicBasePath}/financeiro/configuracoes`
   const identityHref = `${publicBasePath}/identidade`
   const contactHref = `${publicBasePath}/contato`
   const feedbackHref = `${publicBasePath}/feedback`
   const teamHref = `${publicBasePath}/equipe`
   const pathname = usePathname()
-  const activeSection: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" | "settings" = pathname.endsWith("/configuracoes") ? "settings" : pathname.endsWith("/equipe") ? "team" : pathname.endsWith("/feedback") ? "feedback" : pathname.endsWith("/identificadores") ? "identifiers" : pathname.endsWith("/chamados") ? "calls" : pathname.endsWith("/caixa") ? "cash" : pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : "menu"
+  const activeSection: "finance" | "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" | "settings" = pathname.endsWith("/financeiro/configuracoes") || pathname.endsWith("/configuracoes") ? "settings" : pathname.endsWith("/equipe") ? "team" : pathname.endsWith("/feedback") ? "feedback" : pathname.endsWith("/identificadores") ? "identifiers" : pathname.endsWith("/chamados") ? "calls" : pathname.endsWith("/caixa") ? "cash" : pathname.endsWith("/identidade") ? "identity" : pathname.endsWith("/contato") ? "contact" : pathname.endsWith("/financeiro") ? "finance" : "menu"
   const canSwitchRestaurants = restaurants.length > 1
 
   const sequenceVariants = {
@@ -238,7 +240,7 @@ function PanelAppShellFrame({
                 <PanelBrand
                   restaurant={restaurant}
                   restaurants={restaurants}
-                  cardapioHref={cardapioHref}
+                  financeHref={financeHref}
                 />
               </SidebarHeader>
             </motion.div>
@@ -249,6 +251,11 @@ function PanelAppShellFrame({
                   <SidebarGroupLabel>Operação</SidebarGroupLabel>
                   <SidebarGroupContent>
                     <SidebarMenu>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton render={<Link href={financeHref} aria-current={activeSection === "finance" ? "page" : undefined} />} isActive={activeSection === "finance"} tooltip="Financeiro" className="transition-colors duration-150">
+                          <LuChartNoAxesCombined aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Financeiro</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
                       <SidebarMenuItem>
                         <SidebarMenuButton render={<Link href={cardapioHref} aria-current={activeSection === "menu" ? "page" : undefined} />} isActive={activeSection === "menu"} tooltip="Cardápio" className="transition-colors duration-150">
                           <LuUtensils aria-hidden="true" /><span className="group-data-[collapsible=icon]:sr-only">Cardápio</span>
@@ -344,6 +351,7 @@ function PanelAppShellFrame({
         </SidebarInset>
 
         <PanelMobileDock
+          financeHref={financeHref}
           cardapioHref={cardapioHref}
           identifiersHref={identifiersHref}
           callsHref={callsHref}

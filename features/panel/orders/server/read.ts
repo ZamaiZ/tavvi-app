@@ -20,8 +20,13 @@ export const CLOSED_COMANDA_PAGE_SIZE = 25
 const centsSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const paymentSplitSchema = z.object({
   id: z.string().uuid(),
-  method: z.enum(PANEL_PAYMENT_METHOD_VALUES),
+  method: z.enum([...PANEL_PAYMENT_METHOD_VALUES, "custom"]),
+  custom_method_id: z.string().uuid().nullable(),
+  method_label_snapshot: z.string().min(2).max(40),
+  method_kind_snapshot: z.enum(["cash", "electronic"]),
   amount_cents: centsSchema,
+  cash_received_cents: centsSchema.nullable(),
+  change_cents: centsSchema.nullable(),
   position: z.number().int().nonnegative(),
 })
 const paymentSchema = z.object({
@@ -66,7 +71,7 @@ const comandaSchema = z.object({
   id: z.string().uuid(),
   restaurant_id: z.string().uuid(),
   table_number: z.number().int().positive().nullable(),
-  status: z.enum(["open", "closed"]),
+  status: z.enum(["open", "pending", "closed"]),
   opened_at: z.string().datetime({ offset: true }),
   closed_at: z.string().datetime({ offset: true }).nullable(),
   closed_by: z.string().uuid().nullable(),
@@ -140,7 +145,15 @@ function toOrder(row: RawOrder): PanelComandaOrderDTO {
 function toPayment(row: RawPayment): PanelComandaPaymentDTO {
   const splits = [...(row.comanda_payment_splits ?? [])]
     .sort((left, right) => left.position - right.position || left.id.localeCompare(right.id))
-    .map((split) => ({ id: split.id, method: split.method, amountCents: split.amount_cents }))
+    .map((split) => ({
+      id: split.id,
+      method: split.method === "custom" ? `custom:${split.custom_method_id}` : split.method,
+      methodLabel: split.method_label_snapshot,
+      methodKind: split.method_kind_snapshot,
+      amountCents: split.amount_cents,
+      cashReceivedCents: split.cash_received_cents,
+      changeCents: split.change_cents,
+    }))
 
   return {
     id: row.id,
@@ -192,7 +205,7 @@ const COMANDA_SELECT = `
   ),
   comanda_payments (
     id, created_at, created_by, created_by_name, amount_cents,
-    comanda_payment_splits (id, method, amount_cents, position)
+    comanda_payment_splits (id, method, custom_method_id, method_label_snapshot, method_kind_snapshot, amount_cents, cash_received_cents, change_cents, position)
   )
 `
 
@@ -209,7 +222,7 @@ export async function getPanelComandasPage(
     .from("comandas")
     .select(COMANDA_SELECT, { count: "exact" })
     .eq("restaurant_id", restaurant.id)
-    .eq("status", status)
+    .in("status", status === "closed" ? ["closed"] : ["open", "pending"])
 
   if (status === "closed") {
     const from = (page - 1) * CLOSED_COMANDA_PAGE_SIZE

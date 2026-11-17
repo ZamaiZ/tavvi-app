@@ -49,6 +49,8 @@ const recordResponseSchema = z.discriminatedUnion("ok", [
       "comanda_not_found",
       "comanda_conflict",
       "payment_method_disabled",
+      "cash_session_required",
+      "cash_session_closed",
       "balance_already_paid",
       "payment_exceeds_balance",
       "close_requires_full_payment",
@@ -97,6 +99,8 @@ function mapFailure(code: string): PanelPaymentFailureCode {
   if (code === "request_conflict") return "request_conflict"
   if (code === "comanda_conflict") return "comanda_conflict"
   if (code === "payment_method_disabled") return "payment_method_disabled"
+  if (code === "cash_session_required") return "cash_session_required"
+  if (code === "cash_session_closed") return "cash_session_closed"
   if (code === "balance_already_paid") return "balance_already_paid"
   if (code === "payment_exceeds_balance") return "payment_exceeds_balance"
   if (code === "close_requires_full_payment") return "close_requires_full_payment"
@@ -115,7 +119,7 @@ export async function recordPanelComandaPayment(
   }
 
   try {
-    const { data, error } = await context.supabase.rpc("record_panel_comanda_payment", {
+    const { data, error } = await context.supabase.rpc("record_panel_comanda_payment_v2", {
       p_restaurant_id: context.restaurant.id,
       p_comanda_id: input.comandaId,
       p_request_id: input.requestId,
@@ -159,7 +163,7 @@ export async function closePaidPanelComanda(
   }
 
   try {
-    const { data, error } = await context.supabase.rpc("close_paid_panel_comanda", {
+    const { data, error } = await context.supabase.rpc("close_paid_panel_comanda_v2", {
       p_restaurant_id: context.restaurant.id,
       p_comanda_id: input.comandaId,
     })

@@ -9,9 +9,11 @@ import {
   LuCheck,
   LuClock3,
   LuCreditCard,
+  LuCircleDollarSign,
   LuHandshake,
   LuPackage,
   LuPlus,
+  LuQrCode,
   LuReceiptText,
   LuRefreshCw,
   LuSearch,
@@ -28,8 +30,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { formatPaymentCents } from "@/features/panel/payments/lib/currency"
-import { PANEL_PAYMENT_METHODS, type PanelPaymentMethod } from "@/features/panel/payments/model"
+import { getPanelPaymentOptions, type PanelPaymentConfiguration } from "@/features/panel/payments/model"
 import { ComandaPaymentDialog } from "@/features/panel/orders/components/comanda-payment-dialog"
+import { CashSessionPanel } from "@/features/panel/cash/components/cash-session-panel"
+import type { PanelCashStateDTO } from "@/features/panel/cash/model"
 import { CounterOrderDialog } from "@/features/panel/orders/components/counter-order-dialog"
 import type { PanelComandaDTO, PanelComandasPage } from "@/features/panel/orders/model"
 import type { PanelMenuDTO } from "@/features/panel/menu/model"
@@ -97,13 +101,10 @@ const methodIcons = {
   cash: LuBanknote,
   debit: LuCreditCard,
   credit: LuCreditCard,
+  pix: LuQrCode,
   meal_voucher: LuWalletCards,
   food_voucher: LuWalletCards,
   partnership: LuHandshake,
-}
-
-function methodLabel(method: PanelPaymentMethod) {
-  return PANEL_PAYMENT_METHODS.find((entry) => entry.value === method)?.label ?? method
 }
 
 function ComandaCard({
@@ -238,8 +239,8 @@ function ComandaCard({
                         </div>
                         <ul className="mt-2 flex flex-wrap gap-1.5">
                           {payment.splits.map((split) => {
-                            const Icon = methodIcons[split.method]
-                            return <li key={split.id} className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1 text-[0.68rem] text-muted-foreground"><Icon aria-hidden="true" className="size-3.5" />{methodLabel(split.method)} · R$ {formatPaymentCents(split.amountCents)}</li>
+                            const Icon = methodIcons[split.method as keyof typeof methodIcons] ?? LuCircleDollarSign
+                            return <li key={split.id} className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1 text-[0.68rem] text-muted-foreground"><Icon aria-hidden="true" className="size-3.5" />{split.methodLabel} · R$ {formatPaymentCents(split.amountCents)}{split.changeCents ? ` · troco R$ ${formatPaymentCents(split.changeCents)}` : ""}</li>
                           })}
                         </ul>
                       </li>
@@ -273,14 +274,16 @@ function ComandaCard({
 export function CashWorkspace({
   initialData,
   status,
-  enabledMethods,
+  paymentConfiguration,
+  cashState,
   restaurantId,
   menu,
   cardapioHref,
 }: {
   initialData: PanelComandasPage
   status: "open" | "closed"
-  enabledMethods: PanelPaymentMethod[]
+  paymentConfiguration: PanelPaymentConfiguration
+  cashState: PanelCashStateDTO
   restaurantId: string
   menu: PanelMenuDTO | null
   cardapioHref: string
@@ -318,6 +321,7 @@ export function CashWorkspace({
   const sumBalance = initialData.comandas.reduce((total, comanda) => total + comanda.balanceCents, 0)
   const pageCount = Math.max(1, Math.ceil(initialData.totalRows / PAGE_SIZE))
   const closed = status === "closed"
+  const paymentMethods = getPanelPaymentOptions(paymentConfiguration)
 
   function actionSuccess() {
     setSelected(null)
@@ -335,6 +339,7 @@ export function CashWorkspace({
     <MotionConfig reducedMotion="user">
       <main className="min-h-svh">
         <div className="mx-auto w-full max-w-[1320px] space-y-5 px-4 pb-32 sm:px-6 md:pb-10 lg:px-8">
+          <CashSessionPanel initialState={cashState} restaurantId={restaurantId} paymentMethods={paymentMethods} />
           <section aria-label="Resumo do caixa" className="grid gap-3 sm:grid-cols-3">
             <Card className="rounded-2xl border-border/70 bg-gradient-to-br from-primary/[0.08] via-card to-card shadow-sm"><CardContent className="flex items-center justify-between gap-3 p-4 sm:p-5"><div><p className="text-xs font-medium text-muted-foreground">{closed ? "Comandas encerradas" : "Comandas abertas"}</p><p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">{closed ? initialData.totalRows : initialData.comandas.length}</p></div><span className="grid size-11 place-items-center rounded-2xl bg-primary/10 text-primary"><LuTable2 aria-hidden="true" className="size-5" /></span></CardContent></Card>
             <Card className="rounded-2xl border-border/70 bg-card shadow-sm"><CardContent className="flex items-center justify-between gap-3 p-4 sm:p-5"><div><p className="text-xs font-medium text-muted-foreground">{closed ? "Recebido nesta página" : "Pedidos registrados"}</p><p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">{closed ? `R$ ${formatPaymentCents(sumPaid)}` : orderCount}</p></div><span className="grid size-11 place-items-center rounded-2xl bg-muted text-foreground/75"><LuShoppingBag aria-hidden="true" className="size-5" /></span></CardContent></Card>
@@ -388,7 +393,8 @@ export function CashWorkspace({
           onOpenChange={(nextOpen) => { if (!nextOpen) setSelected(null) }}
           comanda={selectedComanda}
           expectedRestaurantId={restaurantId}
-          enabledMethods={enabledMethods}
+          paymentMethods={paymentMethods}
+          cashSessionOpen={cashState.session?.status === "open"}
           closeOnly={selected?.closeOnly === true}
           onRefresh={refresh}
           onSuccess={actionSuccess}

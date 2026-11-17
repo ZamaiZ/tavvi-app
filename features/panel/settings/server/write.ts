@@ -2,7 +2,7 @@ import "server-only"
 
 import { z } from "zod"
 
-import { PANEL_PAYMENT_METHOD_VALUES, type PanelPaymentMethod } from "@/features/panel/payments/model"
+import { PANEL_PAYMENT_METHOD_VALUES, type PanelCustomPaymentMethodDTO, type PanelPaymentMethod } from "@/features/panel/payments/model"
 import { getActivePanelRestaurant } from "@/features/panel/workspace/server/restaurants"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
@@ -11,11 +11,17 @@ import type { PaymentSettingsFailureCode, PaymentSettingsResult } from "../model
 const responseSchema = z.discriminatedUnion("ok", [
   z.object({
     ok: z.literal(true),
-    enabledMethods: z.array(z.enum(PANEL_PAYMENT_METHOD_VALUES)).min(1).max(PANEL_PAYMENT_METHOD_VALUES.length),
+    enabledMethods: z.array(z.enum(PANEL_PAYMENT_METHOD_VALUES)).max(PANEL_PAYMENT_METHOD_VALUES.length),
+    customMethods: z.array(z.object({
+      id: z.string().uuid(),
+      label: z.string().min(2).max(40),
+      kind: z.enum(["cash", "electronic"]),
+      isActive: z.boolean(),
+    })),
   }),
   z.object({
     ok: z.literal(false),
-    code: z.enum(["session_expired", "forbidden", "invalid_input", "not_found"]),
+    code: z.enum(["session_expired", "forbidden", "invalid_input", "not_found", "duplicate_method"]),
   }),
 ]).refine(
   (response) => !response.ok || new Set(response.enabledMethods).size === response.enabledMethods.length,
@@ -28,14 +34,16 @@ function failure(code: PaymentSettingsFailureCode): PaymentSettingsResult {
 export async function savePanelPaymentMethods(input: {
   expectedRestaurantId: string
   enabledMethods: PanelPaymentMethod[]
+  customMethods: Array<{ id: string | null; label: string; kind: "cash" | "electronic"; isActive: boolean }>
 }): Promise<PaymentSettingsResult> {
   try {
     const restaurant = await getActivePanelRestaurant(input.expectedRestaurantId)
     if (!restaurant || restaurant.status !== "active") return failure("context_changed")
     const supabase = await createSupabaseServerClient("panel")
-    const { data, error } = await supabase.rpc("update_panel_payment_methods", {
+    const { data, error } = await supabase.rpc("update_panel_financial_settings", {
       p_restaurant_id: restaurant.id,
       p_enabled_methods: input.enabledMethods,
+      p_custom_methods: input.customMethods,
     })
     if (error) {
       console.error("[panel-settings]", JSON.stringify({ stage: "payment_methods_write", code: error.code }))
@@ -51,6 +59,7 @@ export async function savePanelPaymentMethods(input: {
       if (parsed.data.code === "session_expired") return failure("session_expired")
       if (parsed.data.code === "forbidden") return failure("forbidden")
       if (parsed.data.code === "invalid_input") return failure("invalid_input")
+      if (parsed.data.code === "duplicate_method") return failure("duplicate_method")
       return failure("context_changed")
     }
 
@@ -59,7 +68,8 @@ export async function savePanelPaymentMethods(input: {
       || enabledMethods.some((method, index) => method !== input.enabledMethods[index])) {
       return failure("database_error")
     }
-    return { ok: true, enabledMethods }
+    const customMethods: PanelCustomPaymentMethodDTO[] = parsed.data.customMethods
+    return { ok: true, enabledMethods, customMethods }
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : ""
     if (message === "panel_auth_required") return failure("session_expired")

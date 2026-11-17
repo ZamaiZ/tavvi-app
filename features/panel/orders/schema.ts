@@ -37,15 +37,16 @@ export const recordPanelOrderSchema = z.object({
 )
 
 const paymentSplitSchema = z.object({
-  method: z.enum(PANEL_PAYMENT_METHOD_VALUES),
+  method: z.string().trim().min(4).max(80).regex(/^(cash|debit|credit|pix|meal_voucher|food_voucher|partnership|custom:[0-9a-f-]{36})$/i),
   amountCents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+  cashReceivedCents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
 }).strict()
 
 export const recordPanelComandaPaymentSchema = z.object({
   expectedRestaurantId: uuid,
   comandaId: uuid,
   requestId: uuid,
-  splits: z.array(paymentSplitSchema).min(1).max(PANEL_PAYMENT_METHOD_VALUES.length),
+  splits: z.array(paymentSplitSchema).min(1).max(PANEL_PAYMENT_METHOD_VALUES.length + 20),
   closeIfPaid: z.boolean(),
 }).strict().refine(
   (input) => new Set(input.splits.map((split) => split.method)).size === input.splits.length,

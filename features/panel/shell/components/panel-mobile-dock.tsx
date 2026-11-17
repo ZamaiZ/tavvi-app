@@ -5,6 +5,7 @@ import Link, { useLinkStatus } from "next/link"
 import { useEffect, useState, type ReactNode } from "react"
 import {
   LuCheck,
+  LuChartNoAxesCombined,
   LuContactRound,
   LuBell,
   LuHouse,
@@ -47,8 +48,8 @@ function PanelMobileNavItem({
 }: {
   href: string
   label: string
-  section: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" | "settings"
-  activeSection: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" | "settings"
+  section: "finance" | "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" | "settings"
+  activeSection: "finance" | "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" | "settings"
   icon: ReactNode
   pendingCount?: number
   badgeLabel?: string
@@ -101,6 +102,7 @@ function HomeLinkFeedback({ reducedMotion }: { reducedMotion: boolean }) {
 }
 
 export function PanelMobileDock({
+  financeHref,
   cardapioHref,
   identifiersHref,
   callsHref,
@@ -116,6 +118,7 @@ export function PanelMobileDock({
   restaurantsHref,
   canSwitchRestaurants,
 }: {
+  financeHref: string
   cardapioHref: string
   identifiersHref: string
   callsHref: string
@@ -125,7 +128,7 @@ export function PanelMobileDock({
   teamHref: string
   identityHref: string
   contactHref: string
-  activeSection: "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" | "settings"
+  activeSection: "finance" | "menu" | "identifiers" | "calls" | "cash" | "identity" | "contact" | "feedback" | "team" | "settings"
   pendingCallCount: number
   unreadFeedbackCount: number
   restaurantsHref: string
@@ -199,9 +202,9 @@ export function PanelMobileDock({
             </div>
 
             <Link
-              href={cardapioHref}
-              aria-label="Início — Cardápio"
-              aria-current={activeSection === "menu" ? "page" : undefined}
+              href={financeHref}
+              aria-label="Início financeiro"
+              aria-current={activeSection === "finance" ? "page" : undefined}
               onClick={() => {
                 setAccountOpen(false)
                 setNavigationOpen(false)
@@ -281,6 +284,7 @@ export function PanelMobileDock({
               <p className="px-1 text-[0.65rem] font-semibold tracking-[0.13em] text-muted-foreground uppercase">Operação</p>
               <div className="grid gap-2">
                 <PanelMobileNavItem href={cardapioHref} label="Cardápio" section="menu" activeSection={activeSection} icon={<LuUtensils aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
+                <PanelMobileNavItem href={financeHref} label="Financeiro" section="finance" activeSection={activeSection} icon={<LuChartNoAxesCombined aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
                 <PanelMobileNavItem href={identifiersHref} label="Identificadores" section="identifiers" activeSection={activeSection} icon={<LuNfc aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
                 <PanelMobileNavItem href={callsHref} label="Chamados" section="calls" activeSection={activeSection} pendingCount={pendingCallCount} badgeLabel="chamados aguardando" icon={<LuBell aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />
                 <PanelMobileNavItem href={cashHref} label="Caixa" section="cash" activeSection={activeSection} icon={<LuReceiptText aria-hidden="true" className="size-[1.2rem]" />} onNavigate={() => setNavigationOpen(false)} />

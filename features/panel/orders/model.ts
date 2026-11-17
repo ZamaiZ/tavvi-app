@@ -1,5 +1,3 @@
-import type { PanelPaymentMethod } from "@/features/panel/payments/model"
-
 export type OrderAdditionInput = {
   name: string
   quantity: number
@@ -92,8 +90,12 @@ export type PanelComandaOrderDTO = {
 
 export type PanelComandaPaymentSplitDTO = {
   id: string
-  method: PanelPaymentMethod
+  method: string
+  methodLabel: string
+  methodKind: "cash" | "electronic"
   amountCents: number
+  cashReceivedCents: number | null
+  changeCents: number | null
 }
 
 export type PanelComandaPaymentDTO = {
@@ -109,7 +111,7 @@ export type PanelComandaDTO = {
   id: string
   restaurantId: string
   tableNumber: number | null
-  status: "open" | "closed"
+  status: "open" | "pending" | "closed"
   openedAt: string
   closedAt: string | null
   closedBy: string | null
@@ -140,6 +142,8 @@ export type PanelPaymentFailureCode =
   | "comanda_conflict"
   | "request_conflict"
   | "payment_method_disabled"
+  | "cash_session_required"
+  | "cash_session_closed"
   | "balance_already_paid"
   | "payment_exceeds_balance"
   | "close_requires_full_payment"
