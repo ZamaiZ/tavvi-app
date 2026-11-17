@@ -9,6 +9,7 @@ type RpcOrder = {
   id?: unknown
   comandaId?: unknown
   totalCents?: unknown
+  displayNumber?: unknown
 }
 
 type RpcPayload = {
@@ -44,6 +45,12 @@ function parseTotal(value: unknown): number | null {
   return Number.isSafeInteger(total) && total >= 0 ? total : null
 }
 
+function parseDisplayNumber(value: unknown): number | null | undefined {
+  if (value === null) return null
+  const number = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN
+  return Number.isSafeInteger(number) && number > 0 ? number : undefined
+}
+
 export async function recordPanelOrder(input: RecordPanelOrderInput): Promise<PanelOrderActionResult<RecordPanelOrderResult>> {
   let restaurantId: string
   let supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
@@ -57,19 +64,23 @@ export async function recordPanelOrder(input: RecordPanelOrderInput): Promise<Pa
   }
 
   try {
-    const { data, error } = await supabase.rpc("record_panel_order", {
+    const { data, error } = await supabase.rpc("record_panel_order_with_context", {
       p_restaurant_id: restaurantId,
       p_call_id: input.callId,
       p_request_id: input.requestId,
       p_items: input.items,
+      p_fulfillment_type: input.fulfillmentType,
+      p_table_number: input.tableNumber,
+      p_customer_name: input.customerName,
     })
     const payload = parsePayload(data)
 
     if (payload?.ok === true && payload.order) {
-      const { id, comandaId, totalCents } = payload.order
+      const { id, comandaId, totalCents, displayNumber } = payload.order
       const total = parseTotal(totalCents)
-      if (typeof id === "string" && typeof comandaId === "string" && total !== null) {
-        return { ok: true, data: { orderId: id, comandaId, totalCents: total } }
+      const parsedDisplayNumber = parseDisplayNumber(displayNumber)
+      if (typeof id === "string" && typeof comandaId === "string" && total !== null && parsedDisplayNumber !== undefined) {
+        return { ok: true, data: { orderId: id, comandaId, totalCents: total, displayNumber: parsedDisplayNumber } }
       }
       console.error("[panel-orders]", JSON.stringify({ stage: "record_response_invalid" }))
       return failure("database_error")

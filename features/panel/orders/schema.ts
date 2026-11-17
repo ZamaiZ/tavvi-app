@@ -18,12 +18,23 @@ const orderItemSchema = z.object({
   additions: z.array(additionSchema).max(10),
 }).strict()
 
+const postgresInteger = z.number().int().min(1).max(2_147_483_647)
+
 export const recordPanelOrderSchema = z.object({
   expectedRestaurantId: uuid,
-  callId: uuid,
+  callId: uuid.nullable(),
   requestId: uuid,
+  fulfillmentType: z.enum(["dine_in", "takeaway"]),
+  tableNumber: postgresInteger.nullable(),
+  customerName: z.string().trim().max(120).nullable().transform((value) => value || null),
   items: z.array(orderItemSchema).min(1).max(100),
-}).strict()
+}).strict().refine(
+  (input) => input.callId === null || (input.fulfillmentType === "dine_in" && input.tableNumber === null),
+  { path: ["callId"], message: "call_order_must_be_dine_in_without_manual_table" },
+).refine(
+  (input) => input.fulfillmentType !== "takeaway" || input.tableNumber === null,
+  { path: ["tableNumber"], message: "takeaway_cannot_have_table" },
+)
 
 const paymentSplitSchema = z.object({
   method: z.enum(PANEL_PAYMENT_METHOD_VALUES),

@@ -50,15 +50,22 @@ const itemSchema = z.object({
   position: z.number().int().nonnegative(),
   order_item_additions: z.array(additionSchema).nullable(),
 })
+const displayNumberSchema = z.preprocess(
+  (value) => typeof value === "string" ? Number(value) : value,
+  z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable(),
+)
 const orderSchema = z.object({
   id: z.string().uuid(),
   created_at: z.string().datetime({ offset: true }),
+  fulfillment_type: z.enum(["dine_in", "takeaway"]),
+  display_number: displayNumberSchema,
+  customer_name: z.string().min(1).max(120).nullable(),
   order_items: z.array(itemSchema).nullable(),
 })
 const comandaSchema = z.object({
   id: z.string().uuid(),
   restaurant_id: z.string().uuid(),
-  table_number: z.number().int().positive(),
+  table_number: z.number().int().positive().nullable(),
   status: z.enum(["open", "closed"]),
   opened_at: z.string().datetime({ offset: true }),
   closed_at: z.string().datetime({ offset: true }).nullable(),
@@ -122,6 +129,9 @@ function toOrder(row: RawOrder): PanelComandaOrderDTO {
   return {
     id: row.id,
     createdAt: row.created_at,
+    fulfillmentType: row.fulfillment_type,
+    displayNumber: row.display_number,
+    customerName: row.customer_name,
     items,
     totalCents: sumCents(items.map((item) => item.totalCents)),
   }
@@ -173,7 +183,7 @@ function toComanda(row: RawComanda): PanelComandaDTO {
 const COMANDA_SELECT = `
   id, restaurant_id, table_number, status, opened_at, closed_at, closed_by,
   orders (
-    id, created_at,
+    id, created_at, fulfillment_type, display_number, customer_name,
     order_items (
       id, category_name, item_name, variant_name, quantity,
       unit_price_cents, observations, position,
@@ -208,7 +218,10 @@ export async function getPanelComandasPage(
       .order("id", { ascending: false })
       .range(from, from + CLOSED_COMANDA_PAGE_SIZE - 1)
   } else {
-    request = request.order("table_number", { ascending: true })
+    request = request
+      .order("table_number", { ascending: true, nullsFirst: false })
+      .order("opened_at", { ascending: false })
+      .order("id", { ascending: false })
   }
 
   const { data, error, count } = await request

@@ -27,8 +27,11 @@ export type OrderDraftLine = OrderItemInput & {
 
 export type RecordPanelOrderInput = {
   expectedRestaurantId: string
-  callId: string
+  callId: string | null
   requestId: string
+  fulfillmentType: "dine_in" | "takeaway"
+  tableNumber: number | null
+  customerName: string | null
   items: OrderItemInput[]
 }
 
@@ -36,6 +39,7 @@ export type RecordPanelOrderResult = {
   orderId: string
   comandaId: string
   totalCents: number
+  displayNumber: number | null
 }
 
 export type PanelOrderFailureCode =
@@ -79,6 +83,9 @@ export type PanelComandaItemDTO = {
 export type PanelComandaOrderDTO = {
   id: string
   createdAt: string
+  fulfillmentType: "dine_in" | "takeaway"
+  displayNumber: number | null
+  customerName: string | null
   items: PanelComandaItemDTO[]
   totalCents: number
 }
@@ -101,7 +108,7 @@ export type PanelComandaPaymentDTO = {
 export type PanelComandaDTO = {
   id: string
   restaurantId: string
-  tableNumber: number
+  tableNumber: number | null
   status: "open" | "closed"
   openedAt: string
   closedAt: string | null

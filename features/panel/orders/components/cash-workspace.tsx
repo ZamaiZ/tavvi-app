@@ -10,6 +10,8 @@ import {
   LuClock3,
   LuCreditCard,
   LuHandshake,
+  LuPackage,
+  LuPlus,
   LuReceiptText,
   LuRefreshCw,
   LuSearch,
@@ -28,7 +30,9 @@ import { Input } from "@/components/ui/input"
 import { formatPaymentCents } from "@/features/panel/payments/lib/currency"
 import { PANEL_PAYMENT_METHODS, type PanelPaymentMethod } from "@/features/panel/payments/model"
 import { ComandaPaymentDialog } from "@/features/panel/orders/components/comanda-payment-dialog"
+import { CounterOrderDialog } from "@/features/panel/orders/components/counter-order-dialog"
 import type { PanelComandaDTO, PanelComandasPage } from "@/features/panel/orders/model"
+import type { PanelMenuDTO } from "@/features/panel/menu/model"
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
 
 const EASE = [0.23, 1, 0.32, 1] as const
@@ -85,6 +89,10 @@ function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(date)
 }
 
+function normalizeSearch(value: string) {
+  return value.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+}
+
 const methodIcons = {
   cash: LuBanknote,
   debit: LuCreditCard,
@@ -116,6 +124,13 @@ function ComandaCard({
   const [expanded, setExpanded] = useState(false)
   const orderCountLabel = `${comanda.orderCount} ${comanda.orderCount === 1 ? "pedido" : "pedidos"}`
   const paid = comanda.paidCents > 0
+  const latestOrder = comanda.orders[0] ?? null
+  const locationLabel = comanda.tableNumber !== null
+    ? `Mesa ${comanda.tableNumber}`
+    : latestOrder?.displayNumber !== null && latestOrder?.displayNumber !== undefined
+      ? `Balcão #${latestOrder.displayNumber}`
+      : "Comanda de balcão"
+  const fulfillmentLabel = latestOrder?.fulfillmentType === "takeaway" ? "Para viagem" : "No local"
 
   return (
     <motion.article
@@ -133,11 +148,11 @@ function ComandaCard({
         className="group flex min-h-28 w-full items-center gap-3 p-4 text-left outline-none transition-colors hover:bg-muted/25 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:gap-5 sm:px-5"
       >
         <span className={`grid size-12 shrink-0 place-items-center rounded-2xl border sm:size-14 ${closed ? "border-border/70 bg-muted/70 text-muted-foreground" : "border-primary/15 bg-primary/[0.07] text-primary"}`}>
-          {closed ? <LuCheck aria-hidden="true" className="size-5" /> : <LuTable2 aria-hidden="true" className="size-6" />}
+          {closed ? <LuCheck aria-hidden="true" className="size-5" /> : comanda.tableNumber !== null ? <LuTable2 aria-hidden="true" className="size-6" /> : <LuPackage aria-hidden="true" className="size-5" />}
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="text-base font-semibold tracking-tight sm:text-lg">Mesa {comanda.tableNumber}</span>
+            <span className="text-base font-semibold tracking-tight sm:text-lg">{locationLabel}</span>
             <Badge variant="outline" className={closed ? "h-6 gap-1.5 rounded-full border-border/70 bg-muted/40 px-2 text-[0.65rem] text-muted-foreground" : "h-6 gap-1.5 rounded-full border-emerald-500/20 bg-emerald-500/[0.06] px-2 text-[0.65rem] text-emerald-700 dark:text-emerald-300"}>
               <span aria-hidden="true" className={`size-1.5 rounded-full ${closed ? "bg-muted-foreground/60" : "bg-emerald-500"}`} />{closed ? "Encerrada" : "Aberta"}
             </Badge>
@@ -145,6 +160,7 @@ function ComandaCard({
           <span className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.68rem] text-muted-foreground sm:gap-x-3 sm:text-xs">
             <span>{orderCountLabel}</span><span aria-hidden="true" className="size-1 rounded-full bg-border" />
             <span>{comanda.itemCount} {comanda.itemCount === 1 ? "item" : "itens"}</span>
+            {latestOrder ? <><span aria-hidden="true" className="size-1 rounded-full bg-border" /><span>{fulfillmentLabel}</span>{latestOrder.customerName ? <><span aria-hidden="true" className="size-1 rounded-full bg-border" /><span className="max-w-36 truncate">{latestOrder.customerName}</span></> : null}</> : null}
             <span className="inline-flex items-center gap-1"><LuClock3 aria-hidden="true" className="size-3.5" />{closed && comanda.closedAt ? "Encerrada" : "Desde"} {formatDateTime(closed && comanda.closedAt ? comanda.closedAt : comanda.openedAt)}</span>
           </span>
         </span>
@@ -182,9 +198,14 @@ function ComandaCard({
               {comanda.orders.map((order, orderIndex) => (
                 <section key={order.id} className="rounded-xl border border-border/60 bg-background/80 p-3.5 sm:p-4">
                   <header className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-                    <div className="flex items-center gap-2"><span className="grid size-7 place-items-center rounded-lg bg-primary/[0.08] text-primary"><LuShoppingBag aria-hidden="true" className="size-3.5" /></span><h3 className="text-sm font-semibold">Pedido {comanda.orders.length - orderIndex}</h3></div>
+                    <div className="flex items-center gap-2"><span className="grid size-7 place-items-center rounded-lg bg-primary/[0.08] text-primary"><LuShoppingBag aria-hidden="true" className="size-3.5" /></span><h3 className="text-sm font-semibold">{order.displayNumber !== null ? `Pedido #${order.displayNumber}` : `Pedido ${comanda.orders.length - orderIndex}`}</h3></div>
                     <span className="text-xs text-muted-foreground">{formatDateTime(order.createdAt)}</span>
                   </header>
+                  <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <span>{order.fulfillmentType === "takeaway" ? "Para viagem" : "Comer no local"}</span>
+                    {order.customerName ? <><span aria-hidden="true" className="size-1 rounded-full bg-border" /><span>Nome: {order.customerName}</span></> : null}
+                    {comanda.tableNumber === null ? <><span aria-hidden="true" className="size-1 rounded-full bg-border" /><span>{locationLabel}</span></> : null}
+                  </div>
                   <ul className="space-y-3">
                     {order.items.map((item) => (
                       <li key={item.id} className="flex flex-col gap-2 border-b border-border/40 pb-3 last:border-b-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
@@ -254,11 +275,15 @@ export function CashWorkspace({
   status,
   enabledMethods,
   restaurantId,
+  menu,
+  cardapioHref,
 }: {
   initialData: PanelComandasPage
   status: "open" | "closed"
   enabledMethods: PanelPaymentMethod[]
   restaurantId: string
+  menu: PanelMenuDTO | null
+  cardapioHref: string
 }) {
   const reducedMotion = useReducedMotion() === true
   const { connected, refresh } = useContext(CashRealtimeContext)
@@ -266,13 +291,26 @@ export function CashWorkspace({
   const [search, setSearch] = useState("")
   const [query, setQuery] = useState("")
   const [selected, setSelected] = useState<{ id: string; closeOnly: boolean } | null>(null)
+  const [counterOpen, setCounterOpen] = useState(false)
+  const [orderNotice, setOrderNotice] = useState<string | null>(null)
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => setQuery(search.trim().toLocaleLowerCase("pt-BR")), 200)
+    const timeout = window.setTimeout(() => setQuery(normalizeSearch(search.trim())), 200)
     return () => window.clearTimeout(timeout)
   }, [search])
 
-  const filteredComandas = useMemo(() => initialData.comandas.filter((comanda) => !query || String(comanda.tableNumber).includes(query)), [initialData.comandas, query])
+  const filteredComandas = useMemo(() => initialData.comandas.filter((comanda) => {
+    if (!query) return true
+    const searchable = [
+      comanda.tableNumber === null ? "balcao comanda de balcao" : `mesa ${comanda.tableNumber}`,
+      ...comanda.orders.flatMap((order) => [
+        order.displayNumber === null ? "" : `balcao #${order.displayNumber} comanda #${order.displayNumber} ${order.displayNumber}`,
+        order.customerName ?? "",
+        order.fulfillmentType === "takeaway" ? "para viagem" : "comer no local no local",
+      ]),
+    ]
+    return searchable.some((value) => normalizeSearch(value).includes(query))
+  }), [initialData.comandas, query])
   const selectedComanda = selected ? initialData.comandas.find((comanda) => comanda.id === selected.id) ?? null : null
   const orderCount = initialData.comandas.reduce((total, comanda) => total + comanda.orderCount, 0)
   const sumTotal = initialData.comandas.reduce((total, comanda) => total + comanda.totalCents, 0)
@@ -283,6 +321,13 @@ export function CashWorkspace({
 
   function actionSuccess() {
     setSelected(null)
+    refresh()
+  }
+
+  function orderCompleted(message: string) {
+    setSearch("")
+    setOrderNotice(message)
+    setCounterOpen(false)
     refresh()
   }
 
@@ -302,14 +347,12 @@ export function CashWorkspace({
                 <Link href="?status=open" aria-current={!closed ? "page" : undefined} className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none ${!closed ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><LuTable2 aria-hidden="true" className="size-4" />Abertas</Link>
                 <Link href="?status=closed&page=1" aria-current={closed ? "page" : undefined} className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none ${closed ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><LuCheck aria-hidden="true" className="size-4" />Encerradas</Link>
               </nav>
-              <div className="relative w-full sm:w-64"><LuSearch aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar mesa" aria-label="Buscar mesa" inputMode="numeric" className="h-10 rounded-xl bg-background pl-10" /></div>
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <div className="relative w-full sm:w-72"><LuSearch aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Mesa, comanda ou nome" aria-label="Buscar mesa, comanda ou nome" className="h-10 rounded-xl bg-background pl-10" /></div>
+                {!closed ? <Button type="button" onClick={() => { setOrderNotice(null); setCounterOpen(true) }} className="min-h-10 rounded-xl px-4 font-semibold shadow-sm"><LuPlus aria-hidden="true" />Novo pedido</Button> : null}
+              </div>
             </div>
-
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div><h2 className="text-base font-semibold tracking-tight">{closed ? "Comandas encerradas" : "Comandas abertas"}</h2><p className="mt-0.5 text-xs text-muted-foreground">{closed ? "Pagamentos e detalhes continuam disponíveis para consulta." : "Os pedidos de cada mesa aparecem agrupados aqui."}</p></div>
-              <Button type="button" variant="outline" disabled={refreshPending} onClick={() => startTransition(() => refresh())} className="min-h-10 rounded-xl px-3"><LuRefreshCw aria-hidden="true" className={refreshPending ? "size-4 animate-spin motion-reduce:animate-none" : "size-4"} />Atualizar</Button>
-            </div>
-
+            {orderNotice ? <div role="status" aria-live="polite" className="flex items-start justify-between gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.055] px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200"><p>{orderNotice}</p><button type="button" onClick={() => setOrderNotice(null)} aria-label="Dispensar confirmação" className="rounded-md px-2 text-xs font-medium hover:bg-emerald-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Fechar</button></div> : null}
             {filteredComandas.length ? (
               <div className="grid gap-3 lg:grid-cols-2">
                 <AnimatePresence initial={false} mode="popLayout">
@@ -319,8 +362,8 @@ export function CashWorkspace({
             ) : (
               <motion.div initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-dashed border-border/80 bg-card/55 px-5 py-12 text-center sm:px-8">
                 <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/[0.08] text-primary"><LuReceiptText aria-hidden="true" className="size-5" /></span>
-                <h3 className="mt-4 text-base font-semibold tracking-tight">{initialData.comandas.length ? "Nenhuma mesa encontrada" : closed ? "Ainda não há comandas encerradas" : "Ainda não há comandas abertas"}</h3>
-                <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-muted-foreground">{initialData.comandas.length ? "Confira o número da mesa e tente novamente." : closed ? "As comandas encerradas e seus pagamentos aparecerão aqui para consulta." : "Quando um pedido for confirmado em Chamados, a comanda da mesa aparecerá aqui."}</p>
+                <h3 className="mt-4 text-base font-semibold tracking-tight">{initialData.comandas.length ? "Nenhuma comanda encontrada" : closed ? "Ainda não há comandas encerradas" : "Ainda não há comandas abertas"}</h3>
+                <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-muted-foreground">{initialData.comandas.length ? "Confira a mesa, o número da comanda ou o nome e tente novamente." : closed ? "As comandas encerradas e seus pagamentos aparecerão aqui para consulta." : "Registre um pedido no Caixa ou confirme um pedido em Chamados para abrir uma comanda."}</p>
                 {initialData.comandas.length ? <Button type="button" variant="outline" onClick={() => setSearch("")} className="mt-4 min-h-10 rounded-xl">Limpar pesquisa</Button> : null}
               </motion.div>
             )}
@@ -351,6 +394,7 @@ export function CashWorkspace({
           onSuccess={actionSuccess}
         />
       ) : null}
+      {counterOpen && menu ? <CounterOrderDialog open restaurantId={restaurantId} menu={menu} cardapioHref={cardapioHref} onOpenChange={setCounterOpen} onOrderCompleted={orderCompleted} /> : null}
     </MotionConfig>
   )
 }

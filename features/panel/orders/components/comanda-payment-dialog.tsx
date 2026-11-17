@@ -125,6 +125,15 @@ export function ComandaPaymentDialog({
   onSuccess: () => void
 }) {
   const reducedMotion = useReducedMotion() === true
+  const latestOrder = comanda.orders[0] ?? null
+  const comandaLabel = comanda.tableNumber !== null
+    ? `Mesa ${comanda.tableNumber}`
+    : latestOrder?.displayNumber !== null && latestOrder?.displayNumber !== undefined
+      ? `Balcão #${latestOrder.displayNumber}`
+      : "Comanda de balcão"
+  const orderContext = latestOrder
+    ? `${latestOrder.fulfillmentType === "takeaway" ? "para viagem" : "no local"}${latestOrder.customerName ? ` · ${latestOrder.customerName}` : ""}`
+    : ""
   const [rows, setRows] = useState<PaymentDraft[]>(() => [{ id: "split-0", method: enabledMethods[0] ?? "cash", value: "", touched: false }])
   const [closeIfPaid, setCloseIfPaid] = useState(false)
   const [error, setError] = useState("")
@@ -287,7 +296,7 @@ export function ComandaPaymentDialog({
                 <span className="grid size-11 shrink-0 place-items-center rounded-2xl border border-primary/15 bg-primary/10 text-primary shadow-sm"><LuReceiptText aria-hidden="true" className="size-5" /></span>
                 <div className="min-w-0">
                   <DialogTitle className="text-lg font-semibold tracking-tight">{closeOnly ? "Encerrar comanda" : "Registrar pagamento"}</DialogTitle>
-                  <DialogDescription className="mt-1 text-xs leading-5">Mesa {comanda.tableNumber} · lançamento manual, sem confirmação por intermediário.</DialogDescription>
+                  <DialogDescription className="mt-1 text-xs leading-5">{comandaLabel}{orderContext ? ` · ${orderContext}` : ""} · lançamento manual, sem confirmação por intermediário.</DialogDescription>
                 </div>
               </div>
             </DialogHeader>

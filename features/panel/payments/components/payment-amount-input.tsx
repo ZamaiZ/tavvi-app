@@ -6,7 +6,7 @@ import { LuCircleDollarSign } from "react-icons/lu"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 
-import { maskPaymentAmountInput } from "../lib/currency"
+import { maskPaymentAmountInput, PAYMENT_AMOUNT_INPUT_DIGIT_LIMIT } from "../lib/currency"
 
 export function PaymentAmountInput({
   id,
@@ -34,14 +34,18 @@ export function PaymentAmountInput({
     const input = event.currentTarget
     const cursor = input.selectionStart ?? input.value.length
     const digitsBeforeCursor = input.value.slice(0, cursor).replace(/\D/g, "").length
+    const rawDigitCount = input.value.replace(/\D/g, "").length
     const nextValue = maskPaymentAmountInput(input.value)
+    const nextDigitCount = nextValue.replace(/\D/g, "").length
+    const addedLeadingZeros = Math.max(0, nextDigitCount - Math.min(rawDigitCount, PAYMENT_AMOUNT_INPUT_DIGIT_LIMIT))
+    const targetDigitCount = Math.min(digitsBeforeCursor, nextDigitCount) + addedLeadingZeros
     onValueChange(nextValue)
 
     requestAnimationFrame(() => {
       if (document.activeElement !== input) return
       let position = 0
       let digits = 0
-      while (position < nextValue.length && digits < digitsBeforeCursor) {
+      while (position < nextValue.length && digits < targetDigitCount) {
         if (/\d/.test(nextValue[position])) digits += 1
         position += 1
       }
