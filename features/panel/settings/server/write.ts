@@ -2,7 +2,7 @@ import "server-only"
 
 import { z } from "zod"
 
-import { PANEL_PAYMENT_METHOD_VALUES, type PanelCustomPaymentMethodDTO, type PanelPaymentMethod } from "@/features/panel/payments/model"
+import { PANEL_PAYMENT_METHOD_VALUES, type PanelCustomPaymentMethodDTO, type PanelPaymentMethod, type PanelTipPolicy } from "@/features/panel/payments/model"
 import { getActivePanelRestaurant } from "@/features/panel/workspace/server/restaurants"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
@@ -18,6 +18,11 @@ const responseSchema = z.discriminatedUnion("ok", [
       kind: z.enum(["cash", "electronic"]),
       isActive: z.boolean(),
     })),
+    tipPolicy: z.discriminatedUnion("mode", [
+      z.object({ mode: z.literal("disabled") }),
+      z.object({ mode: z.literal("percentage"), percentageBps: z.number().int().min(1).max(10000) }),
+      z.object({ mode: z.literal("fixed"), fixedCents: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER) }),
+    ]),
   }),
   z.object({
     ok: z.literal(false),
@@ -35,15 +40,19 @@ export async function savePanelPaymentMethods(input: {
   expectedRestaurantId: string
   enabledMethods: PanelPaymentMethod[]
   customMethods: Array<{ id: string | null; label: string; kind: "cash" | "electronic"; isActive: boolean }>
+  tipPolicy: PanelTipPolicy
 }): Promise<PaymentSettingsResult> {
   try {
     const restaurant = await getActivePanelRestaurant(input.expectedRestaurantId)
     if (!restaurant || restaurant.status !== "active") return failure("context_changed")
     const supabase = await createSupabaseServerClient("panel")
-    const { data, error } = await supabase.rpc("update_panel_financial_settings", {
+    const { data, error } = await supabase.rpc("update_panel_financial_settings_v2", {
       p_restaurant_id: restaurant.id,
       p_enabled_methods: input.enabledMethods,
       p_custom_methods: input.customMethods,
+      p_tip_mode: input.tipPolicy.mode,
+      p_tip_percentage_bps: input.tipPolicy.mode === "percentage" ? input.tipPolicy.percentageBps : null,
+      p_tip_fixed_cents: input.tipPolicy.mode === "fixed" ? input.tipPolicy.fixedCents : null,
     })
     if (error) {
       console.error("[panel-settings]", JSON.stringify({ stage: "payment_methods_write", code: error.code }))
@@ -65,11 +74,12 @@ export async function savePanelPaymentMethods(input: {
 
     const enabledMethods = parsed.data.enabledMethods
     if (enabledMethods.length !== input.enabledMethods.length
-      || enabledMethods.some((method, index) => method !== input.enabledMethods[index])) {
+      || enabledMethods.some((method, index) => method !== input.enabledMethods[index])
+      || JSON.stringify(parsed.data.tipPolicy) !== JSON.stringify(input.tipPolicy)) {
       return failure("database_error")
     }
     const customMethods: PanelCustomPaymentMethodDTO[] = parsed.data.customMethods
-    return { ok: true, enabledMethods, customMethods }
+    return { ok: true, enabledMethods, customMethods, tipPolicy: parsed.data.tipPolicy }
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : ""
     if (message === "panel_auth_required") return failure("session_expired")

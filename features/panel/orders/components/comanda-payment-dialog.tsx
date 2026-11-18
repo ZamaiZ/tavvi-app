@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react"
+import Link from "next/link"
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 import {
@@ -19,14 +20,13 @@ import {
 } from "react-icons/lu"
 
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Combobox as ComboboxRoot, ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList } from "@/components/ui/combobox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field, FieldLabel } from "@/components/ui/field"
-import { PANEL_PAYMENT_METHOD_VALUES, type PanelPaymentMethodOption, type PaymentSplitInput } from "@/features/panel/payments/model"
+import { PANEL_PAYMENT_METHOD_VALUES, type PanelPaymentMethodOption, type PanelTipPolicy, type PaymentSplitInput } from "@/features/panel/payments/model"
 import { formatPaymentCents, parsePaymentAmountCents } from "@/features/panel/payments/lib/currency"
 import { PaymentAmountInput } from "@/features/panel/payments/components/payment-amount-input"
-import { closePaidComandaAction, recordPanelComandaPaymentAction } from "@/features/panel/orders/actions"
+import { recordPanelComandaPaymentAction } from "@/features/panel/orders/actions"
 import type { PanelComandaDTO, PanelPaymentFailureCode } from "@/features/panel/orders/model"
 
 const EASE = [0.23, 1, 0.32, 1] as const
@@ -42,7 +42,7 @@ const methodIcons: Record<string, typeof LuBanknote> = {
 }
 
 type PaymentDraft = { id: string; method: string; value: string; cashReceivedValue: string; touched: boolean }
-type PendingPaymentAttempt = { requestId: string; splits: PaymentSplitInput[]; closeIfPaid: boolean }
+type PendingPaymentAttempt = { requestId: string; splits: PaymentSplitInput[]; closeIfPaid: boolean; tipDecision: "accepted" | "declined" | null }
 
 function readPendingPaymentAttempt(key: string): PendingPaymentAttempt | null {
   try {
@@ -51,6 +51,7 @@ function readPendingPaymentAttempt(key: string): PendingPaymentAttempt | null {
     const candidate = JSON.parse(raw) as Partial<PendingPaymentAttempt>
     if (!candidate.requestId || !/^[0-9a-f-]{36}$/i.test(candidate.requestId)
       || typeof candidate.closeIfPaid !== "boolean"
+      || (candidate.tipDecision !== undefined && candidate.tipDecision !== null && candidate.tipDecision !== "accepted" && candidate.tipDecision !== "declined")
       || !Array.isArray(candidate.splits)
       || candidate.splits.length < 1
       || candidate.splits.length > PANEL_PAYMENT_METHOD_VALUES.length + 20) return null
@@ -68,7 +69,7 @@ function readPendingPaymentAttempt(key: string): PendingPaymentAttempt | null {
       splits.push({ method: split.method, amountCents: split.amountCents, ...(split.cashReceivedCents === undefined ? {} : { cashReceivedCents: split.cashReceivedCents }) })
     }
 
-    return { requestId: candidate.requestId, splits, closeIfPaid: candidate.closeIfPaid }
+    return { requestId: candidate.requestId, splits, closeIfPaid: candidate.closeIfPaid, tipDecision: candidate.tipDecision ?? null }
   } catch {
     return null
   }
@@ -106,6 +107,9 @@ function paymentErrorMessage(code: PanelPaymentFailureCode) {
     payment_exceeds_balance: "O valor ultrapassa o saldo atual. Atualize o Caixa e ajuste o lançamento.",
     close_requires_full_payment: "Para fechar junto com o pagamento, o valor precisa quitar todo o saldo.",
     balance_remaining: "Ainda há saldo em aberto. Não é possível encerrar esta comanda.",
+    tip_decision_required: "Confirme se o cliente aceita ou recusa a gorjeta antes do pagamento.",
+    tip_decision_conflict: "A decisão registrada para a gorjeta mudou. Atualize os dados da comanda.",
+    amount_overflow: "O total excede o limite suportado. Atualize a comanda e confira os valores.",
   }
   messages.cash_session_required = "Abra o caixa do dia antes de registrar pagamentos."
   messages.cash_session_closed = "O caixa foi fechado. Atualize a página para continuar."
@@ -118,8 +122,9 @@ export function ComandaPaymentDialog({
   comanda,
   expectedRestaurantId,
   paymentMethods,
+  tipPolicy,
   cashSessionOpen,
-  closeOnly = false,
+  cashManagementHref,
   onRefresh,
   onSuccess,
 }: {
@@ -128,8 +133,9 @@ export function ComandaPaymentDialog({
   comanda: PanelComandaDTO
   expectedRestaurantId: string
   paymentMethods: PanelPaymentMethodOption[]
+  tipPolicy: PanelTipPolicy
   cashSessionOpen: boolean
-  closeOnly?: boolean
+  cashManagementHref: string
   onRefresh: () => void
   onSuccess: () => void
 }) {
@@ -145,6 +151,7 @@ export function ComandaPaymentDialog({
     : ""
   const [rows, setRows] = useState<PaymentDraft[]>(() => [{ id: "split-0", method: paymentMethods[0]?.value ?? "cash", value: "", cashReceivedValue: "", touched: false }])
   const [closeIfPaid, setCloseIfPaid] = useState(false)
+  const [tipDecision, setTipDecision] = useState<"accepted" | "declined" | null>(comanda.tipDecision === "accepted" || comanda.tipDecision === "declined" ? comanda.tipDecision : null)
   const [error, setError] = useState("")
   const [refreshAvailable, setRefreshAvailable] = useState(false)
   const [uncertainAttempt, setUncertainAttempt] = useState(false)
@@ -155,7 +162,7 @@ export function ComandaPaymentDialog({
   const pendingAttemptKey = `tavvi:panel:comanda-payment:${expectedRestaurantId}:${comanda.id}`
 
   useEffect(() => {
-    if (!open || closeOnly) return
+    if (!open) return
     const pendingAttempt = readPendingPaymentAttempt(pendingAttemptKey)
     if (pendingAttempt) {
       setRows(pendingAttempt.splits.map((split, index) => ({
@@ -166,12 +173,13 @@ export function ComandaPaymentDialog({
         touched: false,
       })))
       setCloseIfPaid(pendingAttempt.closeIfPaid)
+      setTipDecision(pendingAttempt.tipDecision)
       setNextRowId(pendingAttempt.splits.length)
       requestIdRef.current = pendingAttempt.requestId
       setUncertainAttempt(true)
       setRetryNotice("Há um lançamento sem resposta anterior. Reenvie os mesmos valores para confirmar o resultado sem duplicar.")
     }
-  }, [open, closeOnly, pendingAttemptKey])
+  }, [open, pendingAttemptKey])
 
   const methodByValue = new Map(paymentMethods.map((method) => [method.value, method]))
   const parsedRows = rows.map((row) => {
@@ -183,12 +191,20 @@ export function ComandaPaymentDialog({
     return { ...row, amountCents, receivedCents, methodOption }
   })
   const paymentCents = parsedRows.reduce((total, row) => total + (row.amountCents ?? 0), 0)
-  const balanceAfterCents = Math.max(0, comanda.balanceCents - paymentCents)
-  const exactBalance = paymentCents > 0 && paymentCents === comanda.balanceCents
-  const exceedsBalance = !uncertainAttempt && paymentCents > comanda.balanceCents
+  const suggestedTipCents = tipPolicy.mode === "percentage"
+    ? Math.round(comanda.subtotalCents * tipPolicy.percentageBps / 10000)
+    : tipPolicy.mode === "fixed" ? tipPolicy.fixedCents : 0
+  const needsTipChoice = comanda.status === "pending" && comanda.tipDecision === null && tipPolicy.mode !== "disabled"
+  const effectiveTipCents = comanda.tipDecision === "accepted" ? comanda.tipCents : needsTipChoice && tipDecision === "accepted" ? suggestedTipCents : 0
+  const effectiveTotalCents = comanda.subtotalCents + effectiveTipCents
+  const effectiveBalanceCents = Math.max(0, effectiveTotalCents - comanda.paidCents)
+  const submittedTipDecision = comanda.tipDecision === "accepted" || comanda.tipDecision === "declined" ? comanda.tipDecision : tipDecision
+  const balanceAfterCents = Math.max(0, effectiveBalanceCents - paymentCents)
+  const exactBalance = paymentCents > 0 && paymentCents === effectiveBalanceCents
+  const exceedsBalance = !uncertainAttempt && paymentCents > effectiveBalanceCents
   const allRowsValid = parsedRows.every((row) => row.amountCents !== null && (row.methodOption?.kind !== "cash" || (row.receivedCents !== null && row.receivedCents >= row.amountCents)))
   const methodsValid = rows.every((row) => paymentMethods.some((method) => method.value === row.method))
-  const canSubmit = allRowsValid && paymentCents > 0 && (uncertainAttempt || (!exceedsBalance && methodsValid)) && paymentMethods.length > 0 && (cashSessionOpen || uncertainAttempt)
+  const canSubmit = allRowsValid && paymentCents > 0 && (uncertainAttempt || (!exceedsBalance && methodsValid)) && (!needsTipChoice || tipDecision !== null || uncertainAttempt) && paymentMethods.length > 0 && (cashSessionOpen || uncertainAttempt)
   const usedMethods = useMemo(() => new Set(rows.map((row) => row.method)), [rows])
 
   function invalidateAttempt() {
@@ -227,7 +243,7 @@ export function ComandaPaymentDialog({
   }
 
   function submitPayment() {
-    if (!canSubmit || pending || closeOnly) return
+    if (!canSubmit || pending) return
     const splits = parsedRows.map((row) => ({
       method: row.method,
       amountCents: row.amountCents as number,
@@ -238,7 +254,8 @@ export function ComandaPaymentDialog({
     setError("")
     setRefreshAvailable(false)
     setRetryNotice("")
-    persistPendingPaymentAttempt(pendingAttemptKey, { requestId, splits, closeIfPaid })
+    const closeAfterPayment = uncertainAttempt ? closeIfPaid : comanda.status === "pending" && exactBalance
+    persistPendingPaymentAttempt(pendingAttemptKey, { requestId, splits, closeIfPaid: closeAfterPayment, tipDecision: submittedTipDecision })
 
     startTransition(async () => {
       try {
@@ -247,7 +264,8 @@ export function ComandaPaymentDialog({
           comandaId: comanda.id,
           requestId,
           splits,
-          closeIfPaid,
+          closeIfPaid: closeAfterPayment,
+          tipDecision: submittedTipDecision,
         })
         if (!result.ok) {
           setError(paymentErrorMessage(result.code))
@@ -275,26 +293,6 @@ export function ComandaPaymentDialog({
     })
   }
 
-  function closeComanda() {
-    if (!closeOnly || pending || comanda.balanceCents !== 0) return
-    setError("")
-    startTransition(async () => {
-      try {
-        const result = await closePaidComandaAction({ expectedRestaurantId, comandaId: comanda.id })
-        if (!result.ok) {
-          setError(paymentErrorMessage(result.code))
-          setRefreshAvailable(result.code === "balance_remaining" || result.code === "comanda_conflict")
-          return
-        }
-        clearPendingPaymentAttempt(pendingAttemptKey)
-        onOpenChange(false)
-        onSuccess()
-      } catch {
-        setError(paymentErrorMessage("unavailable"))
-      }
-    })
-  }
-
   const sequence = {
     hidden: {},
     visible: { transition: { delayChildren: reducedMotion ? 0 : 0.015, staggerChildren: reducedMotion ? 0 : 0.035 } },
@@ -316,7 +314,7 @@ export function ComandaPaymentDialog({
               <div className="flex items-start gap-3 pr-9">
                 <span className="grid size-11 shrink-0 place-items-center rounded-2xl border border-primary/15 bg-primary/10 text-primary shadow-sm"><LuReceiptText aria-hidden="true" className="size-5" /></span>
                 <div className="min-w-0">
-                  <DialogTitle className="text-lg font-semibold tracking-tight">{closeOnly ? "Encerrar comanda" : "Registrar pagamento"}</DialogTitle>
+                  <DialogTitle className="text-lg font-semibold tracking-tight">Registrar pagamento</DialogTitle>
                   <DialogDescription className="mt-1 text-xs leading-5">{comandaLabel}{orderContext ? ` · ${orderContext}` : ""} · lançamento manual, sem confirmação por intermediário.</DialogDescription>
                 </div>
               </div>
@@ -324,19 +322,20 @@ export function ComandaPaymentDialog({
 
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7">
               <section aria-label="Resumo da comanda" className="grid grid-cols-3 gap-2 rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm sm:p-4">
-                <div><p className="text-[0.65rem] font-medium text-muted-foreground">Total</p><p className="mt-1 text-sm font-semibold tabular-nums">R$ {formatPaymentCents(comanda.totalCents)}</p></div>
+                <div><p className="text-[0.65rem] font-medium text-muted-foreground">Total</p><p className="mt-1 text-sm font-semibold tabular-nums">R$ {formatPaymentCents(effectiveTotalCents)}</p></div>
                 <div className="border-l border-border/60 pl-3"><p className="text-[0.65rem] font-medium text-muted-foreground">Pago</p><p className="mt-1 text-sm font-semibold tabular-nums">R$ {formatPaymentCents(comanda.paidCents)}</p></div>
-                <div className="border-l border-border/60 pl-3"><p className="text-[0.65rem] font-medium text-muted-foreground">Em aberto</p><p className="mt-1 text-sm font-semibold tabular-nums text-amber-700 dark:text-amber-300">R$ {formatPaymentCents(comanda.balanceCents)}</p></div>
+                <div className="border-l border-border/60 pl-3"><p className="text-[0.65rem] font-medium text-muted-foreground">Em aberto</p><p className="mt-1 text-sm font-semibold tabular-nums text-amber-700 dark:text-amber-300">R$ {formatPaymentCents(effectiveBalanceCents)}</p></div>
               </section>
 
-              {closeOnly ? (
-                <motion.section initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.055] p-4 sm:p-5">
-                  <span className="grid size-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"><LuCheck aria-hidden="true" className="size-5" /></span>
-                  <h3 className="mt-3 text-sm font-semibold">Saldo quitado</h3>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">A comanda continua aberta até você confirmar o encerramento. Nenhum novo pagamento será registrado.</p>
-                </motion.section>
-              ) : (
-                <section className="space-y-3">
+              <section className="space-y-3">
+                  {needsTipChoice ? <section className="space-y-3 rounded-2xl border border-primary/15 bg-primary/[0.035] p-4">
+                    <div><h3 className="text-sm font-semibold">Gorjeta opcional</h3><p className="mt-1 text-xs leading-5 text-muted-foreground">Confirme a escolha do cliente antes de registrar o primeiro pagamento desta comanda.</p></div>
+                    <p className="text-lg font-semibold tabular-nums">R$ {formatPaymentCents(suggestedTipCents)} <span className="text-xs font-normal text-muted-foreground">sugeridos</span></p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button type="button" variant={tipDecision === "accepted" ? "default" : "outline"} aria-pressed={tipDecision === "accepted"} disabled={pending || uncertainAttempt} onClick={() => { invalidateAttempt(); setTipDecision("accepted") }} className="min-h-10 rounded-xl">Aceitar gorjeta</Button>
+                      <Button type="button" variant={tipDecision === "declined" ? "default" : "outline"} aria-pressed={tipDecision === "declined"} disabled={pending || uncertainAttempt} onClick={() => { invalidateAttempt(); setTipDecision("declined") }} className="min-h-10 rounded-xl">Sem gorjeta</Button>
+                    </div>
+                  </section> : null}
                   <div className="flex items-end justify-between gap-3">
                     <div><h3 className="text-sm font-semibold tracking-tight">Dividir entre formas</h3><p className="mt-0.5 text-xs text-muted-foreground">Cada linha registra uma forma e seu valor.</p></div>
                     <span className="shrink-0 text-[0.65rem] font-medium text-muted-foreground">{rows.length} de {paymentMethods.length}</span>
@@ -404,30 +403,20 @@ export function ComandaPaymentDialog({
                   <Button type="button" variant="outline" disabled={pending || uncertainAttempt || rows.length >= paymentMethods.length} onClick={addRow} className="min-h-11 w-full rounded-xl border-dashed bg-background/50">
                     <LuPlus aria-hidden="true" className="size-4" />Adicionar forma de pagamento
                   </Button>
-                </section>
-              )}
+              </section>
 
-              {!closeOnly ? (
-                <section aria-live="polite" className={`rounded-2xl border p-4 transition-colors ${exceedsBalance || (!methodsValid && !uncertainAttempt) ? "border-destructive/25 bg-destructive/[0.045]" : exactBalance ? "border-emerald-500/20 bg-emerald-500/[0.045]" : "border-primary/15 bg-primary/[0.04]"}`}>
+              <section aria-live="polite" className={`rounded-2xl border p-4 transition-colors ${exceedsBalance || (!methodsValid && !uncertainAttempt) ? "border-destructive/25 bg-destructive/[0.045]" : exactBalance ? "border-emerald-500/20 bg-emerald-500/[0.045]" : "border-primary/15 bg-primary/[0.04]"}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div><p className="text-xs font-medium text-muted-foreground">Este pagamento</p><p className="mt-1 text-xl font-semibold tabular-nums">R$ {formatPaymentCents(paymentCents)}</p></div>
                     <div className="text-right"><p className="text-xs font-medium text-muted-foreground">Saldo após lançamento</p><p className={`mt-1 text-sm font-semibold tabular-nums ${exceedsBalance ? "text-destructive" : balanceAfterCents === 0 && paymentCents > 0 ? "text-emerald-700 dark:text-emerald-300" : ""}`}>R$ {formatPaymentCents(exceedsBalance ? 0 : balanceAfterCents)}</p></div>
                   </div>
                   <p className={`mt-2 flex items-center gap-1.5 text-xs font-medium ${exceedsBalance ? "text-destructive" : exactBalance ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}`}>
-                    {uncertainAttempt ? "Tentativa pendente; reenvie sem alterar para confirmar o resultado." : !methodsValid ? <><LuCircleAlert aria-hidden="true" className="size-3.5" />Uma forma foi desativada. Escolha uma opção ativa.</> : exceedsBalance ? <><LuCircleAlert aria-hidden="true" className="size-3.5" />O valor ultrapassa o saldo.</> : exactBalance ? <><LuCheck aria-hidden="true" className="size-3.5" />Valor total da comanda.</> : paymentCents > 0 ? "Pagamento parcial; a comanda permanecerá aberta." : "Informe o valor de cada forma."}
+                    {uncertainAttempt ? "Tentativa pendente; reenvie sem alterar para confirmar o resultado." : !methodsValid ? <><LuCircleAlert aria-hidden="true" className="size-3.5" />Uma forma foi desativada. Escolha uma opção ativa.</> : exceedsBalance ? <><LuCircleAlert aria-hidden="true" className="size-3.5" />O valor ultrapassa o saldo.</> : exactBalance ? <><LuCheck aria-hidden="true" className="size-3.5" />Saldo quitado{comanda.status === "pending" ? "; a comanda será encerrada." : "."}</> : paymentCents > 0 ? comanda.status === "pending" ? "Pagamento parcial; a comanda permanece em liquidação." : "Pagamento parcial; a comanda permanece aberta." : "Informe o valor de cada forma."}
                   </p>
-                </section>
-              ) : null}
+              </section>
 
-              {!closeOnly && !cashSessionOpen ? <p role="status" className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3.5 py-3 text-xs leading-5 text-amber-800 dark:text-amber-200">Abra o caixa do dia antes de registrar pagamentos.</p> : null}
+              {!cashSessionOpen ? <div role="status" className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3.5 py-3 text-xs leading-5 text-amber-800 dark:text-amber-200"><p>Abra o caixa do dia antes de registrar pagamentos.</p><Link href={cashManagementHref} className="mt-1.5 inline-flex min-h-8 items-center font-semibold underline underline-offset-4">Abrir caixa no Financeiro</Link></div> : null}
               {retryNotice ? <p role="status" className="rounded-xl border border-primary/15 bg-primary/[0.045] px-3.5 py-3 text-xs leading-5 text-foreground/80">{retryNotice}</p> : null}
-
-              {!closeOnly && exactBalance ? (
-                <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-border/70 bg-muted/20 px-3.5 py-3 text-sm font-medium">
-                  <Checkbox checked={closeIfPaid} disabled={pending || uncertainAttempt} onCheckedChange={(checked) => { invalidateAttempt(); setCloseIfPaid(checked === true) }} aria-label="Fechar comanda após quitar o saldo" />
-                  Fechar a comanda após quitar o saldo
-                </label>
-              ) : null}
 
               {error ? (
                 <motion.div initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -3 }} animate={{ opacity: 1, y: 0 }} role="alert" className="rounded-xl border border-destructive/20 bg-destructive/[0.045] px-3.5 py-3 text-xs leading-5 text-destructive">
@@ -439,17 +428,10 @@ export function ComandaPaymentDialog({
 
             <DialogFooter className="sticky bottom-0 z-10 mt-auto shrink-0 flex-col border-t border-border/70 bg-background/90 px-5 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-4">
               <p className="text-[0.65rem] leading-5 text-muted-foreground sm:max-w-[13rem]">Registro interno para controle da equipe. O pagamento não é processado pelo Tavvi.</p>
-              {closeOnly ? (
-                <Button type="button" onClick={closeComanda} disabled={pending || comanda.balanceCents !== 0} className="min-h-11 w-full rounded-xl px-4 sm:w-auto">
-                  {pending ? <LuLoaderCircle aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> : <LuCheck aria-hidden="true" className="size-4" />}
-                  {pending ? "Encerrando comanda" : "Confirmar encerramento"}
-                </Button>
-              ) : (
-                <Button type="button" onClick={submitPayment} disabled={!canSubmit || pending} className="min-h-11 w-full rounded-xl px-4 sm:w-auto">
-                  {pending ? <LuLoaderCircle aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> : <LuReceiptText aria-hidden="true" className="size-4" />}
-                  {pending ? uncertainAttempt ? "Confirmando resultado" : "Registrando pagamento" : uncertainAttempt ? "Reenviar com segurança" : "Registrar pagamento"}
-                </Button>
-              )}
+              <Button type="button" onClick={submitPayment} disabled={!canSubmit || pending} className="min-h-11 w-full rounded-xl px-4 sm:w-auto">
+                {pending ? <LuLoaderCircle aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> : <LuReceiptText aria-hidden="true" className="size-4" />}
+                {pending ? uncertainAttempt ? "Confirmando resultado" : "Registrando pagamento" : uncertainAttempt ? "Reenviar com segurança" : "Registrar pagamento"}
+              </Button>
             </DialogFooter>
           </div>
         </DialogContent>

@@ -27,8 +27,22 @@ export type PanelFinanceDashboardDTO = {
   cashClosingDifferenceCents: number
   cashDifferenceSessionsCount: number
   pendingCents: number
+  tipsReceivedCents: number
   daily: PanelFinanceDailyPoint[]
   expensesByCategory: Array<PanelFinanceBreakdown & { category: string }>
   expensesByMethod: Array<PanelFinanceBreakdown & { method: string }>
   receivedByMethod: Array<PanelFinanceBreakdown & { method: string }>
+}
+
+export type PanelFinanceOverviewDTO = {
+  from: string
+  to: string
+  timeZone: string
+  salesCents: number
+  receivedCents: number
+  cashReceivedCents: number
+  tipsReceivedCents: number
+  expensesCents: number
+  pendingCents: number
+  daily: Array<{ day: string; salesCents: number; receivedCents: number }>
 }

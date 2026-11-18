@@ -2,12 +2,12 @@ import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { LuReceiptText } from "react-icons/lu"
 
-import { CashRealtimeProvider, CashWorkspace } from "@/features/panel/orders/components/cash-workspace"
+import { CashRealtimeProvider } from "@/features/panel/orders/components/cash-workspace"
+import { CashWorkspaceCompact } from "@/features/panel/orders/components/cash-workspace-compact"
 import { getPanelComandasPage } from "@/features/panel/orders/server/read"
 import { getPanelCashState } from "@/features/panel/cash/server/read"
 import { getPanelPaymentMethods } from "@/features/panel/settings/server/read"
 import { getPanelPublicBasePath } from "@/features/panel/auth/navigation"
-import { getPanelMenu } from "@/features/panel/menu/server/read"
 import { PanelPageHeading } from "@/features/panel/workspace/components/panel-page-heading"
 import { getActivePanelRestaurant } from "@/features/panel/workspace/server/restaurants"
 import { getRequestHostname } from "@/lib/routing/host"
@@ -31,11 +31,10 @@ export default async function PanelCashPage({ searchParams }: PanelCashPageProps
   const status = firstParam(params.status) === "closed" ? "closed" : "open"
   const pageValue = Number(firstParam(params.page) ?? "1")
   const page = Number.isSafeInteger(pageValue) && pageValue > 0 && pageValue <= 1_000_000 ? pageValue : 1
-  const [initialData, paymentConfiguration, menu, cashState] = await Promise.all([
+  const [initialData, paymentConfiguration, cashState] = await Promise.all([
     getPanelComandasPage(restaurant, { status, page }),
     getPanelPaymentMethods(restaurant.id),
-    status === "open" ? getPanelMenu(restaurant, base) : Promise.resolve(null),
-    getPanelCashState(restaurant.id),
+    getPanelCashState(restaurant.id, { includeMovements: false }),
   ])
 
   return (
@@ -44,7 +43,7 @@ export default async function PanelCashPage({ searchParams }: PanelCashPageProps
         <PanelPageHeading title="Caixa" icon={<LuReceiptText aria-hidden="true" className="size-4" />} />
       </header>
       <CashRealtimeProvider restaurantId={restaurant.id}>
-        <CashWorkspace initialData={initialData} status={status} paymentConfiguration={paymentConfiguration} cashState={cashState} restaurantId={restaurant.id} menu={menu} cardapioHref={`${base}/cardapio`} />
+        <CashWorkspaceCompact initialData={initialData} status={status} paymentConfiguration={paymentConfiguration} cashState={cashState} restaurantId={restaurant.id} cardapioHref={`${base}/cardapio`} financeiroHref={`${base}/financeiro?view=cash`} />
       </CashRealtimeProvider>
     </div>
   )

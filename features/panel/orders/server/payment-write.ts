@@ -6,6 +6,8 @@ import { getActivePanelRestaurant } from "@/features/panel/workspace/server/rest
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
 import type {
+  ClosePanelComandaConsumptionInput,
+  ClosePanelComandaConsumptionResult,
   PanelPaymentActionResult,
   PanelPaymentFailureCode,
   RecordPanelComandaPaymentResult,
@@ -18,11 +20,7 @@ type PaymentInput = {
   requestId: string
   splits: PaymentSplitInput[]
   closeIfPaid: boolean
-}
-
-type CloseInput = {
-  expectedRestaurantId: string
-  comandaId: string
+  tipDecision: "accepted" | "declined" | null
 }
 
 const safeCents = z.preprocess(
@@ -54,21 +52,34 @@ const recordResponseSchema = z.discriminatedUnion("ok", [
       "balance_already_paid",
       "payment_exceeds_balance",
       "close_requires_full_payment",
+      "tip_decision_required",
+      "tip_decision_conflict",
+      "amount_overflow",
     ]),
   }),
 ])
 
-const closeResponseSchema = z.discriminatedUnion("ok", [
+const consumptionResponseSchema = z.discriminatedUnion("ok", [
   z.object({
     ok: z.literal(true),
-    closed: z.literal(true),
     alreadyClosed: z.boolean(),
+    status: z.enum(["pending", "closed"]),
+    tipCents: safeCents,
+    totalCents: safeCents,
+    balanceCents: safeCents,
   }),
+  z.object({ ok: z.literal(false), code: z.enum(["session_expired", "forbidden", "invalid_input", "not_found", "comanda_not_found", "comanda_conflict", "tip_decision_required", "amount_overflow"]) }),
+])
+const resolveTipResponseSchema = z.discriminatedUnion("ok", [
   z.object({
-    ok: z.literal(false),
-    code: z.enum(["session_expired", "forbidden", "invalid_input", "not_found", "comanda_not_found", "balance_remaining"]),
-    balanceCents: safeCents.optional(),
+    ok: z.literal(true),
+    alreadyResolved: z.boolean(),
+    closed: z.boolean(),
+    tipCents: safeCents,
+    totalCents: safeCents,
+    balanceCents: safeCents,
   }),
+  z.object({ ok: z.literal(false), code: z.enum(["session_expired", "forbidden", "invalid_input", "not_found", "comanda_not_found", "comanda_conflict", "tip_decision_required", "tip_already_decided", "amount_overflow"]) }),
 ])
 
 function failure<T>(code: PanelPaymentFailureCode): PanelPaymentActionResult<T> {
@@ -105,7 +116,74 @@ function mapFailure(code: string): PanelPaymentFailureCode {
   if (code === "payment_exceeds_balance") return "payment_exceeds_balance"
   if (code === "close_requires_full_payment") return "close_requires_full_payment"
   if (code === "balance_remaining") return "balance_remaining"
+  if (code === "tip_decision_required") return "tip_decision_required"
+  if (code === "tip_decision_conflict") return "tip_decision_conflict"
+  if (code === "tip_already_decided") return "tip_decision_conflict"
+  if (code === "amount_overflow") return "amount_overflow"
   return "database_error"
+}
+
+async function persistComandaTipDecision(
+  input: ClosePanelComandaConsumptionInput,
+  operation: "close" | "resolve",
+): Promise<PanelPaymentActionResult<ClosePanelComandaConsumptionResult>> {
+  let context: Awaited<ReturnType<typeof getPaymentContext>>
+  try {
+    context = await getPaymentContext(input.expectedRestaurantId)
+  } catch (cause) {
+    return contextFailure(cause)
+  }
+
+  try {
+    const { data, error } = operation === "close"
+      ? await context.supabase.rpc("close_panel_comanda_consumption", {
+        p_restaurant_id: context.restaurant.id,
+        p_comanda_id: input.comandaId,
+        p_request_id: input.requestId,
+        p_tip_decision: input.tipDecision,
+      })
+      : await context.supabase.rpc("resolve_panel_comanda_tip", {
+        p_restaurant_id: context.restaurant.id,
+        p_comanda_id: input.comandaId,
+        p_request_id: input.requestId,
+        p_tip_decision: input.tipDecision,
+      })
+    if (error) {
+      console.error("[panel-payments]", JSON.stringify({ stage: `consumption_${operation}`, code: error.code }))
+      return failure(error.code === "42501" ? "forbidden" : "unavailable")
+    }
+
+    if (operation === "close") {
+      const parsed = consumptionResponseSchema.safeParse(data)
+      if (!parsed.success) return failure("database_error")
+      if (!parsed.data.ok) return failure(mapFailure(parsed.data.code))
+      return { ok: true, data: parsed.data }
+    }
+    const parsed = resolveTipResponseSchema.safeParse(data)
+    if (!parsed.success) return failure("database_error")
+    if (!parsed.data.ok) return failure(mapFailure(parsed.data.code))
+    return {
+      ok: true,
+      data: {
+        alreadyClosed: parsed.data.alreadyResolved,
+        status: parsed.data.closed ? "closed" : "pending",
+        tipCents: parsed.data.tipCents,
+        totalCents: parsed.data.totalCents,
+        balanceCents: parsed.data.balanceCents,
+      },
+    }
+  } catch {
+    console.error("[panel-payments]", JSON.stringify({ stage: `consumption_${operation}`, code: "transport_error" }))
+    return failure("unavailable")
+  }
+}
+
+export async function closePanelComandaConsumption(input: ClosePanelComandaConsumptionInput) {
+  return persistComandaTipDecision(input, "close")
+}
+
+export async function resolvePanelComandaTip(input: ClosePanelComandaConsumptionInput) {
+  return persistComandaTipDecision(input, "resolve")
 }
 
 export async function recordPanelComandaPayment(
@@ -119,12 +197,13 @@ export async function recordPanelComandaPayment(
   }
 
   try {
-    const { data, error } = await context.supabase.rpc("record_panel_comanda_payment_v2", {
+    const { data, error } = await context.supabase.rpc("record_panel_comanda_payment_v3", {
       p_restaurant_id: context.restaurant.id,
       p_comanda_id: input.comandaId,
       p_request_id: input.requestId,
       p_splits: input.splits,
       p_close_if_paid: input.closeIfPaid,
+      p_tip_decision: input.tipDecision,
     })
     if (error) {
       console.error("[panel-payments]", JSON.stringify({ stage: "record", code: error.code }))
@@ -152,35 +231,3 @@ export async function recordPanelComandaPayment(
   }
 }
 
-export async function closePaidPanelComanda(
-  input: CloseInput,
-): Promise<PanelPaymentActionResult<{ closed: true; alreadyClosed: boolean }>> {
-  let context: Awaited<ReturnType<typeof getPaymentContext>>
-  try {
-    context = await getPaymentContext(input.expectedRestaurantId)
-  } catch (cause) {
-    return contextFailure(cause)
-  }
-
-  try {
-    const { data, error } = await context.supabase.rpc("close_paid_panel_comanda_v2", {
-      p_restaurant_id: context.restaurant.id,
-      p_comanda_id: input.comandaId,
-    })
-    if (error) {
-      console.error("[panel-payments]", JSON.stringify({ stage: "close", code: error.code }))
-      return failure(error.code === "42501" ? "forbidden" : "unavailable")
-    }
-
-    const parsed = closeResponseSchema.safeParse(data)
-    if (!parsed.success) {
-      console.error("[panel-payments]", JSON.stringify({ stage: "close_response_invalid" }))
-      return failure("database_error")
-    }
-    if (!parsed.data.ok) return failure(mapFailure(parsed.data.code))
-    return { ok: true, data: { closed: true, alreadyClosed: parsed.data.alreadyClosed } }
-  } catch {
-    console.error("[panel-payments]", JSON.stringify({ stage: "close", code: "transport_error" }))
-    return failure("unavailable")
-  }
-}

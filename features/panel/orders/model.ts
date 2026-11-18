@@ -104,10 +104,18 @@ export type PanelComandaPaymentDTO = {
   createdBy: string
   createdByName: string
   amountCents: number
+  tipAmountCents: number
   splits: PanelComandaPaymentSplitDTO[]
 }
 
-export type PanelComandaDTO = {
+export type PanelComandaLatestOrderDTO = {
+  displayNumber: number | null
+  customerName: string | null
+  fulfillmentType: "dine_in" | "takeaway"
+  createdAt: string
+}
+
+export type PanelComandaSummaryDTO = {
   id: string
   restaurantId: string
   tableNumber: number | null
@@ -115,17 +123,24 @@ export type PanelComandaDTO = {
   openedAt: string
   closedAt: string | null
   closedBy: string | null
-  orders: PanelComandaOrderDTO[]
+  latestOrder: PanelComandaLatestOrderDTO | null
   orderCount: number
   itemCount: number
+  subtotalCents: number
+  tipCents: number
+  tipDecision: "accepted" | "declined" | "disabled" | null
   totalCents: number
-  payments: PanelComandaPaymentDTO[]
   paidCents: number
   balanceCents: number
 }
 
+export type PanelComandaDTO = PanelComandaSummaryDTO & {
+  orders: PanelComandaOrderDTO[]
+  payments: PanelComandaPaymentDTO[]
+}
+
 export type PanelComandasPage = {
-  comandas: PanelComandaDTO[]
+  comandas: PanelComandaSummaryDTO[]
   page: number
   pageSize: number
   totalRows: number
@@ -148,6 +163,9 @@ export type PanelPaymentFailureCode =
   | "payment_exceeds_balance"
   | "close_requires_full_payment"
   | "balance_remaining"
+  | "tip_decision_required"
+  | "tip_decision_conflict"
+  | "amount_overflow"
 
 export type RecordPanelComandaPaymentResult = {
   paymentId: string
@@ -155,6 +173,25 @@ export type RecordPanelComandaPaymentResult = {
   paidCents: number
   balanceCents: number
 }
+
+export type ClosePanelComandaConsumptionInput = {
+  expectedRestaurantId: string
+  comandaId: string
+  requestId: string
+  tipDecision: "accepted" | "declined" | null
+}
+
+export type ClosePanelComandaConsumptionResult = {
+  status: "pending" | "closed"
+  tipCents: number
+  totalCents: number
+  balanceCents: number
+  alreadyClosed: boolean
+}
+
+export type PanelComandaDetailActionResult =
+  | { ok: true; data: PanelComandaDTO | null }
+  | { ok: false; code: "invalid_input" | "session_expired" | "context_changed" | "unavailable" }
 
 export type PanelPaymentActionResult<T> =
   | { ok: true; data: T }

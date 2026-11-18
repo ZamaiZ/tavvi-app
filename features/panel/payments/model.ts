@@ -34,9 +34,15 @@ export type PanelPaymentMethodOption = {
   kind: PaymentMethodKind
 }
 
+export type PanelTipPolicy =
+  | { mode: "disabled" }
+  | { mode: "percentage"; percentageBps: number }
+  | { mode: "fixed"; fixedCents: number }
+
 export type PanelPaymentConfiguration = {
   enabledMethods: PanelPaymentMethod[]
   customMethods: PanelCustomPaymentMethodDTO[]
+  tipPolicy: PanelTipPolicy
 }
 
 export function getPanelPaymentOptions(configuration: PanelPaymentConfiguration): PanelPaymentMethodOption[] {

@@ -48,7 +48,7 @@ const paymentSchema = z.object({
   })).nullable(),
 })
 
-export async function getPanelCashState(restaurantId: string): Promise<PanelCashStateDTO> {
+export async function getPanelCashState(restaurantId: string, options: { includeMovements?: boolean } = {}): Promise<PanelCashStateDTO> {
   const supabase = await createSupabaseServerClient("panel")
   const { data, error } = await supabase.rpc("get_panel_cash_session", { p_restaurant_id: restaurantId })
   if (error) {
@@ -62,6 +62,7 @@ export async function getPanelCashState(restaurantId: string): Promise<PanelCash
   }
   const session: PanelCashSessionDTO | null = parsed.data.session
   if (!session) return { session: null, movements: [] }
+  if (options.includeMovements === false) return { session, movements: [] }
 
   const [{ data: movementRows, error: movementError }, { data: paymentRows, error: paymentError }] = await Promise.all([
     supabase

@@ -48,12 +48,20 @@ export const recordPanelComandaPaymentSchema = z.object({
   requestId: uuid,
   splits: z.array(paymentSplitSchema).min(1).max(PANEL_PAYMENT_METHOD_VALUES.length + 20),
   closeIfPaid: z.boolean(),
+  tipDecision: z.enum(["accepted", "declined"]).nullable(),
 }).strict().refine(
   (input) => new Set(input.splits.map((split) => split.method)).size === input.splits.length,
   { path: ["splits"], message: "duplicate_payment_method" },
 )
 
-export const closePaidComandaSchema = z.object({
+export const comandaTipDecisionSchema = z.object({
+  expectedRestaurantId: uuid,
+  comandaId: uuid,
+  requestId: uuid,
+  tipDecision: z.enum(["accepted", "declined"]).nullable(),
+}).strict()
+
+export const comandaDetailSchema = z.object({
   expectedRestaurantId: uuid,
   comandaId: uuid,
 }).strict()

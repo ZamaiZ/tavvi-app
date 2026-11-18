@@ -12,6 +12,7 @@ import type {
   PanelComandaItemDTO,
   PanelComandaOrderDTO,
   PanelComandaPaymentDTO,
+  PanelComandaSummaryDTO,
   PanelComandasPage,
 } from "../model"
 
@@ -35,6 +36,7 @@ const paymentSchema = z.object({
   created_by: z.string().uuid(),
   created_by_name: z.string().min(1).max(120),
   amount_cents: centsSchema,
+  tip_amount_cents: centsSchema,
   comanda_payment_splits: z.array(paymentSplitSchema).nullable(),
 })
 const additionSchema = z.object({
@@ -81,6 +83,43 @@ const comandaSchema = z.object({
 const pageSchema = z.object({
   status: z.enum(["open", "closed"]),
   page: z.number().int().min(1).max(1_000_000),
+})
+const summaryResponseSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    status: z.enum(["open", "closed"]),
+    page: z.number().int().min(1),
+    pageSize: z.number().int().nonnegative(),
+    totalRows: z.number().int().nonnegative(),
+    comandas: z.array(z.object({
+      id: z.string().uuid(),
+      restaurantId: z.string().uuid(),
+      tableNumber: z.number().int().positive().nullable(),
+      status: z.enum(["open", "pending", "closed"]),
+      openedAt: z.string().datetime({ offset: true }),
+      closedAt: z.string().datetime({ offset: true }).nullable(),
+      closedBy: z.string().uuid().nullable(),
+      latestOrder: z.object({
+        displayNumber: displayNumberSchema,
+        customerName: z.string().min(1).max(120).nullable(),
+        fulfillmentType: z.enum(["dine_in", "takeaway"]),
+        createdAt: z.string().datetime({ offset: true }),
+      }).nullable(),
+      orderCount: z.number().int().nonnegative(),
+      itemCount: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+      subtotalCents: centsSchema,
+      tipCents: centsSchema,
+      tipDecision: z.enum(["accepted", "declined", "disabled"]).nullable(),
+      totalCents: centsSchema,
+      paidCents: centsSchema,
+      balanceCents: centsSchema,
+    })),
+  }),
+  z.object({ ok: z.literal(false), code: z.string() }),
+])
+const tipDecisionSchema = z.object({
+  decision: z.enum(["accepted", "declined", "disabled"]),
+  tip_amount_cents: centsSchema,
 })
 
 type RawAddition = z.infer<typeof additionSchema>
@@ -161,19 +200,22 @@ function toPayment(row: RawPayment): PanelComandaPaymentDTO {
     createdBy: row.created_by,
     createdByName: row.created_by_name,
     amountCents: row.amount_cents,
+    tipAmountCents: row.tip_amount_cents,
     splits,
   }
 }
 
-function toComanda(row: RawComanda): PanelComandaDTO {
+function toComanda(row: RawComanda, tipDecision: "accepted" | "declined" | "disabled" | null, tipCents: number): PanelComandaDTO {
   const orders = [...(row.orders ?? [])]
     .sort((left, right) => right.created_at.localeCompare(left.created_at))
     .map(toOrder)
   const payments = [...(row.comanda_payments ?? [])]
     .sort((left, right) => right.created_at.localeCompare(left.created_at) || right.id.localeCompare(left.id))
     .map(toPayment)
-  const totalCents = sumCents(orders.map((order) => order.totalCents))
+  const subtotalCents = sumCents(orders.map((order) => order.totalCents))
+  const totalCents = sumCents([subtotalCents, tipCents])
   const paidCents = sumCents(payments.map((payment) => payment.amountCents))
+  const latestOrder = orders[0]
 
   return {
     id: row.id,
@@ -183,9 +225,18 @@ function toComanda(row: RawComanda): PanelComandaDTO {
     openedAt: row.opened_at,
     closedAt: row.closed_at,
     closedBy: row.closed_by,
+    latestOrder: latestOrder ? {
+      displayNumber: latestOrder.displayNumber,
+      customerName: latestOrder.customerName,
+      fulfillmentType: latestOrder.fulfillmentType,
+      createdAt: latestOrder.createdAt,
+    } : null,
     orders,
     orderCount: orders.length,
     itemCount: orders.reduce((total, order) => total + order.items.reduce((count, item) => count + item.quantity, 0), 0),
+    subtotalCents,
+    tipCents,
+    tipDecision,
     totalCents,
     payments,
     paidCents,
@@ -204,7 +255,7 @@ const COMANDA_SELECT = `
     )
   ),
   comanda_payments (
-    id, created_at, created_by, created_by_name, amount_cents,
+    id, created_at, created_by, created_by_name, amount_cents, tip_amount_cents,
     comanda_payment_splits (id, method, custom_method_id, method_label_snapshot, method_kind_snapshot, amount_cents, cash_received_cents, change_cents, position)
   )
 `
@@ -218,47 +269,51 @@ export async function getPanelComandasPage(
   const { status, page } = parsedQuery.data
   const supabase = await createSupabaseServerClient("panel")
 
-  let request = supabase
-    .from("comandas")
-    .select(COMANDA_SELECT, { count: "exact" })
-    .eq("restaurant_id", restaurant.id)
-    .in("status", status === "closed" ? ["closed"] : ["open", "pending"])
-
-  if (status === "closed") {
-    const from = (page - 1) * CLOSED_COMANDA_PAGE_SIZE
-    request = request
-      .order("closed_at", { ascending: false })
-      .order("id", { ascending: false })
-      .range(from, from + CLOSED_COMANDA_PAGE_SIZE - 1)
-  } else {
-    request = request
-      .order("table_number", { ascending: true, nullsFirst: false })
-      .order("opened_at", { ascending: false })
-      .order("id", { ascending: false })
-  }
-
-  const { data, error, count } = await request
+  const { data, error } = await supabase.rpc("get_panel_comandas_page_summary", {
+    p_restaurant_id: restaurant.id,
+    p_status: status,
+    p_page: page,
+  })
   if (error || !data) {
     console.error("[panel-orders]", JSON.stringify({ stage: `${status}_comandas`, code: error?.code }))
     throw new Error("panel_comandas_unavailable")
   }
 
-  const parsedRows = z.array(comandaSchema).safeParse(data)
-  if (!parsedRows.success) {
+  const parsed = summaryResponseSchema.safeParse(data)
+  if (!parsed.success || !parsed.data.ok) {
     console.error("[panel-orders]", JSON.stringify({ stage: `${status}_comandas_response_invalid` }))
     throw new Error("panel_comandas_unavailable")
   }
 
-  const totalRows = count ?? parsedRows.data.length
-  const lastPage = Math.max(1, Math.ceil(totalRows / CLOSED_COMANDA_PAGE_SIZE))
-  if (status === "closed" && page > lastPage) {
-    return getPanelComandasPage(restaurant, { status, page: lastPage })
-  }
-
   return {
-    comandas: parsedRows.data.map(toComanda),
-    page: status === "closed" ? page : 1,
-    pageSize: status === "closed" ? CLOSED_COMANDA_PAGE_SIZE : Math.max(parsedRows.data.length, 1),
-    totalRows,
+    comandas: parsed.data.comandas as PanelComandaSummaryDTO[],
+    page: parsed.data.page,
+    pageSize: parsed.data.pageSize,
+    totalRows: parsed.data.totalRows,
   }
+}
+
+export async function getPanelComandaDetail(restaurant: PanelRestaurantDTO, comandaId: string): Promise<PanelComandaDTO | null> {
+  if (!z.string().uuid().safeParse(comandaId).success) throw new Error("panel_comanda_id_invalid")
+  const supabase = await createSupabaseServerClient("panel")
+  const [{ data, error }, { data: tipData, error: tipError }] = await Promise.all([
+    supabase.from("comandas").select(COMANDA_SELECT).eq("id", comandaId).eq("restaurant_id", restaurant.id).maybeSingle(),
+    supabase.from("comanda_tip_decisions").select("decision, tip_amount_cents").eq("comanda_id", comandaId).eq("restaurant_id", restaurant.id).maybeSingle(),
+  ])
+  if (error || tipError) {
+    console.error("[panel-orders]", JSON.stringify({ stage: "comanda_detail", code: error?.code ?? tipError?.code }))
+    throw new Error("panel_comanda_detail_unavailable")
+  }
+  if (!data) return null
+  const parsedComanda = comandaSchema.safeParse(data)
+  const parsedTip = tipData === null ? null : tipDecisionSchema.safeParse(tipData)
+  if (!parsedComanda.success || (parsedTip && !parsedTip.success)) {
+    console.error("[panel-orders]", JSON.stringify({ stage: "comanda_detail_response_invalid" }))
+    throw new Error("panel_comanda_detail_unavailable")
+  }
+  return toComanda(
+    parsedComanda.data,
+    parsedTip?.success ? parsedTip.data.decision : null,
+    parsedTip?.success ? parsedTip.data.tip_amount_cents : 0,
+  )
 }

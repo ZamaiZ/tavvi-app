@@ -1,4 +1,4 @@
-import type { PanelCustomPaymentMethodDTO, PanelPaymentMethod } from "@/features/panel/payments/model"
+import type { PanelCustomPaymentMethodDTO, PanelPaymentMethod, PanelTipPolicy } from "@/features/panel/payments/model"
 
 export type PaymentSettingsFailureCode =
   | "invalid_input"
@@ -10,5 +10,5 @@ export type PaymentSettingsFailureCode =
   | "duplicate_method"
 
 export type PaymentSettingsResult =
-  | { ok: true; enabledMethods: PanelPaymentMethod[]; customMethods: PanelCustomPaymentMethodDTO[] }
+  | { ok: true; enabledMethods: PanelPaymentMethod[]; customMethods: PanelCustomPaymentMethodDTO[]; tipPolicy: PanelTipPolicy }
   | { ok: false; code: PaymentSettingsFailureCode }

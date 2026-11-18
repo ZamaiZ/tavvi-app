@@ -11,6 +11,11 @@ export const updatePanelPaymentMethodsSchema = z.object({
     kind: z.enum(["cash", "electronic"]),
     isActive: z.boolean(),
   }).strict()).max(20),
+  tipPolicy: z.discriminatedUnion("mode", [
+    z.object({ mode: z.literal("disabled") }).strict(),
+    z.object({ mode: z.literal("percentage"), percentageBps: z.number().int().min(1).max(10000) }).strict(),
+    z.object({ mode: z.literal("fixed"), fixedCents: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER) }).strict(),
+  ]),
 }).strict().refine(
   (input) => new Set(input.enabledMethods).size === input.enabledMethods.length,
   { path: ["enabledMethods"], message: "duplicate_payment_method" },

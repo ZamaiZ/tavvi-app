@@ -335,31 +335,31 @@ Esta seção separa o atendimento da equipe do ciclo financeiro da comanda e reg
 
 ## 9. Direção para Financeiro
 
-Esta seção separa análise financeira de operação do caixa físico e registra o desenho proposto após revisar as telas e os dados do legado. Não inicia implementação.
+Esta seção separa análise financeira de operação do caixa físico e registra o desenho aplicado no refino de novembro de 2026.
 
 ### 9.1 Responsabilidade da página
 
 - Financeiro é painel de análise do restaurante. O resumo deve apresentar, lado a lado e sem misturar conceitos, vendas lançadas no período e valores efetivamente recebidos no período. Estornos devem aparecer identificados, sem serem confundidos com venda negativa.
 - A análise é por intervalo de calendário no fuso horário do restaurante, com o dia atual como padrão, e inclui dados de períodos com caixa aberto ou fechado. Ela não deve depender da existência de um caixa aberto.
 - A aba legada “Receitas sem caixa” não deve permanecer como conceito principal. Vendas e recebimentos entram no resumo geral pela própria data/hora; o dia de caixa é uma dimensão operacional distinta.
-- Configurações do caixa podem ficar em Financeiro, em área secundária própria (por exemplo, `/financeiro/configuracoes`). Não colocar abertura, movimentações, recebimentos ou fechamento do caixa físico dentro do painel analítico.
-- Organização acordada: análise e configurações do caixa em Financeiro; comandas, recebimentos, histórico detalhado dos períodos e operação do caixa físico em Caixa. No relatório, atribuir vendas ao horário de registro do pedido, recebimentos ao horário do pagamento e estornos ao período em que forem realizados; apresentar estornos separados e gorjeta aceita como composição do total recebido, sem somá-la duas vezes.
+- Configurações de pagamento e gorjeta ficam em Financeiro, em área secundária própria. Abertura, movimentações, despesas, conferência e fechamento do caixa físico também ficam numa área operacional de Financeiro, separada do painel analítico.
+- Organização acordada: análise, configurações e operação do caixa físico em Financeiro; comandas, pedidos e recebimentos no fluxo de Caixa. No relatório, atribuir vendas ao horário de registro do pedido, recebimentos ao horário do pagamento e estornos ao período em que forem realizados; apresentar estornos separados e gorjeta aceita como composição do total recebido, sem somá-la duas vezes.
 
-### 9.2 O que existe hoje e por que demora
+### 9.2 O que havia e por que precisava mudar
 
-- A rota de Financeiro carrega `getFinanceDashboard` e `getLegacyFinanceReport` já na renderização inicial. O painel também carrega dia ativo, histórico, contas abertas, contas pendentes, movimentos e fuso horário.
-- Para calcular o dia ativo, `loadDayFigures` busca pagamentos, pedidos, itens, gorjetas e formas de pagamento. Pagamentos são filtrados por data na aplicação; pedidos e itens passam por leituras e lotes adicionais, alguns sequenciais.
-- Abrir um detalhe histórico repete os cálculos do período e consulta movimentos, pendências e contas. Fechar e reabrir o detalhe não conserva o resultado no cliente.
-- Abertura, movimentação e fechamento do caixa retornam o painel financeiro completo. Eventos Realtime também provocam atualização ampla, mesmo quando só uma conta ou uma sessão foi alterada.
-- A tela Caixa carrega contas, pendências, configurações, o painel financeiro, catálogo de pedidos e detalhes da conta selecionada. Atualizações Realtime repetem leituras de listas, configurações, painel e detalhe.
-- Essas consultas e round-trips são causas arquiteturais plausíveis para a lentidão observada no legado; a revisão foi estática e não mediu tempos em execução.
+- Antes do refino, a rota de Financeiro carregava `getFinanceDashboard` e `getLegacyFinanceReport` já na renderização inicial. O painel também carregava dia ativo, histórico, contas abertas, contas pendentes, movimentos e fuso horário.
+- Para calcular o dia ativo, `loadDayFigures` buscava pagamentos, pedidos, itens, gorjetas e formas de pagamento. Pagamentos eram filtrados por data na aplicação; pedidos e itens passavam por leituras e lotes adicionais, alguns sequenciais.
+- Abrir um detalhe histórico repetia os cálculos do período e consultava movimentos, pendências e contas. Fechar e reabrir o detalhe não conservava o resultado no cliente.
+- Abertura, movimentação e fechamento do caixa retornavam o painel financeiro completo. Eventos Realtime também provocavam atualização ampla, mesmo quando só uma conta ou uma sessão era alterada.
+- Antes do refino, a tela Caixa carregava contas, pendências, configurações, painel financeiro, catálogo de pedidos e detalhes da conta selecionada. Atualizações Realtime repetiam leituras de listas, configurações, painel e detalhe.
+- Essas consultas e round-trips eram causas arquiteturais plausíveis para a lentidão observada no legado; a revisão foi estática e não mediu tempos em execução.
 
-### 9.3 Direção técnica para a análise
+### 9.3 Direção técnica aplicada
 
 - Criar um modelo de leitura agregado no Postgres para resumo por restaurante e intervalo, sem transferir grandes listas de pedidos/pagamentos para somar na aplicação. Usar limites de data consistentes com o fuso horário do restaurante e índices adequados às consultas.
 - Separar o resumo Financeiro do estado operacional necessário ao Caixa. O Caixa deve buscar apenas o status da sessão aberta e os dados necessários à ação atual; não deve carregar o relatório de Financeiro.
 - Detalhes históricos permanecem sob demanda e paginados. No cliente, conservar o detalhe consultado durante a sessão e invalidá-lo quando houver alteração relevante, evitando refetch ao recolher/abrir o mesmo período.
-- Realtime atualiza apenas entidades afetadas, com ressincronização ao reconectar/retornar à aba. Evitar invalidar o relatório inteiro a cada evento de conta.
+- Eventos Realtime e retorno à aba atualizam a lista resumida, a sessão aberta e as configurações de pagamento do Caixa. O Financeiro não depende dessa inscrição; detalhes completos de comandas são descartados quando o resumo atualizado muda.
 - Não compartilhar cache de dados financeiros entre restaurantes ou usuários. A análise deve permanecer autenticada e respeitar RLS/associação ao restaurante; qualquer cache de leitura precisa ser segmentado por contexto e invalidado após gravação.
 - A gorjeta aceita integra o total recebido; pode ser mostrada como composição/subindicador sem ser somada novamente ao total.
 
@@ -372,11 +372,11 @@ Esta seção separa análise financeira de operação do caixa físico e registr
 - Financeiro apresenta despesas tanto por categoria quanto por forma de pagamento, separadas de reforços e retiradas.
 - O resumo por período apresenta sessões encerradas pela data operacional de abertura, com valores esperados/contados e diferenças acumuladas; sessões abertas aparecem pendentes de fechamento.
 - PIX é um meio configurável junto dos meios padrão. Meios personalizados podem ser cadastrados com natureza em espécie ou eletrônica e mantêm o rótulo histórico após desativação.
-- Financeiro é a página inicial do restaurante ativo no Painel; a operação de abertura, movimentações, pagamentos e fechamento permanece em Caixa.
+- Financeiro é a página inicial do restaurante ativo no Painel. A abertura, os reforços, as retiradas, as despesas, a conferência e o fechamento da sessão física pertencem ao Financeiro; Caixa concentra pedidos, comandas e recebimentos.
 
 ## 10. Direção para Caixa e integração com Financeiro
 
-Caixa concentra a operação das comandas e do caixa físico. Pedido vindo de chamado e pedido lançado diretamente no Caixa convergem para a mesma comanda, os mesmos totais e as mesmas operações de recebimento.
+Caixa concentra pedidos, comandas, encerramento de consumo e recebimentos. O Financeiro concentra análise, configurações e operação do caixa físico. Pedido vindo de chamado e pedido lançado diretamente no Caixa convergem para a mesma comanda, os mesmos totais e as mesmas operações de recebimento.
 
 ### 10.1 Comandas e pedidos
 
@@ -392,7 +392,7 @@ Caixa concentra a operação das comandas e do caixa físico. Pedido vindo de ch
 - **Recebimentos:** histórico imutável de pagamentos/estornos e registro de pagamentos integrais ou parciais, inclusive combinando meios. Pagamento em dinheiro registra valor aplicado, valor entregue e troco. O sistema registra o pagamento escolhido; não processa a transação na maquininha/provedor.
 - **Correções:** cancelar item com motivo; estornar total ou parte de um recebimento, vinculado ao pagamento original e com motivo. Não permitir que cancelamento de item deixe pagamentos líquidos acima do subtotal restante; efetuar o estorno necessário antes do cancelamento. Estorno de conta encerrada reabre a liquidação para recompor o saldo.
 - **Finalização:** encerrar o consumo bloqueia novos pedidos. Se houver saldo, a conta passa para liquidação; o pagamento do saldo restante encerra a comanda. Saldo zero, sozinho, não encerra uma conta que ainda pode receber pedidos.
-- Recebimentos exigem uma sessão de caixa aberta. O Caixa deve explicar e oferecer abertura da sessão no próprio fluxo, sem encaminhar a pessoa à análise Financeira.
+- Recebimentos exigem uma sessão de caixa aberta. Quando não houver sessão, o Caixa informa isso e encaminha para `Financeiro > Movimentações de caixa`; não carrega os controles físicos junto às comandas.
 - Operações financeiras e correções mantêm transações atômicas, lock da comanda quando necessário, idempotência por `request_id`, justificativas e trilha de auditoria. Uma falha de rede não deve duplicar pedido, pagamento, estorno ou gorjeta.
 
 ### 10.3 Gorjeta: decisão única e opcional por comanda
@@ -408,11 +408,11 @@ Caixa concentra a operação das comandas e do caixa físico. Pedido vindo de ch
 
 ### 10.4 Operação do caixa físico
 
-- Caixa permite abrir sessão com valor total ou contagem de notas/moedas; registrar reforço e sangria com valor e motivo; consultar o dinheiro esperado e fechar por contagem ou valor total.
+- Financeiro permite abrir sessão com valor total ou contagem de notas/moedas; registrar reforço e sangria com valor e motivo; consultar o dinheiro esperado e fechar por contagem ou valor total. Caixa mostra apenas o estado resumido da sessão e leva aos controles no Financeiro.
 - Se a diferença entre valor esperado e contado for diferente de zero, exigir justificativa e registrá-la na sessão.
 - Fechamento normal é bloqueado enquanto houver comandas em consumo ou liquidação. Fechamento excepcional exige justificativa e confirmação explícita, sem restrição por papel da equipe.
 - No fechamento excepcional, transportar o saldo devido para uma comanda pendente que não ocupa a mesa, bloquear novos pedidos nela e permitir recebimento na próxima sessão aberta. Chamados seguem seu próprio ciclo normal; não criar pagamento separado nem resolver um chamado só porque o caixa fechou.
-- Histórico e detalhe da sessão são registros operacionais e permanecem imutáveis após o fechamento. Financeiro pode apresentar agregados por período sem duplicar os comandos de operação.
+- Histórico e detalhe da sessão são registros operacionais e permanecem imutáveis após o fechamento. A visão inicial do Financeiro mostra agregados por período; movimentos e controles da sessão ficam numa área carregada quando solicitada.
 
 ### 10.5 Configurações e acesso
 
@@ -422,9 +422,9 @@ Caixa concentra a operação das comandas e do caixa físico. Pedido vindo de ch
 
 ### 10.6 Direção de carregamento
 
-- A entrada de Caixa deve carregar lista resumida de comandas, sessão aberta e configurações necessárias; buscar detalhes completos apenas da comanda selecionada. Carregar o catálogo quando o fluxo de pedido for aberto ou reutilizar cache versionado por restaurante.
+- A entrada de Caixa deve carregar lista resumida de comandas, o estado da sessão e as configurações necessárias; buscar detalhes completos apenas da comanda selecionada. Carregar o catálogo quando o fluxo de pedido for aberto ou reutilizar cache versionado por restaurante. Movimentos e controles da sessão são carregados no Financeiro quando a pessoa abre a área do caixa físico.
 - Resumos de conta devem vir de agregações no banco, não da leitura de todos os pedidos, itens e pagamentos de todas as comandas ativas. Eventos de auditoria carregam sob demanda.
-- Depois de uma mutação, atualizar o DTO da comanda/sessão afetada e invalidar apenas esse recurso. Evitar reler lista, Financeiro, configurações e detalhes completos após cada operação.
+- Depois de uma mutação, atualizar o resumo compacto, a sessão e as configurações necessárias ao recebimento. Não carregar catálogo, históricos completos, detalhes de todas as comandas ou o relatório de Financeiro nessa atualização.
 
 ## 11. Direção para Feedbacks
 
@@ -583,7 +583,7 @@ Nada abaixo foi feito nesta fase; são itens para um plano posterior:
 21. **[Resolvida] Papéis limitam acesso às páginas e ações do Painel?** Não nesta fase. Todos os membros do restaurante têm o mesmo acesso por funcionalidade; a associação autenticada ao restaurante continua obrigatória. Em chamados, qualquer membro pode assumir ou receber transferência; somente a pessoa responsável pode lançar pedidos/concluir até transferir.
 22. **[Resolvida] Como ficam Web Push, Express e PWA?** Web Push e o worker Express saem. Notificações internas/Realtime permanecem para todos os membros ativos; som opt-in é local ao navegador. A PWA e seu service worker continuam para instalação e comportamento offline, sem listeners nem inscrição de Push.
 23. **[Resolvida] Qual é a responsabilidade de Financeiro?** Análise por intervalo de vendas lançadas e valores recebidos, mostrados separadamente. O padrão é o dia atual no fuso horário do restaurante; a análise inclui períodos de caixa abertos e fechados.
-24. **[Resolvida] Onde ficam as configurações do caixa e as operações?** Configurações podem ficar em área própria de Financeiro. Abertura, movimentações, recebimentos, correções, fechamento e sessão pertencem a Caixa.
+24. **[Resolvida] Onde ficam as configurações do caixa e as operações?** Configurações, abertura, movimentações, conferência e fechamento da sessão física pertencem ao Financeiro. Recebimentos e correções da comanda permanecem em Caixa.
 25. **[Resolvida] Como tratar a gorjeta?** Decisão opcional e única por comanda; cliente pode aceitar ou recusar. Normalmente decide ao encerrar o consumo; se uma comanda for transportada sem decisão, decide junto ao primeiro recebimento posterior. Gorjeta aceita integra o total e usa os meios comuns de pagamento.
 26. **[Resolvida] Como tratar o fechamento excepcional com saldo aberto?** Transportar o saldo para uma comanda pendente sem novos pedidos, disponível para recebimento na próxima sessão. Chamados mantêm o próprio ciclo e não são encerrados pelo fechamento do caixa. Gorjeta já decidida é preservada; se não decidida, fica para o recebimento posterior.
 27. **[Resolvida] Como tratar mídia nos itens?** Mídia é obrigatória em todo item publicável/encomendável, independentemente do formato. Manter fotos e vídeos curtos, seguindo o padrão do legado. Feedback aceita até três fotos/vídeos combinados, com validação server/database dos limites declarados e upload privado direto do navegador.

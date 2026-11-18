@@ -3,6 +3,7 @@ import "server-only"
 import { z } from "zod"
 
 import { financeDateRangeSchema } from "@/features/panel/finance/schema"
+import type { PanelFinanceOverviewDTO } from "@/features/panel/finance/model"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
 const cents = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
@@ -32,6 +33,43 @@ const responseSchema = z.discriminatedUnion("ok", [
   }),
   z.object({ ok: z.literal(false), code: z.string() }),
 ])
+const overviewResponseSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    from: z.string().date(),
+    to: z.string().date(),
+    timeZone: z.string().min(1).max(100),
+    salesCents: cents,
+    receivedCents: cents,
+    cashReceivedCents: cents,
+    tipsReceivedCents: cents,
+    expensesCents: cents,
+    pendingCents: cents,
+    daily: z.array(z.object({ day: z.string().date(), salesCents: cents, receivedCents: cents })),
+  }),
+  z.object({ ok: z.literal(false), code: z.string() }),
+])
+
+export async function getPanelFinanceOverview(restaurantId: string, input: { from: string; to: string }): Promise<PanelFinanceOverviewDTO> {
+  const range = financeDateRangeSchema.safeParse(input)
+  if (!range.success) throw new Error("panel_finance_date_range_invalid")
+  const supabase = await createSupabaseServerClient("panel")
+  const { data, error } = await supabase.rpc("get_panel_finance_overview", {
+    p_restaurant_id: restaurantId,
+    p_from: range.data.from,
+    p_to: range.data.to,
+  })
+  if (error) {
+    console.error("[panel-finance]", JSON.stringify({ stage: "overview_read", code: error.code }))
+    throw new Error("panel_finance_overview_unavailable")
+  }
+  const parsed = overviewResponseSchema.safeParse(data)
+  if (!parsed.success || !parsed.data.ok) {
+    console.error("[panel-finance]", JSON.stringify({ stage: "overview_response_invalid" }))
+    throw new Error("panel_finance_overview_unavailable")
+  }
+  return parsed.data
+}
 
 export async function getPanelFinanceDashboard(restaurantId: string, input: { from: string; to: string }) {
   const range = financeDateRangeSchema.safeParse(input)

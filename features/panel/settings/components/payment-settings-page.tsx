@@ -7,6 +7,7 @@ import {
   LuBanknote,
   LuCreditCard,
   LuHandshake,
+  LuHandCoins,
   LuLoaderCircle,
   LuPlus,
   LuQrCode,
@@ -19,12 +20,19 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import { PANEL_PAYMENT_METHODS, type PanelCustomPaymentMethodDTO, type PanelPaymentMethod, type PaymentMethodKind } from "@/features/panel/payments/model"
+import { PANEL_PAYMENT_METHODS, type PanelCustomPaymentMethodDTO, type PanelPaymentMethod, type PanelTipPolicy, type PaymentMethodKind } from "@/features/panel/payments/model"
 import { updatePanelPaymentMethodsAction } from "@/features/panel/settings/actions"
 
 const EASE = [0.23, 1, 0.32, 1] as const
 
 type CustomMethodDraft = Omit<PanelCustomPaymentMethodDTO, "id"> & { id: string | null }
+
+function parseTipAmountCents(value: string): number | null {
+  const match = /^(\d+)(?:\.(\d{0,2}))?$/.exec(value.trim())
+  if (!match || match[1].length > 16) return null
+  const cents = BigInt(match[1]) * BigInt(100) + BigInt((match[2] ?? "").padEnd(2, "0") || "0")
+  return cents <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(cents) : null
+}
 
 const methodIcons = {
   cash: LuBanknote,
@@ -50,10 +58,12 @@ export function PaymentSettingsPage({
   expectedRestaurantId,
   initialEnabledMethods,
   initialCustomMethods,
+  initialTipPolicy,
 }: {
   expectedRestaurantId: string
   initialEnabledMethods: PanelPaymentMethod[]
   initialCustomMethods: PanelCustomPaymentMethodDTO[]
+  initialTipPolicy: PanelTipPolicy
 }) {
   const router = useRouter()
   const reducedMotion = useReducedMotion() === true
@@ -61,16 +71,33 @@ export function PaymentSettingsPage({
   const [savedMethods, setSavedMethods] = useState<PanelPaymentMethod[]>(initialEnabledMethods)
   const [customMethods, setCustomMethods] = useState<CustomMethodDraft[]>(initialCustomMethods)
   const [savedCustomMethods, setSavedCustomMethods] = useState<PanelCustomPaymentMethodDTO[]>(initialCustomMethods)
+  const [tipMode, setTipMode] = useState<PanelTipPolicy["mode"]>(initialTipPolicy.mode)
+  const [tipPercentage, setTipPercentage] = useState(initialTipPolicy.mode === "percentage" ? String(initialTipPolicy.percentageBps / 100) : "10")
+  const [tipFixedAmount, setTipFixedAmount] = useState(initialTipPolicy.mode === "fixed" ? (initialTipPolicy.fixedCents / 100).toFixed(2) : "")
+  const [savedTipPolicy, setSavedTipPolicy] = useState<PanelTipPolicy>(initialTipPolicy)
   const [newLabel, setNewLabel] = useState("")
   const [newKind, setNewKind] = useState<PaymentMethodKind>("electronic")
   const [message, setMessage] = useState("")
   const [messageKind, setMessageKind] = useState<"success" | "error">("success")
   const [pending, startTransition] = useTransition()
 
+  const parsedTipAmountCents = parseTipAmountCents(tipMode === "percentage" ? tipPercentage : tipFixedAmount)
+  const tipPolicyDraft: PanelTipPolicy | null = tipMode === "disabled"
+    ? { mode: "disabled" }
+    : tipMode === "percentage"
+      ? parsedTipAmountCents !== null && parsedTipAmountCents >= 1 && parsedTipAmountCents <= 10000
+        ? { mode: "percentage", percentageBps: parsedTipAmountCents }
+        : null
+      : parsedTipAmountCents !== null && parsedTipAmountCents >= 1
+        ? { mode: "fixed", fixedCents: parsedTipAmountCents }
+        : null
+  const tipPolicyValid = tipPolicyDraft !== null
   const dirty = useMemo(
     () => JSON.stringify(enabledMethods) !== JSON.stringify(savedMethods)
-      || JSON.stringify(customMethods) !== JSON.stringify(savedCustomMethods),
-    [enabledMethods, savedMethods, customMethods, savedCustomMethods],
+      || JSON.stringify(customMethods) !== JSON.stringify(savedCustomMethods)
+      || tipPolicyDraft === null
+      || JSON.stringify(tipPolicyDraft) !== JSON.stringify(savedTipPolicy),
+    [enabledMethods, savedMethods, customMethods, savedCustomMethods, tipPolicyDraft, savedTipPolicy],
   )
   const noMethodsEnabled = enabledMethods.length === 0 && !customMethods.some((method) => method.isActive)
 
@@ -114,7 +141,7 @@ export function PaymentSettingsPage({
   }
 
   function save() {
-    if (!dirty || noMethodsEnabled || pending) return
+    if (!dirty || !tipPolicyDraft || noMethodsEnabled || pending) return
     setMessage("")
     startTransition(async () => {
       try {
@@ -122,6 +149,7 @@ export function PaymentSettingsPage({
           expectedRestaurantId,
           enabledMethods,
           customMethods,
+          tipPolicy: tipPolicyDraft,
         })
         if (!result.ok) {
           const messages: Record<string, string> = {
@@ -141,8 +169,12 @@ export function PaymentSettingsPage({
         setSavedMethods(result.enabledMethods)
         setCustomMethods(result.customMethods)
         setSavedCustomMethods(result.customMethods)
+        setSavedTipPolicy(result.tipPolicy)
+        setTipMode(result.tipPolicy.mode)
+        if (result.tipPolicy.mode === "percentage") setTipPercentage(String(result.tipPolicy.percentageBps / 100))
+        if (result.tipPolicy.mode === "fixed") setTipFixedAmount((result.tipPolicy.fixedCents / 100).toFixed(2))
         setMessageKind("success")
-        setMessage("Formas de pagamento salvas.")
+        setMessage("Configurações financeiras salvas.")
         router.refresh()
       } catch {
         setMessageKind("error")
@@ -168,6 +200,36 @@ export function PaymentSettingsPage({
                 <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Escolha quais opções a equipe poderá registrar no Caixa. Os lançamentos são manuais; o Tavvi não processa nem confirma pagamentos.</p>
               </div>
             </div>
+          </motion.section>
+
+          <motion.section variants={item} className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+            <div className="flex items-start gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><LuHandCoins aria-hidden="true" className="size-5" /></span>
+              <div>
+                <h2 className="text-sm font-semibold tracking-tight">Gorjeta sugerida</h2>
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">A configuração define apenas a sugestão apresentada ao encerrar o consumo. A gorjeta é opcional e só entra na comanda quando o cliente aceita.</p>
+              </div>
+            </div>
+            <div role="group" aria-label="Modalidade de gorjeta" className="grid gap-2 sm:grid-cols-3">
+              {([
+                ["disabled", "Desabilitada", "Não sugerir gorjeta"],
+                ["percentage", "Percentual", "Parte do consumo"],
+                ["fixed", "Valor fixo", "Mesmo valor por comanda"],
+              ] as const).map(([mode, label, description]) => (
+                <Button key={mode} type="button" variant={tipMode === mode ? "default" : "outline"} aria-pressed={tipMode === mode} disabled={pending} onClick={() => { setTipMode(mode); setMessage("") }} className="h-auto min-h-14 justify-start rounded-xl px-3 py-2.5 text-left">
+                  <span><span className="block text-xs font-semibold">{label}</span><span className={`mt-0.5 block text-[0.65rem] font-normal ${tipMode === mode ? "text-primary-foreground/75" : "text-muted-foreground"}`}>{description}</span></span>
+                </Button>
+              ))}
+            </div>
+            {tipMode === "percentage" ? <label className="grid max-w-xs gap-1.5 text-xs font-medium text-muted-foreground">Percentual sugerido (%)
+              <Input type="number" inputMode="decimal" min="0.01" max="100" step="0.01" value={tipPercentage} disabled={pending} onChange={(event) => { setTipPercentage(event.target.value); setMessage("") }} aria-invalid={!tipPolicyValid} className="h-10 rounded-xl bg-background text-sm text-foreground" />
+              <span className="text-[0.68rem] font-normal leading-5">Calculado sobre o consumo no encerramento. O cliente pode aceitar ou recusar.</span>
+            </label> : null}
+            {tipMode === "fixed" ? <label className="grid max-w-xs gap-1.5 text-xs font-medium text-muted-foreground">Valor sugerido (R$)
+              <Input type="number" inputMode="decimal" min="0.01" step="0.01" value={tipFixedAmount} disabled={pending} onChange={(event) => { setTipFixedAmount(event.target.value); setMessage("") }} aria-invalid={!tipPolicyValid} className="h-10 rounded-xl bg-background text-sm text-foreground" />
+              <span className="text-[0.68rem] font-normal leading-5">O valor fica registrado separado do consumo e só é cobrado com aceite.</span>
+            </label> : null}
+            {!tipPolicyValid ? <p role="alert" className="text-xs text-destructive">{tipMode === "percentage" ? "Informe um percentual entre 0,01% e 100%." : "Informe um valor fixo maior que zero."}</p> : null}
           </motion.section>
 
           <motion.div variants={item} className="grid gap-3 sm:grid-cols-2">
@@ -236,7 +298,7 @@ export function PaymentSettingsPage({
 
           <motion.div variants={item} className="flex flex-col-reverse gap-2 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground">Meios usados continuam identificados nos lançamentos anteriores, mesmo quando desativados.</p>
-            <Button type="button" onClick={save} disabled={!dirty || noMethodsEnabled || pending} className="min-h-11 rounded-xl px-4">
+            <Button type="button" onClick={save} disabled={!dirty || !tipPolicyValid || noMethodsEnabled || pending} className="min-h-11 rounded-xl px-4">
               {pending ? <LuLoaderCircle aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> : <LuSave aria-hidden="true" className="size-4" />}
               {pending ? "Salvando opções" : "Salvar opções"}
             </Button>

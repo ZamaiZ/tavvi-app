@@ -1,11 +1,17 @@
 import type { Metadata } from "next"
 import { headers } from "next/headers"
-import { LuWalletCards } from "react-icons/lu"
+import { LuArrowLeft, LuWalletCards } from "react-icons/lu"
+import Link from "next/link"
 
-import { FinanceDashboard } from "@/features/panel/finance/components/finance-dashboard"
+import { Button } from "@/components/ui/button"
+import { CashSessionPanel } from "@/features/panel/cash/components/cash-session-panel"
+import { getPanelCashState } from "@/features/panel/cash/server/read"
+import { FinanceOverviewDashboard } from "@/features/panel/finance/components/finance-overview-dashboard"
 import { financeDateRangeSchema } from "@/features/panel/finance/schema"
-import { getPanelFinanceDashboard } from "@/features/panel/finance/server/read"
+import { getPanelFinanceOverview } from "@/features/panel/finance/server/read"
 import { getPanelPublicBasePath } from "@/features/panel/auth/navigation"
+import { getPanelPaymentOptions } from "@/features/panel/payments/model"
+import { getPanelPaymentMethods } from "@/features/panel/settings/server/read"
 import { PanelPageHeading } from "@/features/panel/workspace/components/panel-page-heading"
 import { getActivePanelRestaurant } from "@/features/panel/workspace/server/restaurants"
 import { getRequestHostname } from "@/lib/routing/host"
@@ -40,17 +46,29 @@ export default async function PanelFinancePage({ searchParams }: FinancePageProp
   if (!restaurant || restaurant.status !== "active") throw new Error("panel_restaurant_not_found")
 
   const today = localToday()
+  const base = getPanelPublicBasePath(getRequestHostname(requestHeaders))
+  const cashView = firstParam(params.view) === "cash"
+  if (cashView) {
+    const [cashState, paymentConfiguration] = await Promise.all([
+      getPanelCashState(restaurant.id),
+      getPanelPaymentMethods(restaurant.id),
+    ])
+    return <div className="min-h-svh">
+      <header className="mx-auto flex w-full max-w-[1320px] items-center justify-between gap-3 px-4 py-7 sm:px-6 md:py-5 lg:px-8">
+        <PanelPageHeading title="Movimentações de caixa" icon={<LuWalletCards aria-hidden="true" className="size-4" />} />
+        <Button render={<Link href={`${base}/financeiro`} />} variant="outline" className="min-h-10 rounded-xl"><LuArrowLeft aria-hidden="true" />Resumo financeiro</Button>
+      </header>
+      <CashSessionPanel initialState={cashState} restaurantId={restaurant.id} paymentMethods={getPanelPaymentOptions(paymentConfiguration)} />
+    </div>
+  }
   const requestedRange = financeDateRangeSchema.safeParse({ from: firstParam(params.from), to: firstParam(params.to) })
   const range = requestedRange.success ? requestedRange.data : { from: today, to: today }
-  const [data, base] = await Promise.all([
-    getPanelFinanceDashboard(restaurant.id, range),
-    Promise.resolve(getPanelPublicBasePath(getRequestHostname(requestHeaders))),
-  ])
+  const data = await getPanelFinanceOverview(restaurant.id, range)
 
   return <div className="min-h-svh">
     <header className="mx-auto flex w-full max-w-[1320px] items-center justify-between gap-3 px-4 py-7 sm:px-6 md:py-5 lg:px-8">
       <PanelPageHeading title="Financeiro" icon={<LuWalletCards aria-hidden="true" className="size-4" />} />
     </header>
-    <FinanceDashboard data={data} today={today} settingsHref={`${base}/financeiro/configuracoes`} />
+    <FinanceOverviewDashboard data={data} today={today} settingsHref={`${base}/financeiro/configuracoes`} cashHref={`${base}/financeiro?view=cash`} restaurantId={restaurant.id} />
   </div>
 }

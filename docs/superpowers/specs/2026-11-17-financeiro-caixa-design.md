@@ -1,6 +1,6 @@
 # Financeiro e Caixa Diário
 
-> Status: escopo confirmado implementado; gorjetas, estornos e correções de consumo permanecem como direção separada da seção 10 de `__BASE.MD`.
+> Status: especificação histórica da primeira implementação. As responsabilidades visuais e operacionais, o carregamento sob demanda e a gorjeta foram refinados pela especificação `2026-11-17-caixa-financeiro-refino-design.md`; as decisões atuais da seção 10 de `__BASE.MD` prevalecem nos pontos em conflito.
 
 ## Objetivo
 

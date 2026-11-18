@@ -22,6 +22,7 @@ export default async function PanelFinanceSettingsPage() {
         expectedRestaurantId={restaurant.id}
         initialEnabledMethods={configuration.enabledMethods}
         initialCustomMethods={configuration.customMethods}
+        initialTipPolicy={configuration.tipPolicy}
       />
     </div>
   )

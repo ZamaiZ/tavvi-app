@@ -7,8 +7,16 @@ import { createSupabaseServerClient } from "@/lib/supabase/server"
 
 const paymentMethodsResponseSchema = z.object({
   enabled_payment_methods: z.array(z.enum(PANEL_PAYMENT_METHOD_VALUES)).max(PANEL_PAYMENT_METHOD_VALUES.length),
+  tip_mode: z.enum(["disabled", "percentage", "fixed"]),
+  tip_percentage_bps: z.number().int().positive().max(10000).nullable(),
+  tip_fixed_cents: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable(),
 }).refine(
-  (response) => new Set(response.enabled_payment_methods).size === response.enabled_payment_methods.length,
+  (response) => new Set(response.enabled_payment_methods).size === response.enabled_payment_methods.length
+    && (response.tip_mode === "disabled"
+      ? response.tip_percentage_bps === null && response.tip_fixed_cents === null
+      : response.tip_mode === "percentage"
+        ? response.tip_percentage_bps !== null && response.tip_fixed_cents === null
+        : response.tip_percentage_bps === null && response.tip_fixed_cents !== null),
 )
 
 const customPaymentMethodResponseSchema = z.object({
@@ -23,7 +31,7 @@ export async function getPanelPaymentMethods(restaurantId: string): Promise<Pane
   const [{ data, error }, customResult] = await Promise.all([
     supabase
     .from("restaurants")
-    .select("enabled_payment_methods")
+    .select("enabled_payment_methods, tip_mode, tip_percentage_bps, tip_fixed_cents")
     .eq("id", restaurantId)
     .maybeSingle(),
     supabase
@@ -51,6 +59,11 @@ export async function getPanelPaymentMethods(restaurantId: string): Promise<Pane
   }
   return {
     enabledMethods: parsed.data.enabled_payment_methods,
+    tipPolicy: parsed.data.tip_mode === "percentage"
+      ? { mode: "percentage", percentageBps: parsed.data.tip_percentage_bps as number }
+      : parsed.data.tip_mode === "fixed"
+        ? { mode: "fixed", fixedCents: parsed.data.tip_fixed_cents as number }
+        : { mode: "disabled" },
     customMethods: customMethods.data.map((method) => ({
       id: method.id,
       label: method.label,
